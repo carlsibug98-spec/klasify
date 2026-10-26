@@ -1,0 +1,2586 @@
+{
+ "r3_alternating_slot.png": [
+  {
+   "text": "WEEKLY SCHEDULE - ODD/EVEN ALTERNATION",
+   "left": 261,
+   "top": 33,
+   "right": 977,
+   "bottom": 56,
+   "conf": 0.94
+  },
+  {
+   "text": "Computer Room History Mon / Literacy 5",
+   "left": 135,
+   "top": 91,
+   "right": 329,
+   "bottom": 426,
+   "conf": 0.949
+  },
+  {
+   "text": "Computer Mathematics Geography Economics Chemistry Main Studio History Music Tue Lab Lab PE / / / / Hall Literacy 3 3 1",
+   "left": 359,
+   "top": 91,
+   "right": 553,
+   "bottom": 876,
+   "conf": 0.93
+  },
+  {
+   "text": "Economics Geometry Room Biology Wed Music Lab / / 3 5",
+   "left": 626,
+   "top": 90,
+   "right": 735,
+   "bottom": 426,
+   "conf": 0.928
+  },
+  {
+   "text": "Computer Mathematics Geography Economics Chemistry Main Studio NetLab NetLab History Thu Music PE / / / / Hall Literacy 1",
+   "left": 807,
+   "top": 90,
+   "right": 1001,
+   "bottom": 726,
+   "conf": 0.938
+  },
+  {
+   "text": "Computer Economics Geometry Room Biology History NetLab Music Lab Fri / / / Literacy 3 2",
+   "left": 1031,
+   "top": 90,
+   "right": 1225,
+   "bottom": 876,
+   "conf": 0.939
+  },
+  {
+   "text": "8:00",
+   "left": 17,
+   "top": 207,
+   "right": 62,
+   "bottom": 222,
+   "conf": 0.964
+  },
+  {
+   "text": "9:00",
+   "left": 17,
+   "top": 357,
+   "right": 62,
+   "bottom": 372,
+   "conf": 0.958
+  },
+  {
+   "text": "10:00",
+   "left": 18,
+   "top": 507,
+   "right": 75,
+   "bottom": 522,
+   "conf": 0.965
+  },
+  {
+   "text": "11:00",
+   "left": 18,
+   "top": 657,
+   "right": 75,
+   "bottom": 672,
+   "conf": 0.962
+  },
+  {
+   "text": "12:00",
+   "left": 18,
+   "top": 807,
+   "right": 75,
+   "bottom": 822,
+   "conf": 0.96
+  }
+ ],
+ "r3_am_pm_noon.png": [
+  {
+   "text": "SECOND SEMESTER SCHEDULE",
+   "left": 344,
+   "top": 27,
+   "right": 856,
+   "bottom": 49,
+   "conf": 0.962
+  },
+  {
+   "text": "Tuesday Tuesday Monday Monday Monday",
+   "left": 50,
+   "top": 100,
+   "right": 159,
+   "bottom": 355,
+   "conf": 0.965
+  },
+  {
+   "text": "9:00 AM - 10:30 AM",
+   "left": 212,
+   "top": 100,
+   "right": 444,
+   "bottom": 118,
+   "conf": 0.953
+  },
+  {
+   "text": "Academic Ethics Microeconomics Physics Databases in Lab Tech Writing",
+   "left": 480,
+   "top": 100,
+   "right": 688,
+   "bottom": 350,
+   "conf": 0.966
+  },
+  {
+   "text": "Room 2",
+   "left": 782,
+   "top": 100,
+   "right": 869,
+   "bottom": 118,
+   "conf": 0.961
+  },
+  {
+   "text": "Prof.",
+   "left": 942,
+   "top": 100,
+   "right": 990,
+   "bottom": 118,
+   "conf": 0.966
+  },
+  {
+   "text": "T. B. L. R. Lim Santos DeJesus Mallari",
+   "left": 1000,
+   "top": 100,
+   "right": 1125,
+   "bottom": 292,
+   "conf": 0.925
+  },
+  {
+   "text": "11:30 AM - 12:30 PM",
+   "left": 213,
+   "top": 158,
+   "right": 457,
+   "bottom": 176,
+   "conf": 0.944
+  },
+  {
+   "text": "Room 2",
+   "left": 782,
+   "top": 158,
+   "right": 869,
+   "bottom": 176,
+   "conf": 0.961
+  },
+  {
+   "text": "Prof.",
+   "left": 942,
+   "top": 158,
+   "right": 990,
+   "bottom": 176,
+   "conf": 0.966
+  },
+  {
+   "text": "1:00 PM - 2:30 PM",
+   "left": 213,
+   "top": 216,
+   "right": 425,
+   "bottom": 234,
+   "conf": 0.942
+  },
+  {
+   "text": "Room 2",
+   "left": 782,
+   "top": 216,
+   "right": 869,
+   "bottom": 234,
+   "conf": 0.961
+  },
+  {
+   "text": "Prof.",
+   "left": 942,
+   "top": 216,
+   "right": 990,
+   "bottom": 234,
+   "conf": 0.966
+  },
+  {
+   "text": "10:00 AM - 11:30 AM",
+   "left": 213,
+   "top": 274,
+   "right": 459,
+   "bottom": 292,
+   "conf": 0.949
+  },
+  {
+   "text": "Lab 3",
+   "left": 782,
+   "top": 274,
+   "right": 844,
+   "bottom": 292,
+   "conf": 0.967
+  },
+  {
+   "text": "Prof.",
+   "left": 942,
+   "top": 274,
+   "right": 990,
+   "bottom": 292,
+   "conf": 0.966
+  },
+  {
+   "text": "12:00 PM - 1:30 PM",
+   "left": 213,
+   "top": 332,
+   "right": 440,
+   "bottom": 350,
+   "conf": 0.953
+  },
+  {
+   "text": "Room 5",
+   "left": 782,
+   "top": 332,
+   "right": 869,
+   "bottom": 350,
+   "conf": 0.964
+  },
+  {
+   "text": "Prof.",
+   "left": 942,
+   "top": 332,
+   "right": 990,
+   "bottom": 350,
+   "conf": 0.966
+  },
+  {
+   "text": "M. K. Cruz Panlaqui",
+   "left": 1002,
+   "top": 332,
+   "right": 1135,
+   "bottom": 408,
+   "conf": 0.916
+  },
+  {
+   "text": "Tuesday",
+   "left": 50,
+   "top": 390,
+   "right": 159,
+   "bottom": 413,
+   "conf": 0.962
+  },
+  {
+   "text": "2:00 PM - 3:30 PM",
+   "left": 212,
+   "top": 390,
+   "right": 425,
+   "bottom": 408,
+   "conf": 0.95
+  },
+  {
+   "text": "Organic Calculus Linear Algebra Chemistry II",
+   "left": 481,
+   "top": 390,
+   "right": 703,
+   "bottom": 524,
+   "conf": 0.935
+  },
+  {
+   "text": "Lab 3",
+   "left": 782,
+   "top": 390,
+   "right": 844,
+   "bottom": 408,
+   "conf": 0.967
+  },
+  {
+   "text": "Prof.",
+   "left": 942,
+   "top": 390,
+   "right": 990,
+   "bottom": 408,
+   "conf": 0.966
+  },
+  {
+   "text": "Wednesday 8:30 AM - 10:00 AM",
+   "left": 51,
+   "top": 448,
+   "right": 444,
+   "bottom": 471,
+   "conf": 0.951
+  },
+  {
+   "text": "NetLab",
+   "left": 782,
+   "top": 448,
+   "right": 864,
+   "bottom": 466,
+   "conf": 0.927
+  },
+  {
+   "text": "Prof.",
+   "left": 942,
+   "top": 448,
+   "right": 990,
+   "bottom": 466,
+   "conf": 0.966
+  },
+  {
+   "text": "A. Reyes",
+   "left": 1000,
+   "top": 448,
+   "right": 1102,
+   "bottom": 471,
+   "conf": 0.957
+  },
+  {
+   "text": "Wednesday 11:00 AM - 12:00 PM",
+   "left": 51,
+   "top": 506,
+   "right": 457,
+   "bottom": 529,
+   "conf": 0.952
+  },
+  {
+   "text": "NetLab",
+   "left": 782,
+   "top": 506,
+   "right": 864,
+   "bottom": 524,
+   "conf": 0.927
+  },
+  {
+   "text": "Prof.",
+   "left": 942,
+   "top": 506,
+   "right": 990,
+   "bottom": 524,
+   "conf": 0.966
+  },
+  {
+   "text": "R. DeJesus",
+   "left": 1002,
+   "top": 506,
+   "right": 1125,
+   "bottom": 529,
+   "conf": 0.936
+  },
+  {
+   "text": "Thursday Thursday Friday",
+   "left": 50,
+   "top": 564,
+   "right": 174,
+   "bottom": 703,
+   "conf": 0.964
+  },
+  {
+   "text": "1:30 PM - 3:00 PM",
+   "left": 213,
+   "top": 564,
+   "right": 425,
+   "bottom": 582,
+   "conf": 0.951
+  },
+  {
+   "text": "Art Computer Data History Structures Networks",
+   "left": 480,
+   "top": 564,
+   "right": 718,
+   "bottom": 703,
+   "conf": 0.961
+  },
+  {
+   "text": "NetLab",
+   "left": 782,
+   "top": 564,
+   "right": 864,
+   "bottom": 582,
+   "conf": 0.927
+  },
+  {
+   "text": "Prof.",
+   "left": 942,
+   "top": 564,
+   "right": 990,
+   "bottom": 582,
+   "conf": 0.966
+  },
+  {
+   "text": "T. Lim",
+   "left": 1000,
+   "top": 564,
+   "right": 1068,
+   "bottom": 582,
+   "conf": 0.936
+  },
+  {
+   "text": "3:30 PM - 5:00 PM",
+   "left": 212,
+   "top": 622,
+   "right": 425,
+   "bottom": 640,
+   "conf": 0.941
+  },
+  {
+   "text": "Room 12",
+   "left": 782,
+   "top": 622,
+   "right": 884,
+   "bottom": 640,
+   "conf": 0.962
+  },
+  {
+   "text": "Pro",
+   "left": 942,
+   "top": 622,
+   "right": 976,
+   "bottom": 640,
+   "conf": 0.97
+  },
+  {
+   "text": ". J. Sarmiento",
+   "left": 988,
+   "top": 622,
+   "right": 1144,
+   "bottom": 645,
+   "conf": 0.827
+  },
+  {
+   "text": "9:30 AM - 11:00 AM",
+   "left": 212,
+   "top": 680,
+   "right": 444,
+   "bottom": 698,
+   "conf": 0.943
+  },
+  {
+   "text": "Main Hall",
+   "left": 782,
+   "top": 680,
+   "right": 888,
+   "bottom": 698,
+   "conf": 0.958
+  },
+  {
+   "text": "Prof.",
+   "left": 942,
+   "top": 680,
+   "right": 990,
+   "bottom": 698,
+   "conf": 0.966
+  },
+  {
+   "text": "A. Reyes",
+   "left": 1000,
+   "top": 680,
+   "right": 1102,
+   "bottom": 703,
+   "conf": 0.957
+  },
+  {
+   "text": "Friday",
+   "left": 52,
+   "top": 738,
+   "right": 133,
+   "bottom": 761,
+   "conf": 0.967
+  },
+  {
+   "text": "12:30 PM - 2:00 PM",
+   "left": 213,
+   "top": 738,
+   "right": 440,
+   "bottom": 756,
+   "conf": 0.942
+  },
+  {
+   "text": "Statistics",
+   "left": 482,
+   "top": 738,
+   "right": 588,
+   "bottom": 756,
+   "conf": 0.959
+  },
+  {
+   "text": "Studio 1",
+   "left": 782,
+   "top": 738,
+   "right": 877,
+   "bottom": 756,
+   "conf": 0.956
+  },
+  {
+   "text": "Prof.",
+   "left": 942,
+   "top": 738,
+   "right": 990,
+   "bottom": 756,
+   "conf": 0.966
+  },
+  {
+   "text": "L. Santos",
+   "left": 1002,
+   "top": 738,
+   "right": 1109,
+   "bottom": 756,
+   "conf": 0.934
+  }
+ ],
+ "r3_dot_times.png": [
+  {
+   "text": "JADWAL KULIAH SEMESTER 3",
+   "left": 390,
+   "top": 33,
+   "right": 846,
+   "bottom": 59,
+   "conf": 0.937
+  },
+  {
+   "text": "Academic Physics Physics Calculus Main Room NetLab Sen Lab Hall 3 Writing Lab Lab 2 Il",
+   "left": 212,
+   "top": 81,
+   "right": 395,
+   "bottom": 901,
+   "conf": 0.941
+  },
+  {
+   "text": "Data shen Computer Netws' Statistics Studio pecaa NetLab Structures Sel tworks aly 1",
+   "left": 431,
+   "top": 80,
+   "right": 594,
+   "bottom": 766,
+   "conf": 0.709
+  },
+  {
+   "text": "Microeconomics Ethics Ethics Databases Statistics Main Room Room NetLab woe Rab Lab in in Hall 3 Tech Tech 2 5",
+   "left": 638,
+   "top": 80,
+   "right": 803,
+   "bottom": 901,
+   "conf": 0.91
+  },
+  {
+   "text": "Academic Linear Physics Art Room Room Room NetLab Kam History Algebra Writing 12 12 12 Lab",
+   "left": 836,
+   "top": 81,
+   "right": 1019,
+   "bottom": 766,
+   "conf": 0.96
+  },
+  {
+   "text": "Microeconomics Ethics . Room Jum Lab in 3 12 Tech .",
+   "left": 1054,
+   "top": 81,
+   "right": 1219,
+   "bottom": 766,
+   "conf": 0.839
+  },
+  {
+   "text": "07.00-08.30",
+   "left": 25,
+   "top": 189,
+   "right": 150,
+   "bottom": 204,
+   "conf": 0.913
+  },
+  {
+   "text": "08.30-10.00",
+   "left": 25,
+   "top": 324,
+   "right": 150,
+   "bottom": 339,
+   "conf": 0.919
+  },
+  {
+   "text": "10.00-13.00",
+   "left": 26,
+   "top": 459,
+   "right": 150,
+   "bottom": 474,
+   "conf": 0.92
+  },
+  {
+   "text": "13.00-14.30",
+   "left": 26,
+   "top": 594,
+   "right": 150,
+   "bottom": 609,
+   "conf": 0.91
+  },
+  {
+   "text": "14.30-16.00",
+   "left": 26,
+   "top": 729,
+   "right": 150,
+   "bottom": 744,
+   "conf": 0.886
+  },
+  {
+   "text": "16.00-17.30",
+   "left": 26,
+   "top": 864,
+   "right": 150,
+   "bottom": 879,
+   "conf": 0.925
+  }
+ ],
+ "r3_merged_cells.png": [
+  {
+   "text": "SPRING TIMETABLE",
+   "left": 460,
+   "top": 31,
+   "right": 780,
+   "bottom": 53,
+   "conf": 0.964
+  },
+  {
+   "text": "Microeconomics Data Ethics . Art Main Main Room Room Mon Structures History in Hall Hall 12 12 Tech .",
+   "left": 159,
+   "top": 83,
+   "right": 324,
+   "bottom": 1053,
+   "conf": 0.896
+  },
+  {
+   "text": "Microeconomics Data Linear Art Computer Networks Room Room NetLab NetLab Tue Lab Structures History Algebra 3 12 5",
+   "left": 381,
+   "top": 83,
+   "right": 546,
+   "bottom": 1053,
+   "conf": 0.949
+  },
+  {
+   "text": "Organic Databases Calculus Computer Statistics Networks Main Studio Room Wed NetLab NetLab Chemistry Hall 2 1 Il",
+   "left": 588,
+   "top": 82,
+   "right": 782,
+   "bottom": 1053,
+   "conf": 0.937
+  },
+  {
+   "text": "Microeconomics Ethics Physics Computer Networks Studio Studio Room Room Thu . in Tech Lab 5 5 1 1",
+   "left": 825,
+   "top": 82,
+   "right": 990,
+   "bottom": 1053,
+   "conf": 0.908
+  },
+  {
+   "text": "Academic Microeconomics Physics Databases Calculus Room Room Room NetLab Lab Fri 3 Writing Lab 5 5 2 Il",
+   "left": 1037,
+   "top": 82,
+   "right": 1220,
+   "bottom": 1053,
+   "conf": 0.939
+  },
+  {
+   "text": "8:00",
+   "left": 19,
+   "top": 209,
+   "right": 66,
+   "bottom": 225,
+   "conf": 0.965
+  },
+  {
+   "text": "9:00",
+   "left": 19,
+   "top": 364,
+   "right": 66,
+   "bottom": 380,
+   "conf": 0.961
+  },
+  {
+   "text": "10:00",
+   "left": 20,
+   "top": 519,
+   "right": 80,
+   "bottom": 535,
+   "conf": 0.968
+  },
+  {
+   "text": "11:00",
+   "left": 20,
+   "top": 674,
+   "right": 80,
+   "bottom": 690,
+   "conf": 0.964
+  },
+  {
+   "text": "12:00",
+   "left": 20,
+   "top": 829,
+   "right": 80,
+   "bottom": 845,
+   "conf": 0.966
+  },
+  {
+   "text": "13:00",
+   "left": 20,
+   "top": 984,
+   "right": 80,
+   "bottom": 1000,
+   "conf": 0.96
+  }
+ ],
+ "r3_no_time_column.png": [
+  {
+   "text": "SECTION B - CLASS PROGRAM",
+   "left": 388,
+   "top": 33,
+   "right": 851,
+   "bottom": 53,
+   "conf": 0.924
+  },
+  {
+   "text": "Wed",
+   "left": 642,
+   "top": 80,
+   "right": 707,
+   "bottom": 101,
+   "conf": 0.964
+  },
+  {
+   "text": "Thu",
+   "left": 872,
+   "top": 80,
+   "right": 929,
+   "bottom": 101,
+   "conf": 0.966
+  },
+  {
+   "text": "Fri",
+   "left": 1109,
+   "top": 80,
+   "right": 1145,
+   "bottom": 101,
+   "conf": 0.965
+  },
+  {
+   "text": "Mon",
+   "left": 191,
+   "top": 81,
+   "right": 255,
+   "bottom": 101,
+   "conf": 0.967
+  },
+  {
+   "text": "Tue",
+   "left": 422,
+   "top": 81,
+   "right": 475,
+   "bottom": 101,
+   "conf": 0.968
+  },
+  {
+   "text": "Organic Chemistry",
+   "left": 352,
+   "top": 179,
+   "right": 546,
+   "bottom": 199,
+   "conf": 0.962
+  },
+  {
+   "text": "Ethics in Tech",
+   "left": 606,
+   "top": 179,
+   "right": 745,
+   "bottom": 195,
+   "conf": 0.967
+  },
+  {
+   "text": "Academic Writing",
+   "left": 809,
+   "top": 179,
+   "right": 992,
+   "bottom": 199,
+   "conf": 0.965
+  },
+  {
+   "text": "Linear Algebra",
+   "left": 1052,
+   "top": 179,
+   "right": 1202,
+   "bottom": 199,
+   "conf": 0.958
+  },
+  {
+   "text": "Pl",
+   "left": 32,
+   "top": 186,
+   "right": 55,
+   "bottom": 202,
+   "conf": 0.68
+  },
+  {
+   "text": "Organic Data Ethics Databases Main Studio Room Structures Chemistry in Hall Tech 5 1",
+   "left": 126,
+   "top": 310,
+   "right": 320,
+   "bottom": 845,
+   "conf": 0.951
+  },
+  {
+   "text": "Microeconomics Main Statistics Room Room Hall 2 5",
+   "left": 367,
+   "top": 209,
+   "right": 532,
+   "bottom": 484,
+   "conf": 0.957
+  },
+  {
+   "text": "Calculus Calculus Room NetLab 2 II Il",
+   "left": 622,
+   "top": 209,
+   "right": 726,
+   "bottom": 845,
+   "conf": 0.905
+  },
+  {
+   "text": "Computer Academic Ethics Art Main Room Studio Room History in Networks Hall Writing 12 Tech 2 1",
+   "left": 797,
+   "top": 208,
+   "right": 1005,
+   "bottom": 845,
+   "conf": 0.958
+  },
+  {
+   "text": "Linear Physics Physics Physics Studio Room Room Room NetLab Algebra Lab Lab Lab 2 2 2 1",
+   "left": 1052,
+   "top": 208,
+   "right": 1202,
+   "bottom": 744,
+   "conf": 0.955
+  },
+  {
+   "text": "P2",
+   "left": 32,
+   "top": 316,
+   "right": 55,
+   "bottom": 332,
+   "conf": 0.908
+  },
+  {
+   "text": "P3",
+   "left": 32,
+   "top": 446,
+   "right": 55,
+   "bottom": 462,
+   "conf": 0.921
+  },
+  {
+   "text": "P4",
+   "left": 32,
+   "top": 576,
+   "right": 56,
+   "bottom": 592,
+   "conf": 0.795
+  },
+  {
+   "text": "PS",
+   "left": 32,
+   "top": 706,
+   "right": 55,
+   "bottom": 722,
+   "conf": 0.573
+  },
+  {
+   "text": "P6",
+   "left": 32,
+   "top": 836,
+   "right": 56,
+   "bottom": 852,
+   "conf": 0.477
+  },
+  {
+   "text": "Studio 1",
+   "left": 181,
+   "top": 858,
+   "right": 265,
+   "bottom": 874,
+   "conf": 0.908
+  },
+  {
+   "text": "Main Hall",
+   "left": 628,
+   "top": 858,
+   "right": 722,
+   "bottom": 874,
+   "conf": 0.959
+  },
+  {
+   "text": "NetLab",
+   "left": 866,
+   "top": 858,
+   "right": 937,
+   "bottom": 874,
+   "conf": 0.917
+  }
+ ],
+ "r3_pastel_blocks.png": [
+  {
+   "text": "my week (aesthetic version)",
+   "left": 398,
+   "top": 28,
+   "right": 842,
+   "bottom": 55,
+   "conf": 0.965
+  },
+  {
+   "text": "Wed",
+   "left": 629,
+   "top": 106,
+   "right": 699,
+   "bottom": 129,
+   "conf": 0.965
+  },
+  {
+   "text": "Thu",
+   "left": 863,
+   "top": 106,
+   "right": 924,
+   "bottom": 129,
+   "conf": 0.968
+  },
+  {
+   "text": "Mon",
+   "left": 172,
+   "top": 107,
+   "right": 239,
+   "bottom": 129,
+   "conf": 0.967
+  },
+  {
+   "text": "Tue",
+   "left": 406,
+   "top": 107,
+   "right": 463,
+   "bottom": 129,
+   "conf": 0.967
+  },
+  {
+   "text": "Chemistry Organic",
+   "left": 836,
+   "top": 214,
+   "right": 955,
+   "bottom": 260,
+   "conf": 0.964
+  },
+  {
+   "text": "Art History",
+   "left": 140,
+   "top": 227,
+   "right": 269,
+   "bottom": 247,
+   "conf": 0.96
+  },
+  {
+   "text": "8:00",
+   "left": 184,
+   "top": 283,
+   "right": 226,
+   "bottom": 298,
+   "conf": 0.964
+  },
+  {
+   "text": "8:00",
+   "left": 874,
+   "top": 283,
+   "right": 917,
+   "bottom": 298,
+   "conf": 0.965
+  },
+  {
+   "text": "Academic Writing",
+   "left": 1068,
+   "top": 389,
+   "right": 1180,
+   "bottom": 435,
+   "conf": 0.963
+  },
+  {
+   "text": "Microeconomics",
+   "left": 112,
+   "top": 402,
+   "right": 298,
+   "bottom": 418,
+   "conf": 0.958
+  },
+  {
+   "text": "Linear Algebra",
+   "left": 580,
+   "top": 402,
+   "right": 751,
+   "bottom": 422,
+   "conf": 0.964
+  },
+  {
+   "text": "Physics Lab",
+   "left": 828,
+   "top": 402,
+   "right": 963,
+   "bottom": 422,
+   "conf": 0.969
+  },
+  {
+   "text": "9:00",
+   "left": 184,
+   "top": 458,
+   "right": 226,
+   "bottom": 473,
+   "conf": 0.966
+  },
+  {
+   "text": "9:00",
+   "left": 644,
+   "top": 458,
+   "right": 686,
+   "bottom": 473,
+   "conf": 0.964
+  },
+  {
+   "text": "9:00",
+   "left": 874,
+   "top": 458,
+   "right": 916,
+   "bottom": 473,
+   "conf": 0.967
+  },
+  {
+   "text": "9:00",
+   "left": 1104,
+   "top": 458,
+   "right": 1146,
+   "bottom": 473,
+   "conf": 0.968
+  },
+  {
+   "text": "Statistics",
+   "left": 841,
+   "top": 577,
+   "right": 949,
+   "bottom": 593,
+   "conf": 0.962
+  },
+  {
+   "text": "10:00",
+   "left": 868,
+   "top": 633,
+   "right": 922,
+   "bottom": 648,
+   "conf": 0.965
+  },
+  {
+   "text": "Academic",
+   "left": 1068,
+   "top": 914,
+   "right": 1180,
+   "bottom": 930,
+   "conf": 0.964
+  },
+  {
+   "text": "Microeconomics",
+   "left": 342,
+   "top": 927,
+   "right": 528,
+   "bottom": 943,
+   "conf": 0.958
+  },
+  {
+   "text": "Writing",
+   "left": 1082,
+   "top": 940,
+   "right": 1167,
+   "bottom": 960,
+   "conf": 0.961
+  },
+  {
+   "text": "12:00",
+   "left": 408,
+   "top": 983,
+   "right": 462,
+   "bottom": 998,
+   "conf": 0.967
+  },
+  {
+   "text": "12:00",
+   "left": 1098,
+   "top": 983,
+   "right": 1152,
+   "bottom": 998,
+   "conf": 0.968
+  }
+ ],
+ "r3_phone_screenshot.png": [
+  {
+   "text": "09:41",
+   "left": 505,
+   "top": 22,
+   "right": 575,
+   "bottom": 41,
+   "conf": 0.962
+  },
+  {
+   "text": "My Schedule",
+   "left": 43,
+   "top": 135,
+   "right": 281,
+   "bottom": 168,
+   "conf": 0.965
+  },
+  {
+   "text": "Week of Oct 26",
+   "left": 41,
+   "top": 196,
+   "right": 199,
+   "bottom": 212,
+   "conf": 0.964
+  },
+  {
+   "text": "MONDAY",
+   "left": 42,
+   "top": 290,
+   "right": 158,
+   "bottom": 308,
+   "conf": 0.965
+  },
+  {
+   "text": "07:30 - 09:00",
+   "left": 62,
+   "top": 372,
+   "right": 227,
+   "bottom": 390,
+   "conf": 0.939
+  },
+  {
+   "text": "General Chemistry",
+   "left": 321,
+   "top": 371,
+   "right": 554,
+   "bottom": 395,
+   "conf": 0.966
+  },
+  {
+   "text": "Lab 3",
+   "left": 832,
+   "top": 377,
+   "right": 886,
+   "bottom": 393,
+   "conf": 0.952
+  },
+  {
+   "text": "10:00 - 11:30",
+   "left": 63,
+   "top": 490,
+   "right": 227,
+   "bottom": 508,
+   "conf": 0.941
+  },
+  {
+   "text": "World Literature",
+   "left": 321,
+   "top": 489,
+   "right": 521,
+   "bottom": 508,
+   "conf": 0.963
+  },
+  {
+   "text": "NetLab",
+   "left": 832,
+   "top": 495,
+   "right": 903,
+   "bottom": 511,
+   "conf": 0.931
+  },
+  {
+   "text": "TUESDAY 13:00 - 14:30",
+   "left": 40,
+   "top": 608,
+   "right": 227,
+   "bottom": 714,
+   "conf": 0.948
+  },
+  {
+   "text": "Solid Mensuration",
+   "left": 322,
+   "top": 607,
+   "right": 542,
+   "bottom": 626,
+   "conf": 0.929
+  },
+  {
+   "text": "Room 2",
+   "left": 832,
+   "top": 614,
+   "right": 907,
+   "bottom": 629,
+   "conf": 0.964
+  },
+  {
+   "text": "08:00 - 09:30",
+   "left": 62,
+   "top": 778,
+   "right": 227,
+   "bottom": 796,
+   "conf": 0.942
+  },
+  {
+   "text": "National Service Training",
+   "left": 322,
+   "top": 777,
+   "right": 629,
+   "bottom": 801,
+   "conf": 0.967
+  },
+  {
+   "text": "Room 2",
+   "left": 832,
+   "top": 784,
+   "right": 907,
+   "bottom": 799,
+   "conf": 0.967
+  },
+  {
+   "text": "WEDNESDAY 11:00 - 12:30",
+   "left": 41,
+   "top": 896,
+   "right": 227,
+   "bottom": 1002,
+   "conf": 0.939
+  },
+  {
+   "text": "Purposive Communication",
+   "left": 322,
+   "top": 895,
+   "right": 645,
+   "bottom": 919,
+   "conf": 0.937
+  },
+  {
+   "text": "Main Hall",
+   "left": 832,
+   "top": 901,
+   "right": 925,
+   "bottom": 917,
+   "conf": 0.955
+  },
+  {
+   "text": "07:30 - 09:00",
+   "left": 62,
+   "top": 1066,
+   "right": 227,
+   "bottom": 1084,
+   "conf": 0.939
+  },
+  {
+   "text": "General Chemistry",
+   "left": 321,
+   "top": 1065,
+   "right": 554,
+   "bottom": 1089,
+   "conf": 0.966
+  },
+  {
+   "text": "Studio 1",
+   "left": 832,
+   "top": 1071,
+   "right": 915,
+   "bottom": 1087,
+   "conf": 0.967
+  },
+  {
+   "text": "THURSDAY 10:00 - 11:30",
+   "left": 40,
+   "top": 1184,
+   "right": 227,
+   "bottom": 1290,
+   "conf": 0.947
+  },
+  {
+   "text": "Kaligiran ng Wika",
+   "left": 322,
+   "top": 1183,
+   "right": 535,
+   "bottom": 1207,
+   "conf": 0.947
+  },
+  {
+   "text": "Room 2",
+   "left": 832,
+   "top": 1190,
+   "right": 907,
+   "bottom": 1205,
+   "conf": 0.967
+  },
+  {
+   "text": "09:00 - 10:30",
+   "left": 62,
+   "top": 1354,
+   "right": 227,
+   "bottom": 1372,
+   "conf": 0.942
+  },
+  {
+   "text": "Data Structures",
+   "left": 322,
+   "top": 1354,
+   "right": 516,
+   "bottom": 1372,
+   "conf": 0.967
+  },
+  {
+   "text": "Room 5",
+   "left": 832,
+   "top": 1360,
+   "right": 907,
+   "bottom": 1375,
+   "conf": 0.943
+  },
+  {
+   "text": "FRIDAY 13:00 - 14:30",
+   "left": 42,
+   "top": 1472,
+   "right": 227,
+   "bottom": 1578,
+   "conf": 0.948
+  },
+  {
+   "text": "Solid Mensuration",
+   "left": 322,
+   "top": 1471,
+   "right": 542,
+   "bottom": 1490,
+   "conf": 0.929
+  },
+  {
+   "text": "Lab 3",
+   "left": 832,
+   "top": 1477,
+   "right": 886,
+   "bottom": 1493,
+   "conf": 0.952
+  },
+  {
+   "text": "10:00 - 11:30",
+   "left": 63,
+   "top": 1642,
+   "right": 227,
+   "bottom": 1660,
+   "conf": 0.941
+  },
+  {
+   "text": "Physical Education",
+   "left": 322,
+   "top": 1641,
+   "right": 552,
+   "bottom": 1665,
+   "conf": 0.965
+  },
+  {
+   "text": "NetLab",
+   "left": 832,
+   "top": 1647,
+   "right": 903,
+   "bottom": 1663,
+   "conf": 0.925
+  },
+  {
+   "text": "SATURDAY 14:00 - 15:30",
+   "left": 42,
+   "top": 1760,
+   "right": 227,
+   "bottom": 1866,
+   "conf": 0.949
+  },
+  {
+   "text": "NSTP 2",
+   "left": 322,
+   "top": 1760,
+   "right": 406,
+   "bottom": 1778,
+   "conf": 0.949
+  },
+  {
+   "text": "Room 2",
+   "left": 832,
+   "top": 1766,
+   "right": 907,
+   "bottom": 1781,
+   "conf": 0.967
+  },
+  {
+   "text": "09:00 - 11:00",
+   "left": 62,
+   "top": 1930,
+   "right": 227,
+   "bottom": 1948,
+   "conf": 0.941
+  },
+  {
+   "text": "Research Methods",
+   "left": 322,
+   "top": 1929,
+   "right": 548,
+   "bottom": 1948,
+   "conf": 0.964
+  },
+  {
+   "text": "NetLab",
+   "left": 832,
+   "top": 1935,
+   "right": 903,
+   "bottom": 1951,
+   "conf": 0.931
+  }
+ ],
+ "r3_portal_screenshot.png": [
+  {
+   "text": "University Student Portal",
+   "left": 32,
+   "top": 24,
+   "right": 401,
+   "bottom": 49,
+   "conf": 0.965
+  },
+  {
+   "text": "My Portal | Log out",
+   "left": 982,
+   "top": 25,
+   "right": 1199,
+   "bottom": 47,
+   "conf": 0.967
+  },
+  {
+   "text": "Home",
+   "left": 32,
+   "top": 82,
+   "right": 93,
+   "bottom": 98,
+   "conf": 0.97
+  },
+  {
+   "text": "> Academics > Class Timetable",
+   "left": 112,
+   "top": 81,
+   "right": 480,
+   "bottom": 98,
+   "conf": 0.966
+  },
+  {
+   "text": "Weekly View",
+   "left": 107,
+   "top": 142,
+   "right": 243,
+   "bottom": 164,
+   "conf": 0.964
+  },
+  {
+   "text": "Export to PDF",
+   "left": 412,
+   "top": 143,
+   "right": 560,
+   "bottom": 164,
+   "conf": 0.963
+  },
+  {
+   "text": "Wed",
+   "left": 619,
+   "top": 211,
+   "right": 680,
+   "bottom": 231,
+   "conf": 0.961
+  },
+  {
+   "text": "Thu",
+   "left": 843,
+   "top": 211,
+   "right": 895,
+   "bottom": 231,
+   "conf": 0.962
+  },
+  {
+   "text": "Mon",
+   "left": 181,
+   "top": 212,
+   "right": 240,
+   "bottom": 231,
+   "conf": 0.966
+  },
+  {
+   "text": "Tue",
+   "left": 404,
+   "top": 212,
+   "right": 455,
+   "bottom": 231,
+   "conf": 0.967
+  },
+  {
+   "text": "Linear Lab Algebra 3",
+   "left": 139,
+   "top": 307,
+   "right": 282,
+   "bottom": 351,
+   "conf": 0.958
+  },
+  {
+   "text": "Computer Room Networks 2",
+   "left": 331,
+   "top": 307,
+   "right": 528,
+   "bottom": 351,
+   "conf": 0.955
+  },
+  {
+   "text": "8:00",
+   "left": 17,
+   "top": 314,
+   "right": 62,
+   "bottom": 329,
+   "conf": 0.964
+  },
+  {
+   "text": "Art Lab History 3",
+   "left": 156,
+   "top": 432,
+   "right": 263,
+   "bottom": 476,
+   "conf": 0.958
+  },
+  {
+   "text": "Academic Lab 3 Writing",
+   "left": 342,
+   "top": 432,
+   "right": 516,
+   "bottom": 476,
+   "conf": 0.959
+  },
+  {
+   "text": "Microeconomics Main Hall",
+   "left": 572,
+   "top": 432,
+   "right": 729,
+   "bottom": 476,
+   "conf": 0.966
+  },
+  {
+   "text": "Organic Studio Chemistry 1",
+   "left": 778,
+   "top": 432,
+   "right": 962,
+   "bottom": 476,
+   "conf": 0.965
+  },
+  {
+   "text": "Physics NetLab Lab",
+   "left": 1034,
+   "top": 432,
+   "right": 1148,
+   "bottom": 476,
+   "conf": 0.952
+  },
+  {
+   "text": "9:00",
+   "left": 17,
+   "top": 439,
+   "right": 62,
+   "bottom": 454,
+   "conf": 0.958
+  },
+  {
+   "text": "Statistics Studio 1",
+   "left": 385,
+   "top": 557,
+   "right": 474,
+   "bottom": 601,
+   "conf": 0.965
+  },
+  {
+   "text": "Calculus Room 12 II",
+   "left": 600,
+   "top": 557,
+   "right": 699,
+   "bottom": 601,
+   "conf": 0.928
+  },
+  {
+   "text": "Databases Room 5",
+   "left": 819,
+   "top": 557,
+   "right": 922,
+   "bottom": 601,
+   "conf": 0.936
+  },
+  {
+   "text": "10:00",
+   "left": 18,
+   "top": 564,
+   "right": 75,
+   "bottom": 579,
+   "conf": 0.965
+  },
+  {
+   "text": "Data Room Structures 5",
+   "left": 133,
+   "top": 682,
+   "right": 287,
+   "bottom": 726,
+   "conf": 0.943
+  },
+  {
+   "text": "Ethics Room in Tech 5",
+   "left": 364,
+   "top": 682,
+   "right": 496,
+   "bottom": 726,
+   "conf": 0.949
+  },
+  {
+   "text": "Calculus Studio 1 II",
+   "left": 820,
+   "top": 682,
+   "right": 919,
+   "bottom": 726,
+   "conf": 0.928
+  },
+  {
+   "text": "Databases Room 2",
+   "left": 1039,
+   "top": 682,
+   "right": 1142,
+   "bottom": 726,
+   "conf": 0.955
+  },
+  {
+   "text": "11:00",
+   "left": 18,
+   "top": 689,
+   "right": 75,
+   "bottom": 704,
+   "conf": 0.962
+  },
+  {
+   "text": "Organic Room Chemistry 2",
+   "left": 338,
+   "top": 807,
+   "right": 522,
+   "bottom": 851,
+   "conf": 0.958
+  },
+  {
+   "text": "Computer Room Networks 2",
+   "left": 551,
+   "top": 807,
+   "right": 748,
+   "bottom": 851,
+   "conf": 0.955
+  },
+  {
+   "text": "Linear NetLab Algebra",
+   "left": 799,
+   "top": 807,
+   "right": 942,
+   "bottom": 851,
+   "conf": 0.95
+  },
+  {
+   "text": "Art Main History Hall",
+   "left": 1036,
+   "top": 807,
+   "right": 1143,
+   "bottom": 851,
+   "conf": 0.964
+  },
+  {
+   "text": "12:00",
+   "left": 18,
+   "top": 814,
+   "right": 75,
+   "bottom": 829,
+   "conf": 0.96
+  },
+  {
+   "text": "Art Lab History 3",
+   "left": 156,
+   "top": 932,
+   "right": 263,
+   "bottom": 976,
+   "conf": 0.958
+  },
+  {
+   "text": "Databases Main Hall",
+   "left": 599,
+   "top": 932,
+   "right": 702,
+   "bottom": 976,
+   "conf": 0.967
+  },
+  {
+   "text": "Art Room History 12",
+   "left": 816,
+   "top": 932,
+   "right": 923,
+   "bottom": 976,
+   "conf": 0.963
+  },
+  {
+   "text": "Art Studio History 1",
+   "left": 1036,
+   "top": 932,
+   "right": 1143,
+   "bottom": 976,
+   "conf": 0.963
+  },
+  {
+   "text": "13:00",
+   "left": 18,
+   "top": 939,
+   "right": 75,
+   "bottom": 954,
+   "conf": 0.962
+  },
+  {
+   "text": "Office of the Registrar - generated 2026-10-24 08:11",
+   "left": 330,
+   "top": 1040,
+   "right": 909,
+   "bottom": 1062,
+   "conf": 0.956
+  }
+ ],
+ "r3_sat_column.png": [
+  {
+   "text": "WEEKLY TIMETABLE - WITH SATURDAY CLASSES",
+   "left": 221,
+   "top": 17,
+   "right": 1018,
+   "bottom": 39,
+   "conf": 0.951
+  },
+  {
+   "text": "Microeconomics Linear Databases Chemistry Main Main Cigenit Room NetLab Mon . Algebra Hall Hall 5",
+   "left": 140,
+   "top": 77,
+   "right": 306,
+   "bottom": 941,
+   "conf": 0.846
+  },
+  {
+   "text": "Ethics Physics Art Calculus Main Room Room Tue Lab History . in Hall 3 12 Tech Lab 2 II",
+   "left": 338,
+   "top": 77,
+   "right": 478,
+   "bottom": 701,
+   "conf": 0.901
+  },
+  {
+   "text": "Ganpasr Academic Networks Statistics Room Room Writin Wed NetLab 12 12",
+   "left": 541,
+   "top": 76,
+   "right": 645,
+   "bottom": 941,
+   "conf": 0.853
+  },
+  {
+   "text": "Data Data Databases Databases Chemistr cactus Main Main Studio Writin Cigenit Room Room Thu Lab Structures Structures .",
+   "left": 697,
+   "top": 76,
+   "right": 859,
+   "bottom": 941,
+   "conf": 0.823
+  },
+  {
+   "text": "Hal Hall 3 2 1",
+   "left": 788,
+   "top": 206,
+   "right": 824,
+   "bottom": 941,
+   "conf": 0.957
+  },
+  {
+   "text": "Ethics Art Databases Databases Ganpasr Networks Studio Studio Room NetLab Lab Fri History in . 3 Tech 5 1 1",
+   "left": 893,
+   "top": 72,
+   "right": 1033,
+   "bottom": 941,
+   "conf": 0.87
+  },
+  {
+   "text": "Chemistry Statistics Chgenlte Room Sat Lab 3 2",
+   "left": 1095,
+   "top": 77,
+   "right": 1201,
+   "bottom": 461,
+   "conf": 0.839
+  },
+  {
+   "text": "8:00",
+   "left": 19,
+   "top": 181,
+   "right": 66,
+   "bottom": 197,
+   "conf": 0.965
+  },
+  {
+   "text": "9:00",
+   "left": 19,
+   "top": 301,
+   "right": 66,
+   "bottom": 317,
+   "conf": 0.961
+  },
+  {
+   "text": "10:00",
+   "left": 20,
+   "top": 421,
+   "right": 80,
+   "bottom": 437,
+   "conf": 0.968
+  },
+  {
+   "text": "11:00",
+   "left": 20,
+   "top": 541,
+   "right": 80,
+   "bottom": 557,
+   "conf": 0.964
+  },
+  {
+   "text": "12:00",
+   "left": 20,
+   "top": 661,
+   "right": 80,
+   "bottom": 677,
+   "conf": 0.966
+  },
+  {
+   "text": "13:00",
+   "left": 20,
+   "top": 781,
+   "right": 80,
+   "bottom": 797,
+   "conf": 0.96
+  },
+  {
+   "text": "14:00",
+   "left": 20,
+   "top": 901,
+   "right": 80,
+   "bottom": 917,
+   "conf": 0.965
+  }
+ ],
+ "r3_spreadsheet.png": [
+  {
+   "text": "Schedule 2026.xlIsx - Excel",
+   "left": 448,
+   "top": 11,
+   "right": 832,
+   "bottom": 31,
+   "conf": 0.755
+  },
+  {
+   "text": "Databases Room Mon B",
+   "left": 362,
+   "top": 51,
+   "right": 464,
+   "bottom": 452,
+   "conf": 0.947
+  },
+  {
+   "text": "5",
+   "left": 439,
+   "top": 437,
+   "right": 449,
+   "bottom": 452,
+   "conf": 0.964
+  },
+  {
+   "text": "Tue Cc",
+   "left": 584,
+   "top": 51,
+   "right": 617,
+   "bottom": 92,
+   "conf": 0.825
+  },
+  {
+   "text": "Wed D",
+   "left": 768,
+   "top": 51,
+   "right": 809,
+   "bottom": 92,
+   "conf": 0.938
+  },
+  {
+   "text": "Thu E",
+   "left": 959,
+   "top": 51,
+   "right": 995,
+   "bottom": 92,
+   "conf": 0.931
+  },
+  {
+   "text": "Fri F",
+   "left": 1156,
+   "top": 51,
+   "right": 1176,
+   "bottom": 92,
+   "conf": 0.943
+  },
+  {
+   "text": "Time",
+   "left": 200,
+   "top": 77,
+   "right": 247,
+   "bottom": 92,
+   "conf": 0.968
+  },
+  {
+   "text": "Microeconomics Main Hall",
+   "left": 899,
+   "top": 151,
+   "right": 1056,
+   "bottom": 192,
+   "conf": 0.966
+  },
+  {
+   "text": "Calculus Studio 1 II",
+   "left": 1116,
+   "top": 151,
+   "right": 1215,
+   "bottom": 192,
+   "conf": 0.936
+  },
+  {
+   "text": "7:00-8:00",
+   "left": 178,
+   "top": 157,
+   "right": 271,
+   "bottom": 172,
+   "conf": 0.959
+  },
+  {
+   "text": "Academic",
+   "left": 929,
+   "top": 268,
+   "right": 1025,
+   "bottom": 283,
+   "conf": 0.965
+  },
+  {
+   "text": "Physics Main Hall Lab",
+   "left": 733,
+   "top": 281,
+   "right": 847,
+   "bottom": 322,
+   "conf": 0.966
+  },
+  {
+   "text": "Ethics Room in Tech 5",
+   "left": 1100,
+   "top": 281,
+   "right": 1232,
+   "bottom": 322,
+   "conf": 0.952
+  },
+  {
+   "text": "8:00-9:00",
+   "left": 177,
+   "top": 287,
+   "right": 271,
+   "bottom": 302,
+   "conf": 0.966
+  },
+  {
+   "text": "Web 39",
+   "left": 943,
+   "top": 289,
+   "right": 1014,
+   "bottom": 336,
+   "conf": 0.268
+  },
+  {
+   "text": "Computer",
+   "left": 1117,
+   "top": 398,
+   "right": 1215,
+   "bottom": 417,
+   "conf": 0.96
+  },
+  {
+   "text": "9:00-10:00",
+   "left": 170,
+   "top": 417,
+   "right": 277,
+   "bottom": 432,
+   "conf": 0.925
+  },
+  {
+   "text": "Netyyorks",
+   "left": 1121,
+   "top": 419,
+   "right": 1211,
+   "bottom": 456,
+   "conf": 0.654
+  },
+  {
+   "text": "Statistics Room 5",
+   "left": 744,
+   "top": 541,
+   "right": 833,
+   "bottom": 582,
+   "conf": 0.934
+  },
+  {
+   "text": "Art NetLab History",
+   "left": 924,
+   "top": 541,
+   "right": 1030,
+   "bottom": 582,
+   "conf": 0.947
+  },
+  {
+   "text": "10:00-11:00",
+   "left": 165,
+   "top": 547,
+   "right": 284,
+   "bottom": 562,
+   "conf": 0.919
+  },
+  {
+   "text": "Reset Organic",
+   "left": 927,
+   "top": 658,
+   "right": 1028,
+   "bottom": 712,
+   "conf": 0.544
+  },
+  {
+   "text": "Data Room Structures 2",
+   "left": 336,
+   "top": 671,
+   "right": 490,
+   "bottom": 712,
+   "conf": 0.967
+  },
+  {
+   "text": "Linear Studio Algebra 1",
+   "left": 1095,
+   "top": 671,
+   "right": 1237,
+   "bottom": 712,
+   "conf": 0.961
+  },
+  {
+   "text": "11:00-12:00",
+   "left": 165,
+   "top": 677,
+   "right": 284,
+   "bottom": 692,
+   "conf": 0.921
+  },
+  {
+   "text": "Data NetLab Structures",
+   "left": 336,
+   "top": 801,
+   "right": 490,
+   "bottom": 842,
+   "conf": 0.946
+  },
+  {
+   "text": "Ethics Main in Hall Tech",
+   "left": 535,
+   "top": 801,
+   "right": 667,
+   "bottom": 842,
+   "conf": 0.966
+  },
+  {
+   "text": "Calculus Room 2 II",
+   "left": 739,
+   "top": 801,
+   "right": 838,
+   "bottom": 842,
+   "conf": 0.916
+  },
+  {
+   "text": "Calculus Lab 3 II",
+   "left": 1116,
+   "top": 801,
+   "right": 1215,
+   "bottom": 851,
+   "conf": 0.924
+  },
+  {
+   "text": "12:00-13:00",
+   "left": 165,
+   "top": 807,
+   "right": 284,
+   "bottom": 822,
+   "conf": 0.923
+  }
+ ],
+ "r3_two_line_wrap.png": [
+  {
+   "text": "FIRST YEAR - ODD SEMESTER",
+   "left": 392,
+   "top": 33,
+   "right": 850,
+   "bottom": 53,
+   "conf": 0.936
+  },
+  {
+   "text": "Environmental Science Mon and",
+   "left": 161,
+   "top": 81,
+   "right": 303,
+   "bottom": 324,
+   "conf": 0.964
+  },
+  {
+   "text": "Tue",
+   "left": 429,
+   "top": 81,
+   "right": 482,
+   "bottom": 101,
+   "conf": 0.967
+  },
+  {
+   "text": "Engineering Advanced Wed",
+   "left": 622,
+   "top": 80,
+   "right": 738,
+   "bottom": 332,
+   "conf": 0.966
+  },
+  {
+   "text": "Political Governance Room Thu Science 5",
+   "left": 804,
+   "top": 80,
+   "right": 963,
+   "bottom": 253,
+   "conf": 0.951
+  },
+  {
+   "text": "and",
+   "left": 970,
+   "top": 164,
+   "right": 1005,
+   "bottom": 179,
+   "conf": 0.97
+  },
+  {
+   "text": "Environmental Science Fri and",
+   "left": 1057,
+   "top": 80,
+   "right": 1199,
+   "bottom": 324,
+   "conf": 0.964
+  },
+  {
+   "text": "8:00",
+   "left": 17,
+   "top": 194,
+   "right": 60,
+   "bottom": 209,
+   "conf": 0.967
+  },
+  {
+   "text": "Sustainability",
+   "left": 165,
+   "top": 333,
+   "right": 299,
+   "bottom": 352,
+   "conf": 0.966
+  },
+  {
+   "text": "Mathematics",
+   "left": 618,
+   "top": 333,
+   "right": 743,
+   "bottom": 348,
+   "conf": 0.968
+  },
+  {
+   "text": "Sustainability",
+   "left": 1061,
+   "top": 333,
+   "right": 1195,
+   "bottom": 352,
+   "conf": 0.966
+  },
+  {
+   "text": "9:00",
+   "left": 17,
+   "top": 339,
+   "right": 60,
+   "bottom": 354,
+   "conf": 0.967
+  },
+  {
+   "text": "Studio 1",
+   "left": 192,
+   "top": 403,
+   "right": 273,
+   "bottom": 429,
+   "conf": 0.933
+  },
+  {
+   "text": "Main Hall",
+   "left": 1084,
+   "top": 403,
+   "right": 1173,
+   "bottom": 431,
+   "conf": 0.958
+  },
+  {
+   "text": "Room 2",
+   "left": 644,
+   "top": 407,
+   "right": 716,
+   "bottom": 420,
+   "conf": 0.649
+  },
+  {
+   "text": "Political Governance Science and",
+   "left": 356,
+   "top": 454,
+   "right": 557,
+   "bottom": 493,
+   "conf": 0.966
+  },
+  {
+   "text": "Computer (Laboratory) Science II",
+   "left": 580,
+   "top": 454,
+   "right": 779,
+   "bottom": 497,
+   "conf": 0.933
+  },
+  {
+   "text": "Introduction Linguistics to",
+   "left": 832,
+   "top": 454,
+   "right": 977,
+   "bottom": 497,
+   "conf": 0.963
+  },
+  {
+   "text": "10:00",
+   "left": 18,
+   "top": 484,
+   "right": 73,
+   "bottom": 499,
+   "conf": 0.964
+  },
+  {
+   "text": "Lab 3",
+   "left": 430,
+   "top": 528,
+   "right": 482,
+   "bottom": 543,
+   "conf": 0.957
+  },
+  {
+   "text": "Studio 1",
+   "left": 640,
+   "top": 528,
+   "right": 720,
+   "bottom": 543,
+   "conf": 0.964
+  },
+  {
+   "text": "Room 5",
+   "left": 868,
+   "top": 528,
+   "right": 940,
+   "bottom": 543,
+   "conf": 0.922
+  },
+  {
+   "text": "Financial Principles Accounting of",
+   "left": 355,
+   "top": 599,
+   "right": 557,
+   "bottom": 642,
+   "conf": 0.966
+  },
+  {
+   "text": "Introduction Linguistics to",
+   "left": 608,
+   "top": 599,
+   "right": 753,
+   "bottom": 642,
+   "conf": 0.963
+  },
+  {
+   "text": "Introduction Linguistics to",
+   "left": 1056,
+   "top": 599,
+   "right": 1201,
+   "bottom": 642,
+   "conf": 0.963
+  },
+  {
+   "text": "11:00",
+   "left": 18,
+   "top": 629,
+   "right": 73,
+   "bottom": 644,
+   "conf": 0.954
+  },
+  {
+   "text": "Room 2",
+   "left": 420,
+   "top": 673,
+   "right": 492,
+   "bottom": 688,
+   "conf": 0.95
+  },
+  {
+   "text": "Room 5",
+   "left": 644,
+   "top": 673,
+   "right": 716,
+   "bottom": 688,
+   "conf": 0.922
+  },
+  {
+   "text": "Studio 1",
+   "left": 1088,
+   "top": 673,
+   "right": 1168,
+   "bottom": 688,
+   "conf": 0.964
+  },
+  {
+   "text": "Introduction Linguistics to",
+   "left": 608,
+   "top": 744,
+   "right": 753,
+   "bottom": 787,
+   "conf": 0.963
+  },
+  {
+   "text": "12:00",
+   "left": 18,
+   "top": 774,
+   "right": 73,
+   "bottom": 789,
+   "conf": 0.966
+  },
+  {
+   "text": "Lab 3",
+   "left": 654,
+   "top": 818,
+   "right": 706,
+   "bottom": 833,
+   "conf": 0.957
+  },
+  {
+   "text": "Environmental Sustainability Science and",
+   "left": 1057,
+   "top": 865,
+   "right": 1199,
+   "bottom": 932,
+   "conf": 0.966
+  },
+  {
+   "text": "Introduction Linguistics to",
+   "left": 608,
+   "top": 889,
+   "right": 753,
+   "bottom": 932,
+   "conf": 0.963
+  },
+  {
+   "text": "Political Governance Science and",
+   "left": 804,
+   "top": 889,
+   "right": 1005,
+   "bottom": 928,
+   "conf": 0.966
+  },
+  {
+   "text": "13:00",
+   "left": 18,
+   "top": 919,
+   "right": 73,
+   "bottom": 934,
+   "conf": 0.96
+  },
+  {
+   "text": "NetLab",
+   "left": 646,
+   "top": 963,
+   "right": 715,
+   "bottom": 978,
+   "conf": 0.924
+  },
+  {
+   "text": "Room 2",
+   "left": 868,
+   "top": 963,
+   "right": 940,
+   "bottom": 978,
+   "conf": 0.95
+  },
+  {
+   "text": "Lab 3",
+   "left": 1102,
+   "top": 983,
+   "right": 1157,
+   "bottom": 1009,
+   "conf": 0.356
+  }
+ ],
+ "r3_vertical_headers.png": [
+  {
+   "text": "CLASS TIMETABLE",
+   "left": 480,
+   "top": 39,
+   "right": 759,
+   "bottom": 59,
+   "conf": 0.961
+  },
+  {
+   "text": "Organic Academic Physics Main Studio Room = Chemistry 5 \u00b0 Hall Writing Lab 2 1",
+   "left": 135,
+   "top": 73,
+   "right": 329,
+   "bottom": 556,
+   "conf": 0.871
+  },
+  {
+   "text": "Data Ethics Main Main Structures Fe @ 5 in Hall Hall Tech",
+   "left": 375,
+   "top": 79,
+   "right": 538,
+   "bottom": 426,
+   "conf": 0.833
+  },
+  {
+   "text": "Calculus Statistics Room NetLab S o",
+   "left": 627,
+   "top": 92,
+   "right": 727,
+   "bottom": 556,
+   "conf": 0.752
+  },
+  {
+   "text": "2 II",
+   "left": 708,
+   "top": 249,
+   "right": 731,
+   "bottom": 296,
+   "conf": 0.86
+  },
+  {
+   "text": "Databases Studio x = 5",
+   "left": 850,
+   "top": 77,
+   "right": 959,
+   "bottom": 556,
+   "conf": 0.637
+  },
+  {
+   "text": "1",
+   "left": 936,
+   "top": 541,
+   "right": 946,
+   "bottom": 556,
+   "conf": 0.908
+  },
+  {
+   "text": "Computer Art Studio Room History qa L se Networks 5 1",
+   "left": 1024,
+   "top": 87,
+   "right": 1232,
+   "bottom": 556,
+   "conf": 0.821
+  },
+  {
+   "text": "os",
+   "left": 668,
+   "top": 73,
+   "right": 689,
+   "bottom": 90,
+   "conf": 0.215
+  },
+  {
+   "text": "8:00",
+   "left": 15,
+   "top": 256,
+   "right": 62,
+   "bottom": 272,
+   "conf": 0.965
+  },
+  {
+   "text": "9:00",
+   "left": 15,
+   "top": 386,
+   "right": 62,
+   "bottom": 402,
+   "conf": 0.961
+  },
+  {
+   "text": "10:00",
+   "left": 16,
+   "top": 516,
+   "right": 76,
+   "bottom": 532,
+   "conf": 0.968
+  },
+  {
+   "text": "Ethics in Tech",
+   "left": 1059,
+   "top": 638,
+   "right": 1198,
+   "bottom": 654,
+   "conf": 0.967
+  },
+  {
+   "text": "11:00",
+   "left": 16,
+   "top": 646,
+   "right": 76,
+   "bottom": 662,
+   "conf": 0.964
+  },
+  {
+   "text": "Linear Room Algebra 5",
+   "left": 157,
+   "top": 768,
+   "right": 307,
+   "bottom": 816,
+   "conf": 0.949
+  },
+  {
+   "text": "Microeconomics NetLab",
+   "left": 374,
+   "top": 764,
+   "right": 539,
+   "bottom": 816,
+   "conf": 0.94
+  },
+  {
+   "text": "Statistics Room Room 5 5",
+   "left": 1081,
+   "top": 671,
+   "right": 1175,
+   "bottom": 816,
+   "conf": 0.953
+  },
+  {
+   "text": "12:00",
+   "left": 16,
+   "top": 776,
+   "right": 76,
+   "bottom": 792,
+   "conf": 0.966
+  },
+  {
+   "text": "Computer Room Networks 5",
+   "left": 576,
+   "top": 898,
+   "right": 784,
+   "bottom": 946,
+   "conf": 0.962
+  },
+  {
+   "text": "13:00",
+   "left": 16,
+   "top": 906,
+   "right": 76,
+   "bottom": 922,
+   "conf": 0.96
+  }
+ ]
+}

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="splash_background">#FFFFFF</color>
+
+    <!-- Klasify homescreen widget, light mode: native clean surface -->
+    <color name="next_class_widget_surface">#F4F4F4</color>
+    <color name="next_class_widget_outline">#E0E0E0</color>
+
+    <color name="next_class_widget_pill_bg">#EAEAEA</color>
+    <color name="next_class_widget_accent">#000000</color>
+    <color name="next_class_widget_live">#E65100</color>
+
+    <!-- Text hierarchy: subject and time lead; details stay secondary. -->
+    <color name="next_class_widget_text">#000000</color>
+    <color name="next_class_widget_time">#000000</color>
+    <color name="next_class_widget_secondary">#666666</color>
+
+    <!-- Celebration shelf & day pill -->
+    <color name="next_class_widget_shelf_bg">#E8E8E8</color>
+    <color name="next_class_widget_day_pill_bg">#000000</color>
+    <color name="next_class_widget_day_pill_text">#FFFFFF</color>
+
+    <!-- Upcoming widget redesign: month calendar -->
+    <color name="next_class_widget_cal_weekday">#000000</color>
+    <color name="next_class_widget_cal_weekend">#707070</color>
+    <color name="next_class_widget_cal_header">#666666</color>
+
+    <!-- Room CTA pill (navigate button, inverted per mode) -->
+    <color name="next_class_widget_cta_bg">#000000</color>
+    <color name="next_class_widget_cta_fg">#FFFFFF</color>
+</resources>

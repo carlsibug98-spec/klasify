@@ -1,0 +1,22 @@
+<resources>
+    <string name="next_class_widget_name">Upcoming</string>
+    <string name="next_class_widget_description">See your upcoming classes from the home screen.</string>
+    <string name="next_class_widget_label">Next up</string>
+    <string name="next_class_widget_in_class">In class</string>
+    <string name="next_class_widget_upcoming">Upcoming</string>
+    <string name="next_class_widget_starts_in" formatted="false">Starts in %s</string>
+    <string name="next_class_widget_ends_in" formatted="false">Ends in %s</string>
+    <string name="next_class_widget_in_compact" formatted="false">in %s</string>
+    <plurals name="next_class_widget_in_minutes">
+        <item quantity="one" formatted="false">in %d minute</item>
+        <item quantity="other" formatted="false">in %d minutes</item>
+    </plurals>
+    <string name="next_class_widget_today">Today</string>
+    <string name="next_class_widget_tomorrow">Tomorrow</string>
+    <string name="next_class_widget_empty_title">No classes scheduled</string>
+    <string name="next_class_widget_empty_message">Open Klasify to add a timetable.</string>
+    <string name="next_class_widget_all_done_title">All done for today</string>
+    <string name="next_class_widget_free_day_title">No classes today</string>
+    <string name="next_class_widget_enjoy_rest">Enjoy the rest of your %1$s.</string>
+    <string name="next_class_widget_day_tomorrow">TOMORROW</string>
+</resources>

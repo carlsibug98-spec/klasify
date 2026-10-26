@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Klasify Homescreen Widget — Remaining-classes card background.
+    Subtle surface, 16px mockup radius at 0.8 scale.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/next_class_widget_shelf_bg" />
+    <corners android:radius="13dp" />
+</shape>

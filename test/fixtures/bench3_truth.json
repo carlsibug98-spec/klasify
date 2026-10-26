@@ -1,0 +1,1349 @@
+{
+ "r3_sat_column.png": {
+  "style": "sat_column",
+  "truth_classes": [
+   {
+    "subject": "Organic Chemistry",
+    "day": "Mon",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Linear Algebra",
+    "day": "Mon",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Microeconomics",
+    "day": "Mon",
+    "start": "13:00",
+    "end": "14:00"
+   },
+   {
+    "subject": "Databases",
+    "day": "Mon",
+    "start": "14:00",
+    "end": "15:00"
+   },
+   {
+    "subject": "Physics Lab",
+    "day": "Tue",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Calculus II",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Art History",
+    "day": "Tue",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Ethics in Tech",
+    "day": "Tue",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Statistics",
+    "day": "Wed",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Computer Networks",
+    "day": "Wed",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Academic Writing",
+    "day": "Wed",
+    "start": "14:00",
+    "end": "15:00"
+   },
+   {
+    "subject": "Data Structures",
+    "day": "Thu",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Organic Chemistry",
+    "day": "Thu",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Databases",
+    "day": "Thu",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Databases",
+    "day": "Thu",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Academic Writing",
+    "day": "Thu",
+    "start": "13:00",
+    "end": "14:00"
+   },
+   {
+    "subject": "Data Structures",
+    "day": "Thu",
+    "start": "14:00",
+    "end": "15:00"
+   },
+   {
+    "subject": "Databases",
+    "day": "Fri",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Art History",
+    "day": "Fri",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Computer Networks",
+    "day": "Fri",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Ethics in Tech",
+    "day": "Fri",
+    "start": "13:00",
+    "end": "14:00"
+   },
+   {
+    "subject": "Databases",
+    "day": "Fri",
+    "start": "14:00",
+    "end": "15:00"
+   },
+   {
+    "subject": "Statistics",
+    "day": "Sat",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Organic Chemistry",
+    "day": "Sat",
+    "start": "10:00",
+    "end": "11:00"
+   }
+  ]
+ },
+ "r3_merged_cells.png": {
+  "style": "merged_cells",
+  "truth_classes": [
+   {
+    "subject": "Ethics in Tech",
+    "day": "Mon",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Microeconomics",
+    "day": "Mon",
+    "start": "09:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Art History",
+    "day": "Mon",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Data Structures",
+    "day": "Mon",
+    "start": "12:00",
+    "end": "14:00"
+   },
+   {
+    "subject": "Data Structures",
+    "day": "Tue",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Linear Algebra",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Computer Networks",
+    "day": "Tue",
+    "start": "10:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Microeconomics",
+    "day": "Tue",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Art History",
+    "day": "Tue",
+    "start": "13:00",
+    "end": "14:00"
+   },
+   {
+    "subject": "Statistics",
+    "day": "Wed",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Databases",
+    "day": "Wed",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Calculus II",
+    "day": "Wed",
+    "start": "10:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Computer Networks",
+    "day": "Wed",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Organic Chemistry",
+    "day": "Wed",
+    "start": "13:00",
+    "end": "14:00"
+   },
+   {
+    "subject": "Microeconomics",
+    "day": "Thu",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Ethics in Tech",
+    "day": "Thu",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Computer Networks",
+    "day": "Thu",
+    "start": "10:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Physics Lab",
+    "day": "Thu",
+    "start": "12:00",
+    "end": "14:00"
+   },
+   {
+    "subject": "Microeconomics",
+    "day": "Fri",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Databases",
+    "day": "Fri",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Physics Lab",
+    "day": "Fri",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Calculus II",
+    "day": "Fri",
+    "start": "11:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Academic Writing",
+    "day": "Fri",
+    "start": "13:00",
+    "end": "14:00"
+   }
+  ],
+  "notes": {
+   "expect": "spanning cell -> one class covering both slots"
+  }
+ },
+ "r3_vertical_headers.png": {
+  "style": "vertical_headers",
+  "truth_classes": [
+   {
+    "subject": "Physics Lab",
+    "day": "Mon",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Academic Writing",
+    "day": "Mon",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Organic Chemistry",
+    "day": "Mon",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Linear Algebra",
+    "day": "Mon",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Data Structures",
+    "day": "Tue",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Ethics in Tech",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Microeconomics",
+    "day": "Tue",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Calculus II",
+    "day": "Wed",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Statistics",
+    "day": "Wed",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Computer Networks",
+    "day": "Wed",
+    "start": "13:00",
+    "end": "14:00"
+   },
+   {
+    "subject": "Databases",
+    "day": "Thu",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Art History",
+    "day": "Fri",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Computer Networks",
+    "day": "Fri",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Ethics in Tech",
+    "day": "Fri",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Statistics",
+    "day": "Fri",
+    "start": "12:00",
+    "end": "13:00"
+   }
+  ],
+  "notes": {
+   "expect": "day headers are rotated 90 degrees"
+  }
+ },
+ "r3_am_pm_noon.png": {
+  "style": "am_pm_noon",
+  "truth_classes": [
+   {
+    "subject": "Ethics in Tech",
+    "day": "Monday",
+    "start": "09:00",
+    "end": "10:30"
+   },
+   {
+    "subject": "Microeconomics",
+    "day": "Monday",
+    "start": "11:30",
+    "end": "12:30"
+   },
+   {
+    "subject": "Physics Lab",
+    "day": "Monday",
+    "start": "13:00",
+    "end": "14:30"
+   },
+   {
+    "subject": "Academic Writing",
+    "day": "Tuesday",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "Databases",
+    "day": "Tuesday",
+    "start": "12:00",
+    "end": "13:30"
+   },
+   {
+    "subject": "Linear Algebra",
+    "day": "Tuesday",
+    "start": "14:00",
+    "end": "15:30"
+   },
+   {
+    "subject": "Organic Chemistry",
+    "day": "Wednesday",
+    "start": "08:30",
+    "end": "10:00"
+   },
+   {
+    "subject": "Calculus II",
+    "day": "Wednesday",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Data Structures",
+    "day": "Thursday",
+    "start": "13:30",
+    "end": "15:00"
+   },
+   {
+    "subject": "Art History",
+    "day": "Thursday",
+    "start": "15:30",
+    "end": "17:00"
+   },
+   {
+    "subject": "Computer Networks",
+    "day": "Friday",
+    "start": "09:30",
+    "end": "11:00"
+   },
+   {
+    "subject": "Statistics",
+    "day": "Friday",
+    "start": "12:30",
+    "end": "14:00"
+   }
+  ],
+  "notes": {
+   "expect": "12h ranges incl. 11:30 AM - 12:30 PM noon wrap"
+  }
+ },
+ "r3_dot_times.png": {
+  "style": "dot_times",
+  "truth_classes": [
+   {
+    "subject": "Calculus II",
+    "day": "Mon",
+    "start": "07:00",
+    "end": "08:30"
+   },
+   {
+    "subject": "Data Structures",
+    "day": "Tue",
+    "start": "07:00",
+    "end": "08:30"
+   },
+   {
+    "subject": "Databases",
+    "day": "Wed",
+    "start": "07:00",
+    "end": "08:30"
+   },
+   {
+    "subject": "Academic Writing",
+    "day": "Thu",
+    "start": "07:00",
+    "end": "08:30"
+   },
+   {
+    "subject": "Computer Networks",
+    "day": "Tue",
+    "start": "08:30",
+    "end": "10:00"
+   },
+   {
+    "subject": "Ethics in Tech",
+    "day": "Wed",
+    "start": "08:30",
+    "end": "10:00"
+   },
+   {
+    "subject": "Microeconomics",
+    "day": "Fri",
+    "start": "08:30",
+    "end": "10:00"
+   },
+   {
+    "subject": "Physics Lab",
+    "day": "Mon",
+    "start": "10:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Organic Chemistry",
+    "day": "Tue",
+    "start": "10:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Statistics",
+    "day": "Wed",
+    "start": "10:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Linear Algebra",
+    "day": "Thu",
+    "start": "10:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Art History",
+    "day": "Thu",
+    "start": "13:00",
+    "end": "14:30"
+   },
+   {
+    "subject": "Academic Writing",
+    "day": "Mon",
+    "start": "14:30",
+    "end": "16:00"
+   },
+   {
+    "subject": "Statistics",
+    "day": "Tue",
+    "start": "14:30",
+    "end": "16:00"
+   },
+   {
+    "subject": "Microeconomics",
+    "day": "Wed",
+    "start": "14:30",
+    "end": "16:00"
+   },
+   {
+    "subject": "Physics Lab",
+    "day": "Thu",
+    "start": "14:30",
+    "end": "16:00"
+   },
+   {
+    "subject": "Ethics in Tech",
+    "day": "Fri",
+    "start": "14:30",
+    "end": "16:00"
+   },
+   {
+    "subject": "Physics Lab",
+    "day": "Mon",
+    "start": "16:00",
+    "end": "17:30"
+   },
+   {
+    "subject": "Ethics in Tech",
+    "day": "Wed",
+    "start": "16:00",
+    "end": "17:30"
+   }
+  ],
+  "notes": {
+   "expect": "Indonesian 07.00-08.30 dot times + Sen/Sel/Rab headers",
+   "day_map": {
+    "Sen": "Mon",
+    "Sel": "Tue",
+    "Rab": "Wed",
+    "Kam": "Thu",
+    "Jum": "Fri"
+   }
+  }
+ },
+ "r3_pastel_blocks.png": {
+  "style": "pastel_blocks",
+  "truth_classes": [
+   {
+    "subject": "Art History",
+    "day": "Mon",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Calculus II",
+    "day": "Wed",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Organic Chemistry",
+    "day": "Thu",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Computer Networks",
+    "day": "Fri",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Microeconomics",
+    "day": "Mon",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Linear Algebra",
+    "day": "Wed",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Physics Lab",
+    "day": "Thu",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Academic Writing",
+    "day": "Fri",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Ethics in Tech",
+    "day": "Mon",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Data Structures",
+    "day": "Wed",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Statistics",
+    "day": "Thu",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Databases",
+    "day": "Fri",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Computer Networks",
+    "day": "Mon",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Microeconomics",
+    "day": "Tue",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Physics Lab",
+    "day": "Wed",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Academic Writing",
+    "day": "Fri",
+    "start": "12:00",
+    "end": "13:00"
+   }
+  ],
+  "notes": {
+   "expect": "white text on mid-saturation colored blocks"
+  }
+ },
+ "r3_two_line_wrap.png": {
+  "style": "two_line_wrap",
+  "truth_classes": [
+   {
+    "subject": "Environmental Science and Sustainability",
+    "day": "Mon",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Political Science and Governance",
+    "day": "Tue",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Principles of Financial Accounting",
+    "day": "Tue",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Advanced Engineering Mathematics",
+    "day": "Wed",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Computer Science II (Laboratory)",
+    "day": "Wed",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Introduction to Linguistics",
+    "day": "Wed",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Introduction to Linguistics",
+    "day": "Wed",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Introduction to Linguistics",
+    "day": "Wed",
+    "start": "13:00",
+    "end": "14:00"
+   },
+   {
+    "subject": "Political Science and Governance",
+    "day": "Thu",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Introduction to Linguistics",
+    "day": "Thu",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Political Science and Governance",
+    "day": "Thu",
+    "start": "13:00",
+    "end": "14:00"
+   },
+   {
+    "subject": "Environmental Science and Sustainability",
+    "day": "Fri",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Introduction to Linguistics",
+    "day": "Fri",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Environmental Science and Sustainability",
+    "day": "Fri",
+    "start": "13:00",
+    "end": "14:00"
+   }
+  ],
+  "notes": {
+   "expect": "subject wraps to 2-3 lines inside cell"
+  }
+ },
+ "r3_no_time_column.png": {
+  "style": "no_time_column",
+  "truth_classes": [
+   {
+    "subject": "Organic Chemistry",
+    "day": "Tue",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Ethics in Tech",
+    "day": "Wed",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Academic Writing",
+    "day": "Thu",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Linear Algebra",
+    "day": "Fri",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Data Structures",
+    "day": "Mon",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Microeconomics",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Computer Networks",
+    "day": "Thu",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Physics Lab",
+    "day": "Fri",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Databases",
+    "day": "Mon",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Statistics",
+    "day": "Tue",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Calculus II",
+    "day": "Wed",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Art History",
+    "day": "Thu",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Physics Lab",
+    "day": "Fri",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Organic Chemistry",
+    "day": "Mon",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Academic Writing",
+    "day": "Thu",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Physics Lab",
+    "day": "Fri",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Linear Algebra",
+    "day": "Fri",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Ethics in Tech",
+    "day": "Mon",
+    "start": "13:00",
+    "end": "14:00"
+   },
+   {
+    "subject": "Calculus II",
+    "day": "Wed",
+    "start": "13:00",
+    "end": "14:00"
+   },
+   {
+    "subject": "Ethics in Tech",
+    "day": "Thu",
+    "start": "13:00",
+    "end": "14:00"
+   }
+  ],
+  "notes": {
+   "expect": "P1..P6 only; app should use nominal period grid (P1=08:00) and flag .74 review",
+   "time_check": "nominal"
+  }
+ },
+ "r3_portal_screenshot.png": {
+  "style": "portal_screenshot",
+  "truth_classes": [
+   {
+    "subject": "Linear Algebra",
+    "day": "Mon",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Computer Networks",
+    "day": "Tue",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Art History",
+    "day": "Mon",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Academic Writing",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Microeconomics",
+    "day": "Wed",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Organic Chemistry",
+    "day": "Thu",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Physics Lab",
+    "day": "Fri",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Statistics",
+    "day": "Tue",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Calculus II",
+    "day": "Wed",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Databases",
+    "day": "Thu",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Data Structures",
+    "day": "Mon",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Ethics in Tech",
+    "day": "Tue",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Calculus II",
+    "day": "Thu",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Databases",
+    "day": "Fri",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Organic Chemistry",
+    "day": "Tue",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Computer Networks",
+    "day": "Wed",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Linear Algebra",
+    "day": "Thu",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Art History",
+    "day": "Fri",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Art History",
+    "day": "Mon",
+    "start": "13:00",
+    "end": "14:00"
+   },
+   {
+    "subject": "Databases",
+    "day": "Wed",
+    "start": "13:00",
+    "end": "14:00"
+   },
+   {
+    "subject": "Art History",
+    "day": "Thu",
+    "start": "13:00",
+    "end": "14:00"
+   },
+   {
+    "subject": "Art History",
+    "day": "Fri",
+    "start": "13:00",
+    "end": "14:00"
+   }
+  ],
+  "notes": {
+   "expect": "portal chrome (nav, buttons, footer) around a grid"
+  }
+ },
+ "r3_alternating_slot.png": {
+  "style": "alternating_slot",
+  "truth_classes": [
+   {
+    "subject": "History",
+    "day": "Mon",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "History",
+    "day": "Tue",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Economics",
+    "day": "Tue",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Chemistry",
+    "day": "Tue",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Mathematics",
+    "day": "Tue",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Biology",
+    "day": "Wed",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Economics",
+    "day": "Wed",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Economics",
+    "day": "Thu",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Chemistry",
+    "day": "Thu",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Mathematics",
+    "day": "Thu",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "History",
+    "day": "Thu",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "History",
+    "day": "Fri",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Biology",
+    "day": "Fri",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Economics",
+    "day": "Fri",
+    "start": "12:00",
+    "end": "13:00"
+   }
+  ],
+  "notes": {
+   "expect": "two stacked subjects = weekly alternation; best case imports first subject or flags review",
+   "subject_match": "first_or_combined"
+  }
+ },
+ "r3_phone_screenshot.png": {
+  "style": "phone_screenshot",
+  "truth_classes": [
+   {
+    "subject": "General Chemistry",
+    "day": "Mon",
+    "start": "07:30",
+    "end": "09:00"
+   },
+   {
+    "subject": "World Literature",
+    "day": "Mon",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "Solid Mensuration",
+    "day": "Mon",
+    "start": "13:00",
+    "end": "14:30"
+   },
+   {
+    "subject": "National Service Training",
+    "day": "Tue",
+    "start": "08:00",
+    "end": "09:30"
+   },
+   {
+    "subject": "Purposive Communication",
+    "day": "Tue",
+    "start": "11:00",
+    "end": "12:30"
+   },
+   {
+    "subject": "General Chemistry",
+    "day": "Wed",
+    "start": "07:30",
+    "end": "09:00"
+   },
+   {
+    "subject": "Kaligiran ng Wika",
+    "day": "Wed",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "Data Structures",
+    "day": "Thu",
+    "start": "09:00",
+    "end": "10:30"
+   },
+   {
+    "subject": "Solid Mensuration",
+    "day": "Thu",
+    "start": "13:00",
+    "end": "14:30"
+   },
+   {
+    "subject": "Physical Education",
+    "day": "Fri",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "NSTP 2",
+    "day": "Fri",
+    "start": "14:00",
+    "end": "15:30"
+   },
+   {
+    "subject": "Research Methods",
+    "day": "Sat",
+    "start": "09:00",
+    "end": "11:00"
+   }
+  ],
+  "notes": {
+   "expect": "portrait app screenshot, small text, day sections",
+   "day_map": {
+    "SATURDAY": "Sat"
+   }
+  }
+ },
+ "r3_spreadsheet.png": {
+  "style": "spreadsheet",
+  "truth_classes": [
+   {
+    "subject": "Microeconomics",
+    "day": "Thu",
+    "start": "07:00",
+    "end": "08:00"
+   },
+   {
+    "subject": "Calculus II",
+    "day": "Fri",
+    "start": "07:00",
+    "end": "08:00"
+   },
+   {
+    "subject": "Physics Lab",
+    "day": "Wed",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Academic Writing",
+    "day": "Thu",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Ethics in Tech",
+    "day": "Fri",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Databases",
+    "day": "Mon",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Computer Networks",
+    "day": "Fri",
+    "start": "09:00",
+    "end": "10:00"
+   },
+   {
+    "subject": "Statistics",
+    "day": "Wed",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Art History",
+    "day": "Thu",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "Data Structures",
+    "day": "Mon",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Organic Chemistry",
+    "day": "Thu",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Linear Algebra",
+    "day": "Fri",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Data Structures",
+    "day": "Mon",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Ethics in Tech",
+    "day": "Tue",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Calculus II",
+    "day": "Wed",
+    "start": "12:00",
+    "end": "13:00"
+   },
+   {
+    "subject": "Calculus II",
+    "day": "Fri",
+    "start": "12:00",
+    "end": "13:00"
+   }
+  ],
+  "notes": {
+   "expect": "Excel chrome: column letters, row numbers, gridlines"
+  }
+ }
+}

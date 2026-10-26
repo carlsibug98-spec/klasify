@@ -1,0 +1,4 @@
+# Copy this file to local.properties and update these paths for your computer.
+# Flutter/Gradle normally creates local.properties automatically when you run Flutter commands.
+# sdk.dir=C:\\Android\\Sdk
+# flutter.sdk=C:\\flutter\\flutter

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Klasify Homescreen Widget — Celebration Day Pill Background
+    High-contrast rounded pill badge.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/next_class_widget_day_pill_bg" />
+    <corners android:radius="12dp" />
+</shape>

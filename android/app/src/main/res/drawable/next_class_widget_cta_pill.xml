@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Klasify Homescreen Widget — Room CTA pill background.
+    High-contrast inverted pill ("Class 242-B" navigate button).
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/next_class_widget_cta_bg" />
+    <corners android:radius="17dp" />
+</shape>

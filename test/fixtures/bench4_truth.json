@@ -1,0 +1,568 @@
+{
+ "r4_planner_journal.png": {
+  "style": "handwritten_planner",
+  "truth_classes": [
+   {
+    "subject": "Algebra",
+    "day": "Mon",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Biology",
+    "day": "Mon",
+    "start": "10:30",
+    "end": "12:00"
+   },
+   {
+    "subject": "English",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:30"
+   },
+   {
+    "subject": "World History",
+    "day": "Tue",
+    "start": "13:00",
+    "end": "14:30"
+   },
+   {
+    "subject": "Chemistry",
+    "day": "Wed",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Geometry",
+    "day": "Wed",
+    "start": "11:00",
+    "end": "12:30"
+   },
+   {
+    "subject": "Physics",
+    "day": "Thu",
+    "start": "09:30",
+    "end": "11:00"
+   },
+   {
+    "subject": "Music",
+    "day": "Thu",
+    "start": "13:30",
+    "end": "14:30"
+   },
+   {
+    "subject": "PE",
+    "day": "Fri",
+    "start": "07:30",
+    "end": "09:00"
+   },
+   {
+    "subject": "Computer",
+    "day": "Fri",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "Art Workshop",
+    "day": "Sat",
+    "start": "09:00",
+    "end": "11:00"
+   }
+  ],
+  "text_lines": [
+   "my week ~ term 2",
+   "MONDAY",
+   "Algebra  8-9",
+   "Biology lab  10:30-12",
+   "TUESDAY",
+   "English  9-10:30",
+   "History  1pm-2:30pm",
+   "WEDNESDAY",
+   "Chemistry  8-9",
+   "Geometry  11-12:30",
+   "THURSDAY",
+   "Physics  9:30-11",
+   "Music  1:30pm-2:30pm",
+   "FRIDAY",
+   "P.E.  7:30-9",
+   "Computer  10-11:30",
+   "SATURDAY",
+   "Art workshop  9-11"
+  ],
+  "notes": {
+   "expect": "handwriting font, bullet journal, casual bare-hour times"
+  }
+ },
+ "r4_planner_casual.png": {
+  "style": "handwritten_planner",
+  "truth_classes": [
+   {
+    "subject": "Math quiz review",
+    "day": "Mon",
+    "start": "08:00",
+    "end": "09:30"
+   },
+   {
+    "subject": "English essay",
+    "day": "Mon",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "Science fair prep",
+    "day": "Tue",
+    "start": "13:00",
+    "end": "15:00"
+   },
+   {
+    "subject": "Science fair prep",
+    "day": "Wed",
+    "start": "13:00",
+    "end": "15:00"
+   },
+   {
+    "subject": "Geometry",
+    "day": "Thu",
+    "start": "09:00",
+    "end": "10:30"
+   },
+   {
+    "subject": "Library period",
+    "day": "Thu",
+    "start": "11:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Class assembly",
+    "day": "Fri",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Chess club",
+    "day": "Fri",
+    "start": "14:00",
+    "end": "15:30"
+   },
+   {
+    "subject": "Basketball training",
+    "day": "Sat",
+    "start": "09:00",
+    "end": "11:00"
+   }
+  ],
+  "text_lines": [
+   "week of jan 12",
+   "MON",
+   "Math quiz review - 8:00-9:30",
+   "English essay  10-11:30",
+   "TUES + WEDS",
+   "Science fair prep  1-3pm (both days)",
+   "THURSDAY",
+   "Geometry  9-10:30",
+   "Library  11-12",
+   "FRIDAY",
+   "Assembly  8-9",
+   "Chess club  2pm-3:30pm",
+   "SATURDAY",
+   "Basketball  9-11"
+  ],
+  "notes": {
+   "expect": "\"Tues\"/\"Weds\" abbreviations + \"(both days)\" are realistic planner quirks; truth includes Tue AND Wed rows for the shared entry"
+  }
+ },
+ "r4_chat_bubbles.png": {
+  "style": "chat_screenshot",
+  "truth_classes": [
+   {
+    "subject": "Algebra",
+    "day": "Mon",
+    "start": "8:00",
+    "end": "9:30"
+   },
+   {
+    "subject": "Science",
+    "day": "Mon",
+    "start": "10:30",
+    "end": "12:00"
+   },
+   {
+    "subject": "World History",
+    "day": "Tue",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "Chemistry",
+    "day": "Wed",
+    "start": "8:00",
+    "end": "9:00"
+   },
+   {
+    "subject": "English Lit",
+    "day": "Thu",
+    "start": "13:00",
+    "end": "14:30"
+   },
+   {
+    "subject": "PE",
+    "day": "Fri",
+    "start": "7:30",
+    "end": "9:00"
+   },
+   {
+    "subject": "Computer",
+    "day": "Fri",
+    "start": "10:00",
+    "end": "11:30"
+   }
+  ],
+  "text_lines": [
+   "Ms. Santos (Adviser)",
+   "Monday: Algebra 8:00-9:30 Room 201",
+   "Monday: Science 10:30-12:00 Room 3",
+   "Tuesday: World History 10:00-11:30 Room 105",
+   "Wednesday: Chemistry 8:00-9:00 Lab 2",
+   "Thursday: English Lit 1:00 PM-2:30 PM Room 9",
+   "Friday: PE 7:30-9:00 Gym",
+   "Friday: Computer 10:00-11:30 IT Lab"
+  ],
+  "notes": {
+   "expect": "5 noise bubbles (small talk) vs 7 class bubbles; noise must NOT become classes"
+  }
+ },
+ "r4_chat_single_msg.png": {
+  "style": "chat_screenshot",
+  "truth_classes": [
+   {
+    "subject": "Math",
+    "day": "Mon",
+    "start": "8:00",
+    "end": "9:00"
+   },
+   {
+    "subject": "Science",
+    "day": "Mon",
+    "start": "10:30",
+    "end": "12:00"
+   },
+   {
+    "subject": "English",
+    "day": "Tue",
+    "start": "9:00",
+    "end": "10:30"
+   },
+   {
+    "subject": "History",
+    "day": "Tue",
+    "start": "13:00",
+    "end": "14:30"
+   },
+   {
+    "subject": "Physics",
+    "day": "Wed",
+    "start": "8:00",
+    "end": "9:30"
+   },
+   {
+    "subject": "Art",
+    "day": "Wed",
+    "start": "11:00",
+    "end": "12:30"
+   },
+   {
+    "subject": "Music",
+    "day": "Thu",
+    "start": "10:00",
+    "end": "11:00"
+   },
+   {
+    "subject": "PE",
+    "day": "Fri",
+    "start": "7:30",
+    "end": "9:00"
+   },
+   {
+    "subject": "Computer",
+    "day": "Fri",
+    "start": "10:00",
+    "end": "11:30"
+   }
+  ],
+  "text_lines": [
+   "Here is the final room schedule for",
+   "next week, please share with students:",
+   " ",
+   "Mon - Math 8:00-9:00 Room 5 / Science",
+   "10:30-12:00 Lab 3",
+   " ",
+   "Tue - English 9:00-10:30 Room 2 /",
+   "History 1:00 PM-2:30 PM Room 7",
+   " ",
+   "Wed - Physics 8:00-9:30 Lab 1 / Art",
+   "11:00-12:30 Studio 1",
+   " ",
+   "Thu - Music 10:00-11:00 Room 4",
+   " ",
+   "Fri - PE 7:30-9:00 Gym / Computer",
+   "10:00-11:30 IT Lab"
+  ],
+  "notes": {
+   "expect": "classes split across bubble wrap lines; multi-class \"A 8-9 / B 10-11\" lines exercise v51 fix"
+  }
+ },
+ "r4_email_list.png": {
+  "style": "email_memo",
+  "truth_classes": [
+   {
+    "subject": "Math 101",
+    "day": "Mon",
+    "start": "08:00",
+    "end": "09:30"
+   },
+   {
+    "subject": "Physics",
+    "day": "Mon",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "English",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:30"
+   },
+   {
+    "subject": "Chemistry",
+    "day": "Wed",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Statistics",
+    "day": "Wed",
+    "start": "13:00",
+    "end": "14:30"
+   },
+   {
+    "subject": "Biology",
+    "day": "Thu",
+    "start": "10:30",
+    "end": "12:00"
+   },
+   {
+    "subject": "Computer Science",
+    "day": "Fri",
+    "start": "08:00",
+    "end": "09:30"
+   },
+   {
+    "subject": "PE",
+    "day": "Fri",
+    "start": "14:00",
+    "end": "15:30"
+   }
+  ],
+  "text_lines": [
+   "Dear students,",
+   "Please find your confirmed schedule below.",
+   "Monday: Math 101, 8:00 AM - 9:30 AM, Room 201",
+   "Monday: Physics, 10:00 AM - 11:30 AM, Lab 3",
+   "Tuesday: English, 9:00 AM - 10:30 AM, Room 105",
+   "Wednesday: Chemistry, 8:00 AM - 9:00 AM, Lab 2",
+   "Wednesday: Statistics, 1:00 PM - 2:30 PM, Room 12",
+   "Thursday: Biology, 10:30 AM - 12:00 PM, Lab 1",
+   "Friday: Computer Science, 8:00 AM - 9:30 AM, IT Lab",
+   "Friday: PE, 2:00 PM - 3:30 PM, Gym"
+  ],
+  "notes": {
+   "expect": "clean line-per-class email; greetings/signature are noise"
+  }
+ },
+ "r4_email_prose.png": {
+  "style": "email_memo",
+  "truth_classes": [
+   {
+    "subject": "Science",
+    "day": "Mon",
+    "start": "10:30",
+    "end": "12:00"
+   },
+   {
+    "subject": "English",
+    "day": "Tue",
+    "start": "9:00",
+    "end": "10:30"
+   },
+   {
+    "subject": "History",
+    "day": "Tue",
+    "start": "13:00",
+    "end": "14:30"
+   },
+   {
+    "subject": "Physics",
+    "day": "Wed",
+    "start": "8:00",
+    "end": "9:30"
+   },
+   {
+    "subject": "Geometry",
+    "day": "Thu",
+    "start": "11:00",
+    "end": "12:30"
+   },
+   {
+    "subject": "Computer",
+    "day": "Fri",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "Art",
+    "day": "Fri",
+    "start": "13:00",
+    "end": "14:00"
+   }
+  ],
+  "text_lines": [
+   "Good morning everyone, I hope the break",
+   "treated you well. Here is what next week",
+   "looks like for our section.",
+   "On Monday, Math starts the day at 8:00,",
+   "followed by Science at 10:30-12:00 in",
+   "Lab 3. Tuesday has English at 9:00-10:30",
+   "and then History after lunch, 1:00 PM-",
+   "2:30 PM in Room 7.",
+   "Wednesday: Physics 8:00-9:30 in Lab 1.",
+   "Please bring calculators Thursday for",
+   "Geometry at 11:00-12:30, Room 8.",
+   "Friday wraps up with Computer 10:00-",
+   "11:30 in the IT Lab and Art at",
+   "1:00 PM-2:00 PM in Studio 2."
+  ],
+  "notes": {
+   "expect": "PROSE: \"Math ... at 8:00\" has no end time -> expected miss; ranges wrapped across lines (\"10:00-\" + \"11:30\") are the hard case"
+  }
+ },
+ "r4_notice_main.png": {
+  "style": "notice_board",
+  "truth_classes": [
+   {
+    "subject": "Mathematics",
+    "day": "Mon",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "English",
+    "day": "Mon",
+    "start": "09:30",
+    "end": "11:00"
+   },
+   {
+    "subject": "Science",
+    "day": "Tue",
+    "start": "08:00",
+    "end": "09:30"
+   },
+   {
+    "subject": "History",
+    "day": "Tue",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "Geography",
+    "day": "Wed",
+    "start": "09:00",
+    "end": "10:30"
+   },
+   {
+    "subject": "Art",
+    "day": "Thu",
+    "start": "08:00",
+    "end": "09:00"
+   },
+   {
+    "subject": "Music",
+    "day": "Fri",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "PE",
+    "day": "Fri",
+    "start": "13:00",
+    "end": "14:30"
+   }
+  ],
+  "text_lines": [
+   "ROOM 12 - WEEK SCHEDULE",
+   "MON   8:00 - 9:00   Mathematics",
+   "MON   9:30 - 11:00   English",
+   "TUE   8:00 - 9:30   Science",
+   "TUE   10:00 - 11:30   History",
+   "WED   9:00 - 10:30   Geography",
+   "THU   8:00 - 9:00   Art",
+   "FRI   10:00 - 11:30   Music",
+   "FRI   1:00 PM - 2:30 PM   PE"
+  ],
+  "notes": {
+   "expect": "single pinned note, day-anchored rows; PE uses explicit PM"
+  }
+ },
+ "r4_notice_mixed.png": {
+  "style": "notice_board",
+  "truth_classes": [
+   {
+    "subject": "Homeroom",
+    "day": "Mon",
+    "start": "07:30",
+    "end": "08:30"
+   },
+   {
+    "subject": "Math",
+    "day": "Mon",
+    "start": "08:30",
+    "end": "10:00"
+   },
+   {
+    "subject": "Science",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:30"
+   },
+   {
+    "subject": "English",
+    "day": "Wed",
+    "start": "08:00",
+    "end": "09:30"
+   },
+   {
+    "subject": "Music",
+    "day": "Thu",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "Social Studies",
+    "day": "Fri",
+    "start": "08:30",
+    "end": "10:00"
+   }
+  ],
+  "text_lines": [
+   "GRADE 8 - SCHEDULE",
+   "MON 7:30-8:30 Homeroom",
+   "MON 8:30-10:00 Math",
+   "TUE 9:00-10:30 Science",
+   "WED 8:00-9:30 English",
+   "THU 10:00-11:30 Music",
+   "FRI 8:30-10:00 Social Studies"
+  ],
+  "notes": {
+   "expect": "FALSE-POSITIVE probes: fire drill (Fri 10:00) and PTA (Thu 16:00) have day+time but are not classes; schedule squeezed between 4 noise notes"
+  }
+ }
+}

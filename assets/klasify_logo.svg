@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="title">
+  <title id="title">Klasify</title>
+  <rect width="120" height="120" rx="28" fill="#000000"/>
+  <rect x="38" y="30" width="50" height="14" rx="7" fill="#FFFFFF"/>
+  <rect x="38" y="53" width="68" height="14" rx="7" fill="#FFFFFF"/>
+  <rect x="38" y="76" width="36" height="14" rx="7" fill="#FFFFFF"/>
+  <circle cx="23" cy="37" r="7" fill="#FF8A5C"/>
+</svg>
