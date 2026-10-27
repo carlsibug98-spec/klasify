@@ -5,8 +5,11 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:klasify/database/database_helper.dart';
 import 'package:klasify/models/class_item.dart';
+import 'package:klasify/routes/app_router.dart';
 import 'package:klasify/screens/home_screen.dart';
 import 'package:klasify/theme/app_theme.dart';
+import 'package:klasify/widgets/next_class_card.dart';
+import 'package:klasify/widgets/swipe_actions.dart';
 
 void main() {
   setUpAll(() {
@@ -138,4 +141,130 @@ void main() {
       expect(find.text('Next Day Chemistry'), findsNothing);
     },
   );
+
+  group('hero swipe', () {
+    // One class later today: the hero shows it as "Upcoming" and the Today
+    // list shows the same class, so swipe finders must target the hero's
+    // wrapper specifically.
+    Future<void> pumpUpcomingHero(WidgetTester tester) async {
+      final db = DatabaseHelper.instance;
+      final now = DateTime.now();
+      final start = now.hour * 60 + now.minute + 120;
+      await tester.runAsync(() async {
+        await db.replaceAll([]);
+        await db.insert(
+          ClassItem(
+            subject: 'Hero Physics',
+            room: 'Room 9',
+            professor: 'Dr. Who',
+            day: now.weekday,
+            startMinutes: start,
+            endMinutes: start + 60,
+          ),
+        );
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          onGenerateRoute: AppRouter.onGenerateRoute,
+          home: const HomeScreen(),
+        ),
+      );
+      await tester.runAsync(() async {
+        await Future.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pump();
+    }
+
+    Finder heroSwipe() => find.ancestor(
+      of: find.byType(NextClassCard),
+      matching: find.byType(SwipeActions),
+    );
+
+    testWidgets('a full swipe on the hero deletes it with a 5-second undo', (
+      tester,
+    ) async {
+      await pumpUpcomingHero(tester);
+      expect(heroSwipe(), findsOneWidget);
+
+      await tester.drag(heroSwipe(), const Offset(-400, 0));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Class deleted'), findsOneWidget);
+      final remaining = await tester.runAsync(
+        () => DatabaseHelper.instance.getAll(),
+      );
+      expect(remaining, isEmpty);
+    });
+
+    testWidgets('undo brings the hero class back', (tester) async {
+      await pumpUpcomingHero(tester);
+
+      await tester.drag(heroSwipe(), const Offset(-400, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Class restored'), findsOneWidget);
+      final remaining = await tester.runAsync(
+        () => DatabaseHelper.instance.getAll(),
+      );
+      expect(remaining, hasLength(1));
+    });
+
+    testWidgets('the hero plane Edit opens the class form', (tester) async {
+      await pumpUpcomingHero(tester);
+
+      await tester.drag(heroSwipe(), const Offset(-100, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: heroSwipe(),
+          matching: find.byIcon(Icons.edit_outlined),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Edit class'), findsOneWidget);
+    });
+
+    testWidgets('the celebration hero carries no swipe plane', (tester) async {
+      // Guard for the non-goal: the all-done celebration has nothing to
+      // delete, so it must stay unwrapped.
+      final db = DatabaseHelper.instance;
+      final now = DateTime.now();
+      final nowMinutes = now.hour * 60 + now.minute;
+      await tester.runAsync(() async {
+        await db.replaceAll([]);
+        await db.insert(
+          ClassItem(
+            subject: 'Past Physics',
+            room: 'Room 1',
+            professor: 'Dr. Past',
+            day: now.weekday,
+            startMinutes: nowMinutes > 61 ? nowMinutes - 61 : 0,
+            endMinutes: nowMinutes > 1 ? nowMinutes - 1 : 1,
+          ),
+        );
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light(), home: const HomeScreen()),
+      );
+      await tester.runAsync(() async {
+        await Future.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pump();
+
+      expect(find.text('All done for today'), findsOneWidget);
+      expect(
+        find.ancestor(
+          of: find.byType(NextClassCard),
+          matching: find.byType(SwipeActions),
+        ),
+        findsNothing,
+      );
+    });
+  });
 }

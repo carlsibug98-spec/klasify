@@ -292,34 +292,46 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   ? const NextClassCard.empty(
                                       key: ValueKey('next-class-empty'),
                                     )
-                                  : NextClassCard(
+                                  // The hero row carries the same swipe
+                                  // plane as the list rows: full-swipe
+                                  // deletes with the 5-second undo, the
+                                  // plane's Edit opens the class form. The
+                                  // celebration and empty variants stay
+                                  // unwrapped — there is no class to act on.
+                                  : SwipeActions(
                                       key: ValueKey(
                                         '${next.item.day}:${next.item.startMinutes}:${next.item.subject}:${next.isNow}',
                                       ),
-                                      label: next.isNow
-                                          ? 'In class'
-                                          : 'Upcoming',
-                                      subject: next.item.subject,
-                                      room: next.item.room.trim().isEmpty
-                                          ? ''
-                                          : formatRoom(next.item.room),
-                                      professor:
-                                          next.item.professor
-                                                  .trim()
-                                                  .toLowerCase() ==
-                                              'not specified'
-                                          ? ''
-                                          : next.item.professor.trim(),
-                                      time: next.item.timeRange,
-                                      // The scheduling widget's copy: live
-                                      // classes count down ("Ends in 1h
-                                      // 12m"), upcoming ones give the
-                                      // start clock ("Starts 4:00 PM").
-                                      whenText: next.isNow
-                                          ? next.whenText
-                                          : next.whenText,
-                                      onLongPress: () =>
-                                          _deleteClass(next.item),
+                                      radius: 28,
+                                      onEdit: () =>
+                                          _open(AppRoutes.classForm, next.item),
+                                      onDelete: () => _deleteClass(next.item),
+                                      child: NextClassCard(
+                                        label: next.isNow
+                                            ? 'In class'
+                                            : 'Upcoming',
+                                        subject: next.item.subject,
+                                        room: next.item.room.trim().isEmpty
+                                            ? ''
+                                            : formatRoom(next.item.room),
+                                        professor:
+                                            next.item.professor
+                                                    .trim()
+                                                    .toLowerCase() ==
+                                                'not specified'
+                                            ? ''
+                                            : next.item.professor.trim(),
+                                        time: next.item.timeRange,
+                                        // The scheduling widget's copy: live
+                                        // classes count down ("Ends in 1h
+                                        // 12m"), upcoming ones give the
+                                        // start clock ("Starts 4:00 PM").
+                                        whenText: next.isNow
+                                            ? next.whenText
+                                            : next.whenText,
+                                        onLongPress: () =>
+                                            _deleteClass(next.item),
+                                      ),
                                     ),
                             ),
                           ),
