@@ -27,6 +27,7 @@ void main() {
     Future<bool> Function()? onDelete,
     VoidCallback? onTap,
     VoidCallback? onSwipe,
+    double? radius,
   }) {
     return MaterialApp(
       home: Scaffold(
@@ -34,6 +35,7 @@ void main() {
           children: [
             SwipeActions(
               padding: const EdgeInsets.symmetric(horizontal: 20),
+              radius: radius,
               onEdit: onEdit,
               onDelete: onDelete,
               onSwipe: onSwipe,
@@ -51,6 +53,58 @@ void main() {
   }
 
   group('SwipeActions', () {
+    testWidgets(
+      'a custom radius shapes the row clip, which stays off at rest',
+      (tester) async {
+        // The hero card carries 28px corners and an ambient shadow. The row
+        // must adopt the custom radius and must NOT clip while closed, so the
+        // shadow renders untouched until a swipe reveals the plane.
+        await tester.pumpWidget(host(radius: 28));
+        await tester.pumpAndSettle();
+
+        final rowClip = tester.widget<ClipRRect>(
+          find.byWidgetPredicate((w) => w is ClipRRect && w.child is Stack),
+        );
+        expect(rowClip.borderRadius, BorderRadius.circular(28));
+        expect(rowClip.clipBehavior, Clip.none);
+      },
+    );
+
+    testWidgets('the row clip engages only while the plane is revealed', (
+      tester,
+    ) async {
+      await tester.pumpWidget(host());
+      await tester.pumpAndSettle();
+
+      ClipRRect rowClip() => tester.widget<ClipRRect>(
+        find.byWidgetPredicate((w) => w is ClipRRect && w.child is Stack),
+      );
+      expect(rowClip().clipBehavior, Clip.none);
+
+      await tester.drag(find.byType(SwipeActions), const Offset(-100, 0));
+      await tester.pumpAndSettle();
+
+      expect(rowClip().clipBehavior, Clip.antiAlias);
+    });
+
+    testWidgets('the plane surface fades with the reveal, so a closed row '
+        'paints no action color outside its bounds', (tester) async {
+      // With the row clip off at rest, the closed plane (anchored past the
+      // trailing edge) would otherwise paint into the page gutter.
+      await tester.pumpWidget(host());
+      await tester.pumpAndSettle();
+
+      Opacity planeFade() => tester.widget<Opacity>(
+        find.byWidgetPredicate((w) => w is Opacity && w.child is IgnorePointer),
+      );
+      expect(planeFade().opacity, 0);
+
+      await tester.drag(find.byType(SwipeActions), const Offset(-100, 0));
+      await tester.pumpAndSettle();
+
+      expect(planeFade().opacity, 1);
+    });
+
     testWidgets('a short swipe snaps the action plane open', (tester) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
@@ -280,8 +334,9 @@ void main() {
           .widgetList<Opacity>(find.byType(Opacity))
           .map((w) => w.opacity)
           .toList();
-      // Two plane actions, both fully opaque at the open position.
-      expect(opacities.length, 2);
+      // Two plane actions plus the plane-level reveal fade, all fully
+      // opaque at the open position.
+      expect(opacities.length, 3);
       expect(opacities, everyElement(1.0));
     });
 
@@ -293,8 +348,7 @@ void main() {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
 
-      Positioned plane() =>
-          tester.widget<Positioned>(find.byType(Positioned));
+      Positioned plane() => tester.widget<Positioned>(find.byType(Positioned));
       expect(plane().right, lessThan(0));
 
       final gesture = await tester.startGesture(

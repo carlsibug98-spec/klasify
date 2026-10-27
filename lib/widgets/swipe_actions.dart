@@ -49,6 +49,7 @@ class SwipeActions extends StatefulWidget {
     this.onSwipe,
     this.padding = EdgeInsets.zero,
     this.forceOpen = false,
+    this.radius,
   });
 
   final Widget child;
@@ -75,6 +76,12 @@ class SwipeActions extends StatefulWidget {
   /// back open on every release. The card behind stays inert and can never
   /// arm or delete.
   final bool forceOpen;
+
+  /// Corner radius of the row: the row clip, the card's corner squaring, and
+  /// Delete's self-rounding all use it. Defaults to [AppTheme.cardRadius];
+  /// set it when the wrapped card carries its own larger shape (the hero's
+  /// 28px corners).
+  final double? radius;
 
   /// Width of one action; the whole plane is two actions wide.
   static const double actionExtent = 72;
@@ -128,6 +135,11 @@ class _SwipeActionsState extends State<SwipeActions>
 
   bool get _revealed => _controller.value > 0.02;
   bool get _opened => _controller.value >= 0.95;
+
+  // The clips (row + card squaring) only run while the plane is revealed.
+  // Closed, the card keeps its own shape and — for the hero — its ambient
+  // shadow renders untouched; the plane hides via its reveal fade instead.
+  Clip get _rowClip => _revealed ? Clip.antiAlias : Clip.none;
 
   // Current card translation in px: 0 closed, -144 at one full plane.
   double get _translate => -_controller.value * SwipeActions.planeWidth;
@@ -269,6 +281,7 @@ class _SwipeActionsState extends State<SwipeActions>
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final radius = widget.radius ?? AppTheme.cardRadius;
     return Padding(
       padding: widget.padding,
       child: SizeTransition(
@@ -293,9 +306,11 @@ class _SwipeActionsState extends State<SwipeActions>
                 final armed = ((value - 1.0) / 0.15).clamp(0.0, 1.0);
                 return ClipRRect(
                   // The row clip (`.swipe { overflow: hidden;
-                  // border-radius }`): hides the plane until the card pulls
-                  // it in and rounds whatever is visible at the row edges.
-                  borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+                  // border-radius }`): hides the plane while it travels in
+                  // and rounds whatever is visible at the row edges. Off at
+                  // rest so the card's own shadow renders unclipped.
+                  clipBehavior: _rowClip,
+                  borderRadius: BorderRadius.circular(radius),
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
@@ -316,55 +331,61 @@ class _SwipeActionsState extends State<SwipeActions>
                           // revealed; closed, the card covers it and the ⋮
                           // menu carries the same actions.
                           excluding: !_revealed,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              SizedBox(
-                                width:
-                                    SwipeActions.actionExtent * (1 - armed),
-                                child: _ActionPlane(
-                                  icon: Icons.edit_outlined,
-                                  label: 'Edit',
-                                  reveal: reveal,
-                                  background: scheme.primary,
-                                  foreground: scheme.onPrimary,
-                                  onTap:
-                                      widget.onEdit == null
+                          // The reveal fade hides the plane surface while the
+                          // row clip is off (closed and the first 2% of the
+                          // drag), so no action color leaks past the row.
+                          child: Opacity(
+                            opacity: reveal,
+                            child: IgnorePointer(
+                              ignoring: !_revealed,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  SizedBox(
+                                    width:
+                                        SwipeActions.actionExtent * (1 - armed),
+                                    child: _ActionPlane(
+                                      icon: Icons.edit_outlined,
+                                      label: 'Edit',
+                                      reveal: reveal,
+                                      background: scheme.primary,
+                                      foreground: scheme.onPrimary,
+                                      onTap: widget.onEdit == null
                                           ? null
                                           : _runEdit,
-                                ),
-                              ),
-                              SizedBox(
-                                width:
-                                    SwipeActions.actionExtent * (1 + armed),
-                                child: ClipRRect(
-                                  // Delete rounds its own outer edge so it
-                                  // doesn't rely on the row's clip — that
-                                  // edge ends up inside the row once armed.
-                                  borderRadius: const BorderRadius.horizontal(
-                                    right: Radius.circular(
-                                      AppTheme.cardRadius,
                                     ),
                                   ),
-                                  child: _ActionPlane(
-                                    icon: Icons.delete_outline_rounded,
-                                    // Binary swap the moment the plane
-                                    // crosses the full-swipe point, matching
-                                    // the mockup's `.swipe.armed .del
-                                    // .lbl-armed` rule.
-                                    label:
-                                        armed >= 1.0 ? 'Release' : 'Delete',
-                                    reveal: reveal,
-                                    background: scheme.error,
-                                    foreground: scheme.onError,
-                                    onTap:
-                                        widget.onDelete == null
+                                  SizedBox(
+                                    width:
+                                        SwipeActions.actionExtent * (1 + armed),
+                                    child: ClipRRect(
+                                      // Delete rounds its own outer edge so it
+                                      // doesn't rely on the row's clip — that
+                                      // edge ends up inside the row once armed.
+                                      borderRadius: BorderRadius.horizontal(
+                                        right: Radius.circular(radius),
+                                      ),
+                                      child: _ActionPlane(
+                                        icon: Icons.delete_outline_rounded,
+                                        // Binary swap the moment the plane
+                                        // crosses the full-swipe point, matching
+                                        // the mockup's `.swipe.armed .del
+                                        // .lbl-armed` rule.
+                                        label: armed >= 1.0
+                                            ? 'Release'
+                                            : 'Delete',
+                                        reveal: reveal,
+                                        background: scheme.error,
+                                        foreground: scheme.onError,
+                                        onTap: widget.onDelete == null
                                             ? null
                                             : _runDelete,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
@@ -386,14 +407,12 @@ class _SwipeActionsState extends State<SwipeActions>
                             child: ClipRRect(
                               // The card's right corners square off as it
                               // pulls open, so its trailing edge meets the
-                              // Edit button in a straight line.
+                              // Edit button in a straight line. Off at rest:
+                              // the card keeps its own shape and shadow.
+                              clipBehavior: _rowClip,
                               borderRadius: BorderRadius.horizontal(
-                                left: const Radius.circular(
-                                  AppTheme.cardRadius,
-                                ),
-                                right: Radius.circular(
-                                  AppTheme.cardRadius * (1 - reveal),
-                                ),
+                                left: Radius.circular(radius),
+                                right: Radius.circular(radius * (1 - reveal)),
                               ),
                               child: card,
                             ),
