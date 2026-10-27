@@ -9,6 +9,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:klasify/features/schedule_import/import_schedule_screen.dart';
 import 'package:klasify/features/schedule_import/services/schedule_ocr_service.dart';
+import 'package:klasify/features/schedule_import/services/timetable_grid_scanner.dart';
 import 'package:klasify/features/schedule_import/utils/timetable_parser.dart';
 import 'package:klasify/features/schedule_import/widgets/import_review_widgets.dart';
 import 'package:klasify/theme/app_theme.dart';
@@ -35,6 +36,7 @@ class TestScheduleOcrService extends ScheduleOcrService {
     String path, {
     required void Function(double progress, String detail) onProgress,
     bool Function()? isCancelled,
+    GridScanStats? stats,
   }) async {
     if (onScanGridImage != null) {
       return onScanGridImage!(onProgress: onProgress, isCancelled: isCancelled);
@@ -43,6 +45,7 @@ class TestScheduleOcrService extends ScheduleOcrService {
       path,
       onProgress: onProgress,
       isCancelled: isCancelled,
+      stats: stats,
     );
   }
 

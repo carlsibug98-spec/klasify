@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klasify/features/schedule_import/services/schedule_ocr_service.dart';
+import 'package:klasify/features/schedule_import/services/timetable_grid_scanner.dart';
 import 'package:klasify/features/schedule_import/utils/parse_chain.dart';
 import 'package:klasify/features/schedule_import/utils/timetable_parser.dart';
 import 'package:paddle_ocr_native/paddle_ocr_native.dart';
@@ -106,20 +107,29 @@ void main() {
           .toList();
 
       // ---- Pipeline, exactly as the import screen runs it ----------------
+      final gridStats = GridScanStats();
       final gridRows = await service.scanGridImage(
         fixture,
         onProgress: (_, __) {},
+        stats: gridStats,
       );
-      // The flat-text cascade is skipped when the grid stage already found
-      // rows (the screen discards its result). On pre-optimization trees the
-      // text stage still ran there, but its output was discarded too, so the
-      // FINAL rows this benchmark scores are the same on both sides.
+      // Mirrors import_schedule_screen: the flat-text cascade is skipped when
+      // the grid geometry mapped the page, and also runs for a SUSPICIOUS
+      // grid result (<= 2 rows from a page that read far more lines than it
+      // mapped - a notice board locking onto a stray line); the stronger
+      // ParseChain candidate wins. On pre-rescue trees the text stage either
+      // ran (grid empty) or was discarded, so the final rows this benchmark
+      // scores stay comparable.
+      final gridSuspicious =
+          gridRows.isNotEmpty &&
+          gridRows.length <= 2 &&
+          gridStats.lineCount > gridRows.length * 8;
       String text = '';
-      if (gridRows.isEmpty) {
+      if (gridRows.isEmpty || gridSuspicious) {
         text = await service.scanImage(fixture, onProgress: (_, __) {});
       }
 
-      final rows = _finalRows(gridRows, text);
+      final rows = _finalRows(gridRows, gridSuspicious, text);
       final calls = tesseractPlatform.calls;
 
       // ---- Score against truth -------------------------------------------
@@ -238,12 +248,44 @@ void main() {
 
 // ---------------- Final selection (mirrors the import screen) ---------------
 
-List<_Row> _finalRows(List<ParsedTimetableRow> gridRows, String text) {
-  if (gridRows.isNotEmpty) {
+List<_Row> _finalRows(
+  List<ParsedTimetableRow> gridRows,
+  bool gridSuspicious,
+  String text,
+) {
+  if (gridRows.isNotEmpty && !gridSuspicious) {
     return [
       for (final r in gridRows)
         _Row(r.subject, r.day, r.startMinutes, r.endMinutes),
     ];
+  }
+  if (gridRows.isNotEmpty) {
+    // Weak-grid rescue, scored exactly like the screen: the text candidate
+    // only wins when it parses more on the shared ParseChain scale.
+    if (text.isEmpty) {
+      return [
+        for (final r in gridRows)
+          _Row(r.subject, r.day, r.startMinutes, r.endMinutes),
+      ];
+    }
+    final confidences = gridRows
+        .map((row) => row.ocrConfidence)
+        .whereType<double>()
+        .toList();
+    final gridMeanConfidence = confidences.isEmpty
+        ? 0.0
+        : confidences.reduce((a, b) => a + b) / confidences.length;
+    final gridScore = ParseChain.scoreRows(
+      gridRows,
+      meanConfidence: gridMeanConfidence,
+    );
+    final textScore = ParseChain.score(text, 0);
+    if (textScore <= gridScore) {
+      return [
+        for (final r in gridRows)
+          _Row(r.subject, r.day, r.startMinutes, r.endMinutes),
+      ];
+    }
   }
   final hasWeekdayHeaders =
       RegExp(

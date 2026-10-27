@@ -9,6 +9,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:klasify/database/database_helper.dart';
 import 'package:klasify/features/schedule_import/import_schedule_screen.dart';
 import 'package:klasify/features/schedule_import/services/schedule_ocr_service.dart';
+import 'package:klasify/features/schedule_import/services/timetable_grid_scanner.dart';
 import 'package:klasify/features/schedule_import/utils/timetable_parser.dart';
 import 'package:klasify/routes/app_router.dart';
 import 'package:klasify/theme/app_theme.dart';
@@ -20,8 +21,15 @@ class _FakeScheduleOcrService extends ScheduleOcrService {
     String path, {
     required void Function(double progress, String detail) onProgress,
     bool Function()? isCancelled,
+    GridScanStats? stats,
   }) async {
     onProgress(.4, 'Detected timetable grid');
+    // A clean, trusted grid read: the screen must not spend a text cascade
+    // on it (this fake pins the strong-grid fast path).
+    stats
+      ?..lineCount = 20
+      ..alnumChars = 400
+      ..meanLineConfidence = .99;
     return const [
       ParsedTimetableRow(
         subject: 'Algorithms',

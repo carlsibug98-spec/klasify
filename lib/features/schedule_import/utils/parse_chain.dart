@@ -22,7 +22,11 @@ class ParseChain {
 
   /// Runs the review-screen chain on [text]. Returns the parser that produced
   /// rows, or null when neither parser found anything.
-  static ({List<SectionedRow> sectioned, List<ParsedTimetableRow> list, String used})
+  static ({
+    List<SectionedRow> sectioned,
+    List<ParsedTimetableRow> list,
+    String used,
+  })
   parse(String text) {
     final prepared = prepareScheduleLines(text).join('\n');
     final sectioned = SectionedScheduleParser.parse(prepared);
@@ -53,8 +57,9 @@ class ParseChain {
       prepareScheduleLines(text).join('\n'),
     );
     final list = TimetableParser.parse(text);
-    final bestRowCount =
-        sectioned.length > list.length ? sectioned.length : list.length;
+    final bestRowCount = sectioned.length > list.length
+        ? sectioned.length
+        : list.length;
     if (bestRowCount == 0) return meanConfidence * 5;
 
     final subjects = <String>{
@@ -89,6 +94,32 @@ class ParseChain {
             (validTimePairs < 20 ? validTimePairs : 20) * 1.5 +
             meanConfidence * 12.0 -
             duplicatePenalty * 12.0)
+        .toDouble();
+  }
+
+  /// Row-level mirror of [score] for candidates that never were text: the
+  /// grid scanner hands back parsed rows directly, and a weak grid result has
+  /// to compete with a text-cascade candidate on the same scale (same weights
+  /// for row count, distinct subjects and distinct slots; the duplicate and
+  /// raw-time-pair terms do not apply — rows are already deduplicated by the
+  /// scanner and their times are already parsed).
+  static double scoreRows(
+    List<ParsedTimetableRow> rows, {
+    double meanConfidence = 0,
+  }) {
+    if (rows.isEmpty) return 0;
+    final subjects = <String>{
+      for (final row in rows)
+        row.subject.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim(),
+    }..removeWhere((subject) => subject.isEmpty);
+    final slots = <String>{
+      for (final row in rows)
+        '${row.day}:${row.startMinutes}:${row.endMinutes}',
+    };
+    return (rows.length * 100.0 +
+            subjects.length * 8.0 +
+            slots.length * 4.0 +
+            meanConfidence * 12.0)
         .toDouble();
   }
 }

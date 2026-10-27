@@ -16,6 +16,7 @@ import '../../widgets/app_notification.dart';
 import '../../widgets/swipe_actions.dart';
 import 'models/import_draft.dart';
 import 'services/schedule_ocr_service.dart';
+import 'services/timetable_grid_scanner.dart';
 import 'utils/parse_chain.dart';
 import 'utils/sectioned_schedule_parser.dart';
 import 'utils/timetable_parser.dart';
@@ -321,6 +322,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
               isCancelled: () => _cancelScanRequested,
             )
           : null;
+      final gridStats = ext == '.pdf' ? null : GridScanStats();
       final gridRows = ext == '.pdf'
           ? pdfScan!.gridRows
           : await _ocrService.scanGridImage(
@@ -328,17 +330,31 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
               onProgress: (progress, detail) =>
                   _reportScanProgress(progress, detail),
               isCancelled: () => _cancelScanRequested,
+              stats: gridStats,
             );
       if (_cancelScanRequested) {
         _finishCancelledScan();
         return;
       }
-      // A weekly grid's rows carry the full structure, and the selection
-      // logic below keeps gridRows whenever they exist - the flat-text
-      // cascade would only burn several more recognition passes whose
-      // result is then discarded. Its text is only consumed when the grid
-      // scan found nothing, so it is skipped in that case.
-      if (ext != '.pdf' && gridRows.isEmpty) {
+      // A weekly grid's rows carry the full structure, so a grid result whose
+      // geometry mapped most of the OCR lines into cells skips the flat-text
+      // cascade entirely - running it would only burn several more recognition
+      // passes whose result is then discarded. But a page whose scan read far
+      // more lines than it could map into rows (a notice board or chat
+      // screenshot the grid geometry locked onto for one or two stray lines)
+      // can hide a parseable text schedule underneath. For those the text
+      // cascade also runs and the stronger candidate wins below; empty text
+      // candidates never displace grid rows. A real timetable's lines mostly
+      // land in cells (a few lines per class plus headers and time labels),
+      // so more than 8 unread lines per mapped row means the geometry did
+      // not understand this page.
+      final gridSuspicious =
+          ext != '.pdf' &&
+          gridRows.isNotEmpty &&
+          gridRows.length <= 2 &&
+          gridStats != null &&
+          gridStats.lineCount > gridRows.length * 8;
+      if (ext != '.pdf' && (gridRows.isEmpty || gridSuspicious)) {
         _reportScanProgress(
           .43,
           'Trying text recognition',
@@ -347,7 +363,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
       }
       final text = ext == '.pdf'
           ? pdfScan!.text
-          : gridRows.isEmpty
+          : gridRows.isEmpty || gridSuspicious
           ? await _ocrService.scanImage(
               path,
               onProgress: (progress, detail) =>
@@ -392,10 +408,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
         end: row.endMinutes,
         ocrConfidence: row.ocrConfidence,
       );
-      List<ImportDraft> parsed;
-      if (ext == '.pdf' || gridRows.isNotEmpty) {
-        parsed = gridRows.map(toDraft).toList();
-      } else {
+      List<ImportDraft> parseTextCandidate() {
         // Parser chain, most layout-aware first. The shared ParseChain runs
         // prepareScheduleLines then the sectioned parser, which reads weekday
         // header bands (slot grids, faculty rows, period rows), day sections,
@@ -407,18 +420,50 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
         final chain = ParseChain.parse(text);
         final sectionedRows = chain.sectioned;
         if (sectionedRows.isNotEmpty) {
-          parsed = sectionedRows.map(fromSectioned).toList();
+          return sectionedRows.map(fromSectioned).toList();
         } else if (hasWeekdayHeaders) {
           // The text looks like a flattened weekly grid. Try the line-oriented
           // list parser first (one class per line); only when it finds nothing
           // fall back to the strict no-guess path so free-text lists are never
           // wrongly rejected as grids.
           final listRows = TimetableParser.parse(text);
-          parsed = listRows.isNotEmpty
+          return listRows.isNotEmpty
               ? listRows.map(toDraft).toList()
               : <ImportDraft>[];
         } else {
-          parsed = chain.list.map(toDraft).toList();
+          return chain.list.map(toDraft).toList();
+        }
+      }
+
+      final List<ImportDraft> parsed;
+      if (ext == '.pdf' || gridRows.isEmpty) {
+        parsed = parseTextCandidate();
+      } else if (!gridSuspicious) {
+        parsed = gridRows.map(toDraft).toList();
+      } else {
+        // Weak grid: let the two candidates compete on the shared ParseChain
+        // scale. The grid's rows carry real OCR confidences, so they get the
+        // same confidence bonus a text candidate would get - the spatial
+        // result only loses when the text cascade genuinely parsed more.
+        final textCandidate = parseTextCandidate();
+        if (textCandidate.isEmpty) {
+          parsed = gridRows.map(toDraft).toList();
+        } else {
+          final confidences = gridRows
+              .map((row) => row.ocrConfidence)
+              .whereType<double>()
+              .toList();
+          final gridMeanConfidence = confidences.isEmpty
+              ? 0.0
+              : confidences.reduce((a, b) => a + b) / confidences.length;
+          final gridScore = ParseChain.scoreRows(
+            gridRows,
+            meanConfidence: gridMeanConfidence,
+          );
+          final textScore = ParseChain.score(text, 0);
+          parsed = textScore > gridScore
+              ? textCandidate
+              : gridRows.map(toDraft).toList();
         }
       }
       final scanWarnings = <String>[

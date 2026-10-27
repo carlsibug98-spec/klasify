@@ -85,12 +85,17 @@ class ScheduleOcrService {
     String path, {
     required void Function(double progress, String detail) onProgress,
     bool Function()? isCancelled,
+    GridScanStats? stats,
   }) async {
     bool cancelled() => _isCancelled || (isCancelled?.call() ?? false);
     if (cancelled()) return [];
     await _initializeOcr();
     if (cancelled()) return [];
-    final firstScanStats = GridScanStats();
+    // The caller can hand in a stats object to learn how clean the upright
+    // read was (weak-grid rescue on the import screen); the rotations below
+    // deliberately keep their own stats - only the first scan decides
+    // whether the image was already upright and readable.
+    final firstScanStats = stats ?? GridScanStats();
     final rows = await _gridScanner.scan(
       path,
       onProgress: onProgress,

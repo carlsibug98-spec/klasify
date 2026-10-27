@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klasify/features/schedule_import/services/schedule_ocr_service.dart';
+import 'package:klasify/features/schedule_import/services/timetable_grid_scanner.dart';
 import 'package:klasify/features/schedule_import/utils/parse_chain.dart';
 import 'package:klasify/features/schedule_import/utils/sectioned_schedule_parser.dart';
 import 'package:klasify/features/schedule_import/utils/timetable_parser.dart';
@@ -115,10 +116,12 @@ void main() {
       final entry = <String, dynamic>{};
 
       // ---- Stage 1: grid scan (as the import screen runs it) -------------
+      final gridStats = GridScanStats();
       final gridWatch = Stopwatch()..start();
       final gridRows = await service.scanGridImage(
         fixture,
         onProgress: (_, __) {},
+        stats: gridStats,
       );
       gridWatch.stop();
       final gridCalls = tesseractPlatform.calls;
@@ -130,10 +133,15 @@ void main() {
 
       // ---- Stage 2: text scan (as the import screen runs it) -------------
       // Mirrors import_schedule_screen: the flat-text cascade is skipped
-      // when the grid stage already found rows (its result was discarded
-      // by the selection logic).
-      const skipTextStageWhenGridFoundRows = true;
-      final runTextStage = gridRows.isEmpty || !skipTextStageWhenGridFoundRows;
+      // when the grid geometry mapped the page (rows carry the structure),
+      // and also runs for a SUSPICIOUS grid result (<= 2 rows from a page
+      // that read far more lines than it mapped - a notice board locking
+      // onto a stray line); the stronger ParseChain candidate wins.
+      final gridSuspicious =
+          gridRows.isNotEmpty &&
+          gridRows.length <= 2 &&
+          gridStats.lineCount > gridRows.length * 8;
+      final runTextStage = gridRows.isEmpty || gridSuspicious;
       String text = '';
       var textCalls = 0;
       double textSeconds = 0;
@@ -158,32 +166,76 @@ void main() {
             caseSensitive: false,
           ).allMatches(text).length >=
           2;
+      final chain = ParseChain.parse(text);
+      final sectioned = chain.sectioned;
+      final listRows = sectioned.isEmpty
+          ? TimetableParser.parse(text)
+          : <ParsedTimetableRow>[];
+      ({String source, List<Map<String, dynamic>> rows, int count})
+      textResult() {
+        if (sectioned.isNotEmpty) {
+          return (
+            source: 'sectioned',
+            rows: encodeSectioned(sectioned),
+            count: sectioned.length,
+          );
+        }
+        if (hasWeekdayHeaders && listRows.isNotEmpty) {
+          return (
+            source: 'list',
+            rows: encodeList(listRows),
+            count: listRows.length,
+          );
+        }
+        return (
+          source: chain.list.isEmpty ? 'none' : 'list',
+          rows: encodeList(chain.list),
+          count: chain.list.length,
+        );
+      }
+
       String finalSource;
       int finalRows;
-      if (gridRows.isNotEmpty) {
+      if (gridRows.isEmpty) {
+        final resolved = textResult();
+        finalSource = resolved.source;
+        finalRows = resolved.count;
+        entry['final_rows'] = resolved.rows;
+      } else if (!gridSuspicious) {
         finalSource = 'grid';
         finalRows = gridRows.length;
         entry['final_rows'] = encodeGrid(gridRows);
       } else {
-        final chain = ParseChain.parse(text);
-        final sectioned = chain.sectioned;
-        final listRows = sectioned.isNotEmpty
-            ? <ParsedTimetableRow>[]
-            : TimetableParser.parse(text);
-        if (sectioned.isNotEmpty) {
-          finalSource = 'sectioned';
-          finalRows = sectioned.length;
-          entry['final_rows'] = encodeSectioned(sectioned);
-        } else if (hasWeekdayHeaders && listRows.isNotEmpty) {
-          finalSource = 'list';
-          finalRows = listRows.length;
-          entry['final_rows'] = encodeList(listRows);
+        // Weak-grid rescue, scored exactly like the screen: parsed rows win
+        // on the shared scale, an empty text candidate never displaces grid
+        // rows.
+        final confidences = gridRows
+            .map((row) => row.ocrConfidence)
+            .whereType<double>()
+            .toList();
+        final gridMeanConfidence = confidences.isEmpty
+            ? 0.0
+            : confidences.reduce((a, b) => a + b) / confidences.length;
+        final gridScore = ParseChain.scoreRows(
+          gridRows,
+          meanConfidence: gridMeanConfidence,
+        );
+        final textScore = text.isEmpty
+            ? double.negativeInfinity
+            : ParseChain.score(text, 0);
+        final candidate = textResult();
+        if (candidate.count > 0 && textScore > gridScore) {
+          finalSource = candidate.source;
+          finalRows = candidate.count;
+          entry['final_rows'] = candidate.rows;
+          entry['rescued_from_grid'] = true;
         } else {
-          finalSource = chain.list.isNotEmpty ? 'list' : 'none';
-          finalRows = chain.list.length;
-          entry['final_rows'] = encodeList(chain.list);
+          finalSource = 'grid';
+          finalRows = gridRows.length;
+          entry['final_rows'] = encodeGrid(gridRows);
         }
       }
+      entry['rescued_from_grid'] ??= false;
       entry['final'] = {
         'source': finalSource,
         'rows': finalRows,
