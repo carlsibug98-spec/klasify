@@ -14,6 +14,7 @@ import '../../screens/main_navigation_screen.dart';
 import '../../services/reminder_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_notification.dart';
+import '../../widgets/swipe_actions.dart';
 import 'models/import_draft.dart';
 import 'services/schedule_ocr_service.dart';
 import 'utils/parse_chain.dart';
@@ -696,8 +697,10 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
     });
   }
 
-  void _deleteDraft(int index) {
-    if (_working || index < 0 || index >= _drafts.length) return;
+  /// Removes the draft at [index]. Reports whether the removal happened, so
+  /// the swipe row can restore itself when the screen was busy.
+  bool _deleteDraft(int index) {
+    if (_working || index < 0 || index >= _drafts.length) return false;
     final deleted = _drafts.removeAt(index);
     setState(() {
       _refreshAnalysis();
@@ -708,6 +711,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
       'Removed "${deleted.subject}" from this import review.',
       kind: AppNotificationKind.success,
     );
+    return true;
   }
 
   Future<void> _save() async {
@@ -966,7 +970,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title:                 Text(reviewing ? 'Review import' : 'Import schedule'),
+          title: Text(reviewing ? 'Review import' : 'Import schedule'),
           actions: [
             if (reviewing && _selectedFilePath != null)
               IconButton(
@@ -1112,14 +1116,25 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
                           ),
                         ),
                         for (var i = 0; i < _drafts.length; i++)
-                          ImportDraftCard(
-                            draft: _drafts[i],
-                            note: _notes[_drafts[i]],
-                            unknownRoom: _isUnknownRoom(_drafts[i].room),
-                            ocrReviewNeeded: _needsOcrReview(_drafts[i]),
-                            ocrReviewLabel: _ocrReviewLabel(_drafts[i]),
-                            onTap: () => _edit(_drafts[i]),
-                            onDelete: () => _deleteDraft(i),
+                          // The review rows carry the same swipe plane as the
+                          // saved-schedule rows: full-swipe removes the draft
+                          // (notification, no undo — pre-save staging), the
+                          // plane's Edit opens the draft editor. The trash
+                          // icon stays as the discoverable fallback.
+                          SwipeActions(
+                            key: ValueKey('draft-$i'),
+                            padding: const EdgeInsets.symmetric(vertical: 5),
+                            onEdit: () => _edit(_drafts[i]),
+                            onDelete: () async => _deleteDraft(i),
+                            child: ImportDraftCard(
+                              draft: _drafts[i],
+                              note: _notes[_drafts[i]],
+                              unknownRoom: _isUnknownRoom(_drafts[i].room),
+                              ocrReviewNeeded: _needsOcrReview(_drafts[i]),
+                              ocrReviewLabel: _ocrReviewLabel(_drafts[i]),
+                              onTap: () => _edit(_drafts[i]),
+                              onDelete: () => _deleteDraft(i),
+                            ),
                           ),
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
@@ -1159,9 +1174,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
             ),
             if (reviewing)
               DecoratedBox(
-                decoration: BoxDecoration(
-                  color: scheme.surface,
-                ),
+                decoration: BoxDecoration(color: scheme.surface),
                 child: SafeArea(
                   top: false,
                   child: Center(

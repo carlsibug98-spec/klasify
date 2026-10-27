@@ -943,7 +943,9 @@ class ImportDraftCard extends StatelessWidget {
         ? ''
         : draft.professor.trim();
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 5),
+      // The vertical rhythm lives in the SwipeActions padding at the call
+      // site, so the gap collapses together with the row on removal.
+      margin: EdgeInsets.zero,
       color: background,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(

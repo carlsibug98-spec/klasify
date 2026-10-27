@@ -12,6 +12,7 @@ import 'package:klasify/features/schedule_import/services/schedule_ocr_service.d
 import 'package:klasify/features/schedule_import/utils/timetable_parser.dart';
 import 'package:klasify/routes/app_router.dart';
 import 'package:klasify/theme/app_theme.dart';
+import 'package:klasify/widgets/swipe_actions.dart';
 
 class _FakeScheduleOcrService extends ScheduleOcrService {
   @override
@@ -134,6 +135,81 @@ void main() {
 
     await tester.runAsync(() async {
       expect(await DatabaseHelper.instance.getAll(), isEmpty);
+    });
+  });
+
+  group('draft row swipe', () {
+    Future<Finder> pumpReview(WidgetTester tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(800, 1400);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.runAsync(() async {
+        await DatabaseHelper.instance.getAll();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          onGenerateRoute: AppRouter.onGenerateRoute,
+          home: ImportScheduleScreen(
+            initialFilePath: sampleFile.path,
+            ocrService: _FakeScheduleOcrService(),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      return find.ancestor(
+        of: find.text('Algorithms'),
+        matching: find.byType(SwipeActions),
+      );
+    }
+
+    testWidgets('a full swipe on a draft row removes it from the review', (
+      tester,
+    ) async {
+      final row = await pumpReview(tester);
+      expect(row, findsOneWidget);
+
+      await tester.drag(row, const Offset(-400, 0));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Algorithms'), findsNothing);
+      expect(
+        find.text('Removed "Algorithms" from this import review.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the draft plane Edit opens the draft editor', (tester) async {
+      final row = await pumpReview(tester);
+
+      await tester.drag(row, const Offset(-100, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(of: row, matching: find.byIcon(Icons.edit_outlined)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Edit class'), findsOneWidget);
+    });
+
+    testWidgets('the trash button keeps removing drafts', (tester) async {
+      // Fallback guard: the visible trash affordance survives the swipe
+      // integration, like the class card's menu.
+      final row = await pumpReview(tester);
+
+      await tester.tap(find.byTooltip('Remove Algorithms from import'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Algorithms'), findsNothing);
+      expect(row, findsNothing);
     });
   });
 }
