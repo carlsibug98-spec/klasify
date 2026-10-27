@@ -1,6 +1,6 @@
 # Klasify — know what’s next
 
-An offline-first Flutter app for maintaining a weekly class timetable. **All schedule data is stored in a local SQLite database on the device.** This project does not use Firebase, Supabase, cloud sync, or online user accounts. The one optional network feature is a **self-hosted** high-accuracy scan server (see [Optional high-accuracy scan server](#optional-high-accuracy-scan-server)) that you configure yourself and that only ever receives scan images — never your schedule.
+An offline-first Flutter app for maintaining a weekly class timetable. **All schedule data is stored in a local SQLite database on the device.** This project does not use Firebase, Supabase, a server, cloud sync, or online user accounts.
 
 ## Features
 - Add, edit, and delete classes with instant undo capability
@@ -13,7 +13,6 @@ An offline-first Flutter app for maintaining a weekly class timetable. **All sch
 - Interactive class status sheet with per-class and multi-day status spans
 - Guided four-step coach tour, shown once right after the first class is added, plus a one-time swipe hint
 - Offline weekly schedule import from images/screenshots and PDF files via on-device OCR
-- Optional high-accuracy scan pass through a self-hosted PaddleOCR-VL 1.6 server, with automatic fallback to the on-device engine
 - In-memory import draft caching (`ImportRouteCache`) allowing users to pause and resume timetable reviews
 - Import review screen with conflict checks, uncertain room detection, and all-or-nothing atomic SQLite save
 - JSON schedule backup and restore with structure validation and confirmation dialogs
@@ -56,16 +55,13 @@ The app uses a black-and-white palette: white and grey surfaces, black for text 
 ## Import a weekly timetable (offline)
 1. Open **Settings** and choose **Import schedule**, or tap **Scan it** on the empty Today screen.
 2. Select a PNG/JPG/WEBP image or PDF from the device.
-3. Text recognition runs locally using PaddleOCR with its model assets bundled in the app; no model download is needed. PDF pages are rendered locally at 3x scale before OCR (up to the first 8 pages). OCR blocks are ordered using their bounding-box positions to preserve more layout information than a single flattened text string. If the optional scan server below is configured, scans try it first and fall back to the on-device engine.
+3. Text recognition runs locally using PaddleOCR with its model assets bundled in the app; no model download or server is needed. PDF pages are rendered locally at 3x scale before OCR (up to the first 8 pages). OCR blocks are ordered using their bounding-box positions to preserve more layout information than a single flattened text string.
 4. Review every detected row and edit the subject, room, day, start/end time, or professor. Missing professor values use `Not specified`; missing room values are marked `Room to confirm` and should be corrected.
 5. The importer checks overlap conflicts against existing saved classes and other imported rows. Resolve conflicts before saving.
 6. Confirm **Import classes**. The batch is saved in one SQLite transaction, so an insert failure rolls back the entire batch.
 
 ### Important OCR limitations
-The importer supports common 12-hour and 24-hour time ranges and uses OCR text-block bounding boxes to reconstruct approximate horizontal rows. This improves common timetable grids but does not guarantee perfect column-to-weekday mapping for every school layout. Always review all detected rows. A room is not inferred from generic subject wording such as “Computer Lab Programming”; room values that are not recognized are marked Room to confirm and must be corrected before saving. Manual class cancellation is explicitly reported. The app does not silently save uncertain results; manually add missed rows or edit detected rows before importing. By default, no image or PDF leaves the device.
-
-### Optional high-accuracy scan server
-Scanning works fully offline out of the box. In the import screen you can optionally point Klasify at a **self-hosted** PaddleOCR-VL 1.6 server (free; run it from the PaddleOCR docker compose guide on a GPU PC). When a server URL is saved, image scans — and PDF pages that need a text pass after local rendering — are sent to that server first, and every scan silently falls back to the on-device engine if the server is unreachable. Your schedule data is never sent anywhere; only the scan image is. Clear the field to keep every scan on this device.
+The importer supports common 12-hour and 24-hour time ranges and uses OCR text-block bounding boxes to reconstruct approximate horizontal rows. This improves common timetable grids but does not guarantee perfect column-to-weekday mapping for every school layout. Always review all detected rows. A room is not inferred from generic subject wording such as “Computer Lab Programming”; room values that are not recognized are marked Room to confirm and must be corrected before saving. Manual class cancellation is explicitly reported. The app does not silently save uncertain results; manually add missed rows or edit detected rows before importing. No image or PDF is uploaded to a server.
 
 ## Requirements
 - Flutter SDK installed and available on PATH
@@ -131,7 +127,6 @@ lib/
         import_draft.dart
       services/
         ocr_image_preprocessor.dart
-        paddle_ocr_vl_client.dart       # optional self-hosted scan server client
         schedule_ocr_service.dart
         timetable_grid_scanner.dart
       utils/                           # parsers, grid geometry, PDF helpers
@@ -186,12 +181,12 @@ lib/
 test/
 ```
 
-The Android `INTERNET` permission exists solely for the optional, user-configured scan server; the app makes no other network calls and contains no analytics, telemetry, or crash reporting.
+There is no server component. The Android `INTERNET` permission is limited to Flutter's debug and profile manifests for development tooling; it is not present in the main/release app manifest.
 
 ## Local data and safety
 - Classes are stored in `class_schedule.db` on this device only.
 - Android system backups exclude the schedule database and app preferences; use the in-app JSON export when moving or reinstalling the app.
-- There is no online database, account, cloud sync, or backend service. OCR models are packaged with the app, and timetable images/PDFs are processed on-device unless you configure the optional self-hosted scan server, which receives only scan images.
+- There is no online database, account, cloud sync, or backend service. OCR models are packaged with the app, and timetable images/PDFs are processed on-device.
 - Uninstalling the app may remove its local database. Back up important schedules before uninstalling or clearing app data.
 - Database upgrade from version 1 to version 2 adds validation triggers without rebuilding the classes table. Existing rows are retained; invalid legacy rows are not silently dropped. New inserts/updates must meet validation rules.
 - UI errors remain understandable to users; detailed failures are written to the debug console for troubleshooting.

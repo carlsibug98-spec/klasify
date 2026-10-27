@@ -19,9 +19,7 @@ import '../utils/sectioned_schedule_parser.dart';
 import '../utils/timetable_format.dart';
 import '../utils/timetable_parser.dart';
 import 'ocr_image_preprocessor.dart';
-import 'paddle_ocr_vl_client.dart';
 import 'timetable_grid_scanner.dart';
-import '../utils/markdown_to_text.dart';
 
 /// Coordinates on-device OCR passes for image, PDF, and weekly-grid imports.
 class ScheduleOcrService {
@@ -31,13 +29,6 @@ class ScheduleOcrService {
     recognize: _ocr.recognize,
     preprocessor: _preprocessor,
   );
-
-  /// Base URL of an optional self-hosted PaddleOCR-VL-1.6 server (for
-  /// example http://192.168.1.10:8080). Empty - the default - keeps scanning
-  /// fully offline with the bundled PP-OCRv6 engine. When set, image scans
-  /// try the server first and fall back to on-device OCR if it is
-  /// unreachable. See PaddleOcrVlClient for how to run the server.
-  String vlBaseUrl = '';
 
   /// Base number of PDF pages scanned before the idle-run heuristic kicks
   /// in. Most timetables fit on the first pages; the window keeps the common
@@ -137,33 +128,6 @@ class ScheduleOcrService {
     return rows;
   }
 
-  /// One PaddleOCR-VL attempt. Returns the normalized plain text of the
-  /// server's markdown parse, or null when the server cannot be reached or
-  /// returns nothing usable. Substantial text is kept even when the quick
-  /// preview parse finds no rows: the review screen's full parser chain may
-  /// still recover rows the preview missed.
-  Future<String?> _tryVlScan(String path, bool Function() cancelled) async {
-    try {
-      final client = PaddleOcrVlClient(baseUrl: vlBaseUrl);
-      final markdown = await client.parseImage(path);
-      if (cancelled()) return null;
-      if (markdown == null) return null;
-      final text = markdownToText(markdown);
-      if (text.trim().isEmpty) return null;
-      final normalized = normalizeOcrTokens(text);
-      final previewRows = SectionedScheduleParser.parse(normalized).length;
-      debugPrint(
-        'PaddleOCR-VL scan: ${text.split('\n').length} lines, '
-        '$previewRows sectioned preview rows.',
-      );
-      if (previewRows == 0 && text.trim().length < 40) return null;
-      return normalized;
-    } catch (error) {
-      debugPrint('PaddleOCR-VL scan failed: $error');
-      return null;
-    }
-  }
-
   /// Runs independent OCR candidates and selects the most useful one instead
   /// of concatenating them. Concatenating alternate passes often duplicates
   /// subjects and can make the timetable parser associate the wrong fields.
@@ -175,19 +139,6 @@ class ScheduleOcrService {
     bool cancelled() => _isCancelled || (isCancelled?.call() ?? false);
     if (cancelled()) return '';
     onProgress(.44, 'Starting on-device text recognition');
-    // Optional high-accuracy pass: a self-hosted PaddleOCR-VL-1.6 server
-    // (free, needs a GPU host). Falls back silently to the offline engine
-    // when no server is configured or it cannot be reached.
-    if (vlBaseUrl.trim().isNotEmpty) {
-      onProgress(.45, 'Trying the PaddleOCR-VL server');
-      final vlText = await _tryVlScan(path, cancelled);
-      if (cancelled()) return '';
-      if (vlText != null) {
-        onProgress(.84, 'PaddleOCR-VL scan complete');
-        return vlText;
-      }
-      onProgress(.46, 'Server unavailable; using on-device OCR');
-    }
     await _initializeOcr();
     if (cancelled()) return '';
     final candidates = <_OcrTextCandidate>[];

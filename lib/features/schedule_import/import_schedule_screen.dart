@@ -5,7 +5,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path/path.dart' as p;
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../database/database_helper.dart';
 import '../../models/class_item.dart';
@@ -47,12 +46,9 @@ class ImportScheduleScreen extends StatefulWidget {
 }
 
 class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
-  static const String _vlUrlKey = 'paddle_ocr_vl_url';
-
   final _db = DatabaseHelper.instance;
   late final ScheduleOcrService _ocrService =
       widget.ocrService ?? ScheduleOcrService();
-  final TextEditingController _vlUrlController = TextEditingController();
   bool _working = false;
   bool _openManualAfterCancel = false;
   bool _cancelScanRequested = false;
@@ -81,7 +77,6 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
 
   @override
   void dispose() {
-    _vlUrlController.dispose();
     _db.removeListener(_onScheduleChanged);
     if (_working) {
       _cancelScanRequested = true;
@@ -145,47 +140,11 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
   void initState() {
     super.initState();
     _db.addListener(_onScheduleChanged);
-    _loadVlServerUrl();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && widget.initialFilePath != null) {
         _chooseFile(widget.initialFilePath);
       }
     });
-  }
-
-  Future<void> _loadVlServerUrl() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final url = prefs.getString(_vlUrlKey) ?? '';
-      if (!mounted) return;
-      setState(() {
-        _vlUrlController.text = url;
-      });
-    } catch (error) {
-      debugPrint('Could not read the scan-server setting: $error');
-    }
-  }
-
-  Future<void> _saveVlServerUrl() async {
-    final url = _vlUrlController.text.trim();
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_vlUrlKey, url);
-    } catch (error) {
-      debugPrint('Could not save the scan-server setting: $error');
-    }
-    if (!mounted) return;
-    setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          url.isEmpty
-              ? 'High-accuracy server cleared. Scans stay on this device.'
-              : 'Server saved. Image scans will try it first, then fall back to on-device OCR.',
-        ),
-        duration: const Duration(seconds: 3),
-      ),
-    );
   }
 
   void _onScheduleChanged() {
@@ -314,7 +273,9 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
       }
       final file = File(path);
       if (file.existsSync() && file.lengthSync() > 20 * 1024 * 1024) {
-        _showError('Choose a file smaller than 20 MB for reliable processing.');
+        _showError(
+          'Choose a file smaller than 20 MB for reliable on-device processing.',
+        );
         return;
       }
       if (!mounted) return;
@@ -324,9 +285,6 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
         return;
       }
       _ocrService.resetCancel();
-      // The optional high-accuracy pass uses the server URL saved in the
-      // import screen; empty keeps every scan fully offline.
-      _ocrService.vlBaseUrl = _vlUrlController.text.trim();
       setState(() {
         _working = true;
         _cancelScanRequested = false;
@@ -1011,10 +969,6 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
                                               ? const SizedBox.shrink()
                                               : _pickerCard(context))
                                         : _importSuccessCard(context),
-                                  if (!reviewing &&
-                                      !_working &&
-                                      _completedImportMessage == null)
-                                    _vlServerCard(context),
                                   if (_working && reviewing)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 8),
@@ -1648,12 +1602,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        // The badge tells the truth about where scans run:
-                        // fully on-device by default, on-device as the
-                        // fallback once a scan server is configured.
-                        _vlUrlController.text.trim().isEmpty
-                            ? 'Works offline'
-                            : 'Offline fallback',
+                        'Works offline',
                         style: textTheme.labelMedium?.copyWith(
                           color: scheme.onPrimaryContainer,
                           fontWeight: FontWeight.w700,
@@ -1780,106 +1729,14 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
             ),
             const SizedBox(height: 14),
             Text(
-              // Mirrors what the scan actually does (the URL field above
-              // is the source of truth, empty = fully on-device).
-              _vlUrlController.text.trim().isEmpty
-                  ? 'Your timetable stays on your device. No internet '
-                        'connection is needed.'
-                  : 'Your timetable stays on your device. Image scans try '
-                        'your high-accuracy server first, then fall back to '
-                        'this device.',
+              'Your timetable stays on your device. No internet connection '
+              'is needed.',
               textAlign: TextAlign.center,
               style: textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _vlServerCard(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final enabled = _vlUrlController.text.trim().isNotEmpty;
-    return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 8),
-      child: Card(
-        margin: EdgeInsets.zero,
-        color: scheme.surfaceContainerLowest,
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-          side: BorderSide(color: scheme.outlineVariant),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.dns_outlined, size: 20, color: scheme.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'High-accuracy scan server (optional)',
-                      style: textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Scanning already works fully offline with the on-device PaddleOCR engine. '
-                'For harder layouts you can point Klasify at a self-hosted '
-                'PaddleOCR-VL 1.6 server - free, runs from the PaddleOCR docker '
-                'compose guide on a GPU PC. Whenever the server is unavailable, '
-                'scans silently fall back to this device.',
-                style: textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _vlUrlController,
-                      enabled: !_working,
-                      keyboardType: TextInputType.url,
-                      autocorrect: false,
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        border: OutlineInputBorder(),
-                        hintText: 'http://192.168.1.10:8080',
-                        labelText: 'Server URL',
-                      ),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.tonal(
-                    onPressed: _working ? null : _saveVlServerUrl,
-                    child: const Text('Save'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                enabled
-                    ? 'Enabled - image scans try the server first, then fall back to on-device OCR.'
-                    : 'Off - every scan stays on this device.',
-                style: textTheme.labelMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
