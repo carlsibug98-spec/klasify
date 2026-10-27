@@ -988,185 +988,258 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
                   constraints: const BoxConstraints(
                     maxWidth: AppTheme.pageContentMaxWidth,
                   ),
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppTheme.pageInset,
-                      8,
-                      AppTheme.pageInset,
-                      24,
-                    ),
-                    children: [
-                      if (!reviewing)
-                        _completedImportMessage == null
-                            ? (_working
-                                  ? const SizedBox.shrink()
-                                  : _pickerCard(context))
-                            : _importSuccessCard(context),
-                      if (!reviewing &&
-                          !_working &&
-                          _completedImportMessage == null)
-                        _vlServerCard(context),
-                      if (_working && reviewing)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: const LinearProgressIndicator(minHeight: 5),
-                          ),
+                  // Builder-backed scroll view: only the drafts section is
+                  // unbounded, so it gets a SliverList.builder (one swipe
+                  // controller per *visible* row, not per draft) while the
+                  // bounded header/trailers share adapters.
+                  child: CustomScrollView(
+                    slivers: [
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppTheme.pageInset,
+                          8,
+                          AppTheme.pageInset,
+                          24,
                         ),
-                      if (_working && !reviewing)
-                        ImportScanProgress(
-                          stage: _scanStage,
-                          progress: _scanProgress,
-                          detail: _scanDetail,
-                          filePath: _selectedFilePath,
-                          isCancelling: _cancelScanRequested,
-                          isPdf:
-                              _selectedFilePath != null &&
-                              p.extension(_selectedFilePath!).toLowerCase() ==
-                                  '.pdf',
-                          onCancel: _cancelScanRequested
-                              ? null
-                              : _requestScanCancellation,
-                        ),
-                      if (reviewing) ...[
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(0, 12, 0, 16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+                        sliver: SliverMainAxisGroup(
+                          slivers: [
+                            SliverToBoxAdapter(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  Expanded(
-                                    child: Text(
-                                      'Review your timetable',
-                                      style: textTheme.headlineSmall?.copyWith(
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: -0.3,
+                                  if (!reviewing)
+                                    _completedImportMessage == null
+                                        ? (_working
+                                              ? const SizedBox.shrink()
+                                              : _pickerCard(context))
+                                        : _importSuccessCard(context),
+                                  if (!reviewing &&
+                                      !_working &&
+                                      _completedImportMessage == null)
+                                    _vlServerCard(context),
+                                  if (_working && reviewing)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: const LinearProgressIndicator(
+                                          minHeight: 5,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 6,
+                                  if (_working && !reviewing)
+                                    ImportScanProgress(
+                                      stage: _scanStage,
+                                      progress: _scanProgress,
+                                      detail: _scanDetail,
+                                      filePath: _selectedFilePath,
+                                      isCancelling: _cancelScanRequested,
+                                      isPdf:
+                                          _selectedFilePath != null &&
+                                          p
+                                                  .extension(_selectedFilePath!)
+                                                  .toLowerCase() ==
+                                              '.pdf',
+                                      onCancel: _cancelScanRequested
+                                          ? null
+                                          : _requestScanCancellation,
                                     ),
-                                    decoration: BoxDecoration(
-                                      color: scheme.primaryContainer,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      'Step 2 of 2',
-                                      style: textTheme.labelSmall?.copyWith(
-                                        color: scheme.onPrimaryContainer,
-                                        fontWeight: FontWeight.w800,
+                                  if (reviewing) ...[
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        0,
+                                        12,
+                                        0,
+                                        16,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  'Review your timetable',
+                                                  style: textTheme.headlineSmall
+                                                      ?.copyWith(
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                        letterSpacing: -0.3,
+                                                      ),
+                                                ),
+                                              ),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 6,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      scheme.primaryContainer,
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+                                                child: Text(
+                                                  'Step 2 of 2',
+                                                  style: textTheme.labelSmall
+                                                      ?.copyWith(
+                                                        color: scheme
+                                                            .onPrimaryContainer,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            '${_drafts.length} ${_drafts.length == 1 ? 'class' : 'classes'} recognized. Review the details, then import them to your schedule.',
+                                            style: textTheme.bodyMedium
+                                                ?.copyWith(
+                                                  color:
+                                                      scheme.onSurfaceVariant,
+                                                ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ),
+                                  ],
+                                  if (reviewing && reviewMessages.isNotEmpty)
+                                    ImportAttentionBanner(
+                                      title: 'A few details need review',
+                                      message: reviewMessages.join('\n'),
+                                    ),
+                                  if (reviewing) _replacementOptions(context),
+                                  if (_warnings.isNotEmpty)
+                                    ImportAttentionBanner(
+                                      title: _warningTitle,
+                                      message: _warnings.join('\n'),
+                                      blocking: true,
+                                      dismissLabel: 'Acknowledge and continue',
+                                      onDismiss: () => setState(() {
+                                        _warnings = [];
+                                      }),
+                                    ),
+                                  if (reviewing) ...[
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        top: 24,
+                                        bottom: 8,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              'Classes to import',
+                                              style: textTheme.titleMedium
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w800,
+                                                  ),
+                                            ),
+                                          ),
+                                          Text(
+                                            '${_drafts.length}',
+                                            style: textTheme.labelLarge
+                                                ?.copyWith(
+                                                  color:
+                                                      scheme.onSurfaceVariant,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
-                              const SizedBox(height: 6),
-                              Text(
-                                '${_drafts.length} ${_drafts.length == 1 ? 'class' : 'classes'} recognized. Review the details, then import them to your schedule.',
-                                style: textTheme.bodyMedium?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
+                            ),
+                            if (reviewing)
+                              SliverList.builder(
+                                itemCount: _drafts.length,
+                                itemBuilder: (context, index) {
+                                  final i = index;
+                                  // The review rows carry the same swipe plane as
+                                  // the saved-schedule rows: full-swipe removes the
+                                  // draft (notification, no undo — pre-save
+                                  // staging), the plane's Edit opens the draft
+                                  // editor. The trash icon stays as the
+                                  // discoverable fallback.
+                                  return SwipeActions(
+                                    key: ValueKey('draft-$i'),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 5,
+                                    ),
+                                    onEdit: () => _edit(_drafts[i]),
+                                    onDelete: () async => _deleteDraft(i),
+                                    child: ImportDraftCard(
+                                      draft: _drafts[i],
+                                      note: _notes[_drafts[i]],
+                                      unknownRoom: _isUnknownRoom(
+                                        _drafts[i].room,
+                                      ),
+                                      ocrReviewNeeded: _needsOcrReview(
+                                        _drafts[i],
+                                      ),
+                                      ocrReviewLabel: _ocrReviewLabel(
+                                        _drafts[i],
+                                      ),
+                                      onTap: () => _edit(_drafts[i]),
+                                      onDelete: () => _deleteDraft(i),
+                                    ),
+                                  );
+                                },
                               ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      if (reviewing && reviewMessages.isNotEmpty)
-                        ImportAttentionBanner(
-                          title: 'A few details need review',
-                          message: reviewMessages.join('\n'),
-                        ),
-                      if (reviewing) _replacementOptions(context),
-                      if (_warnings.isNotEmpty)
-                        ImportAttentionBanner(
-                          title: _warningTitle,
-                          message: _warnings.join('\n'),
-                          blocking: true,
-                          dismissLabel: 'Acknowledge and continue',
-                          onDismiss: () => setState(() {
-                            _warnings = [];
-                          }),
-                        ),
-                      if (reviewing) ...[
-                        Padding(
-                          padding: const EdgeInsets.only(top: 24, bottom: 8),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Classes to import',
-                                  style: textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w800,
+                            if (reviewing)
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: OutlinedButton.icon(
+                                    onPressed: _working
+                                        ? null
+                                        : _addManualClass,
+                                    icon: const Icon(Icons.add_rounded),
+                                    label: const Text('Add a missed class'),
                                   ),
                                 ),
                               ),
-                              Text(
-                                '${_drafts.length}',
-                                style: textTheme.labelLarge?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w700,
+                            if (!reviewing && _completedImportMessage == null)
+                              SliverToBoxAdapter(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    const SizedBox(height: AppTheme.itemGap),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Icon(
+                                          Icons.lightbulb_outline_rounded,
+                                          size: 18,
+                                          color: scheme.onSurfaceVariant,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'A sharp, well-lit photo with the full timetable in frame gives the best results.',
+                                            style: textTheme.bodySmall
+                                                ?.copyWith(
+                                                  color:
+                                                      scheme.onSurfaceVariant,
+                                                ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                        for (var i = 0; i < _drafts.length; i++)
-                          // The review rows carry the same swipe plane as the
-                          // saved-schedule rows: full-swipe removes the draft
-                          // (notification, no undo — pre-save staging), the
-                          // plane's Edit opens the draft editor. The trash
-                          // icon stays as the discoverable fallback.
-                          SwipeActions(
-                            key: ValueKey('draft-$i'),
-                            padding: const EdgeInsets.symmetric(vertical: 5),
-                            onEdit: () => _edit(_drafts[i]),
-                            onDelete: () async => _deleteDraft(i),
-                            child: ImportDraftCard(
-                              draft: _drafts[i],
-                              note: _notes[_drafts[i]],
-                              unknownRoom: _isUnknownRoom(_drafts[i].room),
-                              ocrReviewNeeded: _needsOcrReview(_drafts[i]),
-                              ocrReviewLabel: _ocrReviewLabel(_drafts[i]),
-                              onTap: () => _edit(_drafts[i]),
-                              onDelete: () => _deleteDraft(i),
-                            ),
-                          ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: OutlinedButton.icon(
-                            onPressed: _working ? null : _addManualClass,
-                            icon: const Icon(Icons.add_rounded),
-                            label: const Text('Add a missed class'),
-                          ),
-                        ),
-                      ],
-                      if (!reviewing && _completedImportMessage == null) ...[
-                        const SizedBox(height: AppTheme.itemGap),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              Icons.lightbulb_outline_rounded,
-                              size: 18,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'A sharp, well-lit photo with the full timetable in frame gives the best results.',
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ),
                           ],
                         ),
-                      ],
+                      ),
                     ],
                   ),
                 ),

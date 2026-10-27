@@ -145,3 +145,66 @@ choice for the strict black/white identity (static scheme is the documented fall
 Suggestion (non-blocking, from the impeccable context loader): this project has no
 PRODUCT.md yet — `/impeccable init` would capture the product context once and make
 future design passes faster.
+
+---
+
+## Re-audit after fixes (same day, "all at once")
+
+Every P1 and P2 was fixed in one pass (plan:
+`docs/superpowers/plans/2026-10-27-ui-audit-fixes.md`); the P3 nav label too.
+
+### Re-audit Health Score
+
+| # | Dimension | Before | After | Evidence |
+|---|-----------|--------|-------|----------|
+| 1 | Accessibility | 3 | **4** | Hint `#979797` ≥4.5:1 on *every* fill incl. focused (was 3.29); skipped-step text lifted off a 3.09:1; grabber ≥3:1; switch target 48×48 |
+| 2 | Performance | 3 | **3** | Review list now `SliverList.builder` (one swipe controller per visible row); score held only by the deliberate 94MB OCR payload — runtime jank sources are gone |
+| 3 | Appearance & Theming | 3 | **4** | One `ComposeColors` token set; zero raw hex left in the three surfaces; drift values unified; stray `#85B7EB` replaced by the editor's own white |
+| 4 | Platform Conformance | 3 | **4** | `enableOnBackInvokedCallback` opted in; PopScope paths verified |
+| 5 | Adaptivity | 3 | **4** | Nav row min-height (grows at fontScale 2.0, pixel-identical at 1.0); large-text tests green |
+| **Total** | | **15/20** | **19/20** | **Excellent — minor polish** |
+
+### Fixes shipped (all verified)
+
+1. **[P1] Hint contrast** — new `hint #979797` token: 5.64:1 on field, 4.78:1 on
+   *focused* field (the evidence script caught the first candidate #8F8F8F failing
+   there at 4.32:1 — fixed before shipping), 5.23:1 on error fills, 6.31:1 on cards.
+   Applied to editor hints, time-picker wheel values, and the skipped-step text the
+   original audit hadn't flagged (3.09:1 on chips). Recomputable evidence:
+   `python3 scripts/verify_contrast.py` — 16/16 pairs pass.
+2. **[P2] Predictive back** — `android:enableOnBackInvokedCallback="true"`; XML
+   validated; PopScope interception paths unchanged (progressive onboarding, editor
+   discard confirm, in-scan guard).
+3. **[P2] Virtualized import review** — `ListView(children:)` → `CustomScrollView` +
+   `SliverPadding > SliverMainAxisGroup` with a `SliverList.builder` for drafts;
+   static sections in `SliverToBoxAdapter`s. All swipe/edit tests green.
+4. **[P2] Reminder switch target** — visual stays 48×28, InkWell box is 48×48
+   (Material's own Switch pattern). `reminders.png` regenerated; it is the *only*
+   golden that changed.
+5. **[P2] Nav row at 200% text** — fixed 56px box → `minHeight: 56` floor; at 2.0
+   the row grows to ~59px instead of overflowing.
+6. **[P2] Dark compose palette extracted** — `lib/theme/compose_colors.dart`;
+   editor, time-picker sheet, and the import widgets' dark branches consume it;
+   `#3A1C1C`/`#3A1D1D` unified; two light-mode leaks fixed (white cancelling
+   spinner and dark progress track/file tile hardcoded on the adaptive card).
+7. **Cancel-scan sheet decision** — now theme-adaptive like every other sheet
+   (dark branch = compose palette, light branch = scheme roles). The scan screen it
+   interrupts is adaptive; an always-dark sheet clashed in light mode.
+8. **[P3] Nav label** — 11 → 12px (M3 label scale).
+
+Also caught during the pass: the time-picker's drag handle was 2.08:1 (below the
+3:1 component minimum) → `#6A6A6A` (3.41:1); the time-picker's stray blue Done
+accent → white, matching the editor's own affirmation color.
+
+### Verification
+
+`flutter analyze`: same 7 pre-existing infos, **0 new**. Full suite: **344 pass /
+12 skip / 0 fail** (320 app tests in 24s + 24 bench/probe passes, 12 skips — the
+bench files are the suite's slow tail, run single-threaded). Goldens: only
+`reminders.png` re-captured. Commit: see git log for the audit-fixes hash.
+
+### Remaining (known, deliberate)
+
+- **[P3] APK weight (94MB)** — libonnxruntime + OpenCV are the on-device OCR
+  promise. Evaluate opencv module trimming in a build-engineering pass, not UI.
+- `/impeccable init` (PRODUCT.md) remains a worthwhile follow-up.

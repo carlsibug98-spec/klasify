@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 
 import '../../../models/class_item.dart';
 import '../../../theme/app_theme.dart';
+import '../../../theme/compose_colors.dart';
 import '../models/import_draft.dart';
 import '../../../widgets/pill.dart';
 
@@ -72,10 +73,35 @@ class _AndroidCancelConfirmationSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    // Adapts to the theme like every other sheet in the app: the scan screen
+    // it appears over is adaptive (light in light mode), so an always-dark
+    // sheet clashed there. The dark branch is the shared compose palette;
+    // the light branch uses scheme roles, mirroring the scan card's mapping.
+    final isDark = theme.brightness == Brightness.dark;
+    final background = isDark
+        ? ComposeColors.bannerSurface
+        : scheme.surfaceContainer;
+    final grabberColor = isDark
+        ? ComposeColors.raised
+        : scheme.onSurfaceVariant;
+    final iconCircle = isDark
+        ? ComposeColors.errorContainer
+        : scheme.errorContainer;
+    final iconColor = isDark ? ComposeColors.error : scheme.onErrorContainer;
+    final titleColor = isDark ? Colors.white : scheme.onSurface;
+    final bodyColor = isDark ? ComposeColors.muted : scheme.onSurfaceVariant;
+    final chipColor = isDark
+        ? ComposeColors.field
+        : scheme.surfaceContainerHigh;
+    final confirmButton = isDark ? ComposeColors.error : scheme.error;
+    final onConfirmButton = isDark ? ComposeColors.onError : scheme.onError;
+
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + media.padding.bottom),
       child: Column(
@@ -87,7 +113,7 @@ class _AndroidCancelConfirmationSheet extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFF2A2A2A),
+                color: grabberColor,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -96,51 +122,47 @@ class _AndroidCancelConfirmationSheet extends StatelessWidget {
           Container(
             width: 56,
             height: 56,
-            decoration: const BoxDecoration(
-              color: Color(0xFF3A1C1C),
+            decoration: BoxDecoration(
+              color: iconCircle,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.warning_amber_rounded,
-              color: Color(0xFFF28B82),
+              color: iconColor,
               size: 28,
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Stop this scan?',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,
-              color: Colors.white,
+              color: titleColor,
               letterSpacing: -0.2,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Progress so far will be discarded. Your file stays selected, so you can scan again any time.',
-            style: TextStyle(
-              fontSize: 15,
-              color: Color(0xFFA3A3A3),
-              height: 1.4,
-            ),
+            style: TextStyle(fontSize: 15, color: bodyColor, height: 1.4),
           ),
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFF1F1F1F),
+              color: chipColor,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.check_rounded, size: 18, color: Color(0xFFA3A3A3)),
-                SizedBox(width: 12),
+                Icon(Icons.check_rounded, size: 18, color: bodyColor),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'No classes will be added',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: titleColor,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -153,18 +175,18 @@ class _AndroidCancelConfirmationSheet extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFF1F1F1F),
+              color: chipColor,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.refresh_rounded, size: 18, color: Color(0xFFA3A3A3)),
-                SizedBox(width: 12),
+                Icon(Icons.refresh_rounded, size: 18, color: bodyColor),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'Scanning again starts from the beginning',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: titleColor,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -180,8 +202,8 @@ class _AndroidCancelConfirmationSheet extends StatelessWidget {
             child: FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFF28B82),
-                foregroundColor: const Color(0xFF1A0A0A),
+                backgroundColor: confirmButton,
+                foregroundColor: onConfirmButton,
                 elevation: 0,
                 minimumSize: const Size.fromHeight(48),
                 shape: RoundedRectangleBorder(
@@ -206,7 +228,7 @@ class _AndroidCancelConfirmationSheet extends StatelessWidget {
             child: TextButton(
               onPressed: () => Navigator.of(context).pop(false),
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFA3A3A3),
+                foregroundColor: bodyColor,
                 minimumSize: const Size.fromHeight(48),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(22),
@@ -279,17 +301,21 @@ class _ImportScanProgressState extends State<ImportScanProgress> {
       AppTheme.motionStandard,
     );
     final isDark = theme.brightness == Brightness.dark;
-    final cardColor = isDark
-        ? const Color(0xFF141414)
-        : scheme.surfaceContainer;
+    final cardColor = isDark ? ComposeColors.surface : scheme.surfaceContainer;
     final fieldColor = isDark
-        ? const Color(0xFF1F1F1F)
+        ? ComposeColors.field
         : scheme.surfaceContainerHigh;
+    final raisedColor = isDark
+        ? ComposeColors.raised
+        : scheme.surfaceContainerHighest;
     final textColor = isDark ? Colors.white : scheme.onSurface;
     final secondaryTextColor = isDark
-        ? const Color(0xFFA3A3A3)
+        ? ComposeColors.muted
         : scheme.onSurfaceVariant;
-    final skippedColor = isDark ? const Color(0xFF6B6B6B) : scheme.outline;
+    // Skipped rows are text, not chrome: the old dark value (#6B6B6B) read
+    // 3.09:1 on the field chips — below AA. hint is the dimmest token that
+    // passes while keeping the de-emphasized hierarchy.
+    final skippedColor = isDark ? ComposeColors.hint : scheme.outline;
 
     return Container(
       margin: const EdgeInsets.only(top: 12),
@@ -306,6 +332,7 @@ class _ImportScanProgressState extends State<ImportScanProgress> {
               filePath: widget.filePath!,
               isPdf: widget.isPdf,
               fieldColor: fieldColor,
+              tileColor: raisedColor,
               textColor: textColor,
               secondaryTextColor: secondaryTextColor,
             ),
@@ -320,15 +347,18 @@ class _ImportScanProgressState extends State<ImportScanProgress> {
                     Semantics(
                       label: 'Cancelling scan',
                       liveRegion: true,
-                      child: const SizedBox(
+                      child: SizedBox(
                         width: 32,
                         height: 32,
                         child: CircularProgressIndicator(
                           strokeWidth: 3,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
+                            // Follows the card's theme, like the progress
+                            // bar below (this used to be hardcoded white
+                            // and vanished on the light card).
+                            isDark ? Colors.white : scheme.primary,
                           ),
-                          backgroundColor: Color(0xFF2A2A2A),
+                          backgroundColor: raisedColor,
                         ),
                       ),
                     ),
@@ -425,7 +455,7 @@ class _ImportScanProgressState extends State<ImportScanProgress> {
                     value: value,
                     minHeight: 8,
                     color: isDark ? Colors.white : scheme.primary,
-                    backgroundColor: const Color(0xFF2A2A2A),
+                    backgroundColor: raisedColor,
                   ),
                 ),
               ),
@@ -442,9 +472,7 @@ class _ImportScanProgressState extends State<ImportScanProgress> {
                       margin: const EdgeInsets.only(top: 12),
                       color: widget.stage.order >= visibleStages[i].order
                           ? (isDark ? Colors.white : scheme.primary)
-                          : (isDark
-                                ? const Color(0xFF2A2A2A)
-                                : scheme.outlineVariant),
+                          : raisedColor,
                     ),
                   Expanded(
                     child: _ScanStep(
@@ -501,6 +529,7 @@ class _SelectedFileCard extends StatelessWidget {
   final String filePath;
   final bool isPdf;
   final Color fieldColor;
+  final Color tileColor;
   final Color textColor;
   final Color secondaryTextColor;
 
@@ -508,6 +537,7 @@ class _SelectedFileCard extends StatelessWidget {
     required this.filePath,
     required this.isPdf,
     required this.fieldColor,
+    required this.tileColor,
     required this.textColor,
     required this.secondaryTextColor,
   });
@@ -526,7 +556,7 @@ class _SelectedFileCard extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: const Color(0xFF2A2A2A),
+              color: tileColor,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -691,7 +721,7 @@ class _ScanStep extends StatelessWidget {
               color: filled
                   ? (isDark ? Colors.white : scheme.primary)
                   : (isDark
-                        ? const Color(0xFF2A2A2A)
+                        ? ComposeColors.raised
                         : scheme.surfaceContainerHigh),
             ),
             child: Icon(
@@ -703,9 +733,7 @@ class _ScanStep extends StatelessWidget {
               size: 14,
               color: filled
                   ? (isDark ? Colors.black : scheme.onPrimary)
-                  : (isDark
-                        ? const Color(0xFFA3A3A3)
-                        : scheme.onSurfaceVariant),
+                  : (isDark ? ComposeColors.muted : scheme.onSurfaceVariant),
             ),
           ),
           const SizedBox(height: 6),
@@ -717,9 +745,7 @@ class _ScanStep extends StatelessWidget {
               height: 1.25,
               color: active
                   ? (isDark ? Colors.white : scheme.onSurface)
-                  : (isDark
-                        ? const Color(0xFFA3A3A3)
-                        : scheme.onSurfaceVariant),
+                  : (isDark ? ComposeColors.muted : scheme.onSurfaceVariant),
               fontWeight: active ? FontWeight.w800 : FontWeight.w600,
             ),
           ),

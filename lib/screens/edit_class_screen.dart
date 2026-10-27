@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import '../database/database_helper.dart';
 import '../models/class_item.dart';
+import '../theme/compose_colors.dart';
 import '../services/reminder_service.dart';
 import '../utils/schedule_rules.dart';
 import '../widgets/app_notification.dart';
@@ -132,7 +133,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
     final discard = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: _EditorColors.surface,
+        backgroundColor: ComposeColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
         title: const Text(
           'Discard changes?',
@@ -141,7 +142,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
         ),
         content: const Text(
           'You have unsaved changes. Are you sure you want to discard them?',
-          style: TextStyle(color: _EditorColors.muted),
+          style: TextStyle(color: ComposeColors.muted),
         ),
         actions: [
           TextButton(
@@ -157,7 +158,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text(
               'Discard',
-              style: TextStyle(color: _EditorColors.error),
+              style: TextStyle(color: ComposeColors.error),
             ),
           ),
         ],
@@ -453,7 +454,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
         // over the black scaffold becomes invisible (black on black).
         value: SystemUiOverlayStyle.light,
         child: Scaffold(
-          backgroundColor: _EditorColors.background,
+          backgroundColor: ComposeColors.background,
           body: SafeArea(
             child: Column(
               children: [
@@ -513,7 +514,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
                             'Fields marked * are required.',
                             style: TextStyle(
                               fontSize: 14,
-                              color: _EditorColors.muted,
+                              color: ComposeColors.muted,
                             ),
                           ),
                         ),
@@ -548,7 +549,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
   Widget _buildClassSection() {
     return Container(
       decoration: BoxDecoration(
-        color: _EditorColors.surface,
+        color: ComposeColors.surface,
         borderRadius: BorderRadius.circular(22),
       ),
       padding: const EdgeInsets.all(20),
@@ -560,7 +561,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: _EditorColors.muted,
+              color: ComposeColors.muted,
               letterSpacing: 0.1,
             ),
           ),
@@ -593,7 +594,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
             Text(
               _subjectError!,
               key: const Key('edit_class_subject_error'),
-              style: const TextStyle(color: _EditorColors.error, fontSize: 13),
+              style: const TextStyle(color: ComposeColors.error, fontSize: 13),
             ),
           ],
 
@@ -638,7 +639,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
                         _roomError!,
                         key: const Key('edit_class_room_error'),
                         style: const TextStyle(
-                          color: _EditorColors.error,
+                          color: ComposeColors.error,
                           fontSize: 13,
                         ),
                       ),
@@ -685,7 +686,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
                         _professorError!,
                         key: const Key('edit_class_professor_error'),
                         style: const TextStyle(
-                          color: _EditorColors.error,
+                          color: ComposeColors.error,
                           fontSize: 13,
                         ),
                       ),
@@ -703,7 +704,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
   Widget _buildScheduleSection() {
     return Container(
       decoration: BoxDecoration(
-        color: _EditorColors.surface,
+        color: ComposeColors.surface,
         borderRadius: BorderRadius.circular(22),
       ),
       padding: const EdgeInsets.all(20),
@@ -715,7 +716,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: _EditorColors.muted,
+              color: ComposeColors.muted,
               letterSpacing: 0.1,
             ),
           ),
@@ -754,7 +755,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? Colors.white
-                              : _EditorColors.field,
+                              : ComposeColors.field,
                           borderRadius: BorderRadius.circular(14),
                         ),
                         alignment: Alignment.center,
@@ -766,8 +767,8 @@ class _EditClassScreenState extends State<EditClassScreen> {
                                 ? FontWeight.w600
                                 : FontWeight.normal,
                             color: isSelected
-                                ? _EditorColors.background
-                                : _EditorColors.muted,
+                                ? ComposeColors.background
+                                : ComposeColors.muted,
                           ),
                         ),
                       ),
@@ -783,7 +784,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
             Text(
               _dayError!,
               key: const Key('edit_class_day_error'),
-              style: const TextStyle(color: _EditorColors.error, fontSize: 13),
+              style: const TextStyle(color: ComposeColors.error, fontSize: 13),
             ),
           ],
 
@@ -817,7 +818,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
             Text(
               _timeError!,
               key: const Key('edit_class_time_error'),
-              style: const TextStyle(color: _EditorColors.error, fontSize: 13),
+              style: const TextStyle(color: ComposeColors.error, fontSize: 13),
             ),
           ],
         ],
@@ -844,7 +845,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: _EditorColors.field,
+            color: ComposeColors.field,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
@@ -857,13 +858,13 @@ class _EditClassScreenState extends State<EditClassScreen> {
                     label,
                     style: const TextStyle(
                       fontSize: 13,
-                      color: _EditorColors.muted,
+                      color: ComposeColors.muted,
                     ),
                   ),
                   const Icon(
                     Icons.access_time_rounded,
                     size: 16,
-                    color: _EditorColors.muted,
+                    color: ComposeColors.muted,
                   ),
                 ],
               ),
@@ -982,8 +983,8 @@ class _EditClassScreenState extends State<EditClassScreen> {
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _deleteArmed
-                      ? _EditorColors.dangerArmed
-                      : _EditorColors.danger,
+                      ? ComposeColors.dangerArmed
+                      : ComposeColors.danger,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(22),
                   ),
@@ -1051,13 +1052,13 @@ class _EditClassScreenState extends State<EditClassScreen> {
     return RichText(
       text: TextSpan(
         text: label,
-        style: const TextStyle(fontSize: 13, color: _EditorColors.muted),
+        style: const TextStyle(fontSize: 13, color: ComposeColors.muted),
         children: [
           if (isRequired)
             const TextSpan(
               text: '*',
               style: TextStyle(
-                color: _EditorColors.error,
+                color: ComposeColors.error,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -1072,14 +1073,14 @@ class _EditClassScreenState extends State<EditClassScreen> {
     String? hintText,
   }) {
     final bgColor = hasError
-        ? _EditorColors.fieldError
-        : (isFocused ? _EditorColors.fieldFocused : _EditorColors.field);
+        ? ComposeColors.errorContainer
+        : (isFocused ? ComposeColors.fieldFocused : ComposeColors.field);
 
     return InputDecoration(
       filled: true,
       fillColor: bgColor,
       hintText: hintText,
-      hintStyle: const TextStyle(color: _EditorColors.outline, fontSize: 16),
+      hintStyle: const TextStyle(color: ComposeColors.hint, fontSize: 16),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
@@ -1095,39 +1096,4 @@ class _EditClassScreenState extends State<EditClassScreen> {
       ),
     );
   }
-}
-
-/// The editor is an intentionally dark, focused surface regardless of the
-/// app theme (a deliberate "compose mode" design). Every color it uses
-/// lives here so the palette has a single source of truth.
-abstract final class _EditorColors {
-  /// Scaffold background (pure black).
-  static const Color background = Color(0xFF000000);
-
-  /// Section cards on the black scaffold.
-  static const Color surface = Color(0xFF141414);
-
-  /// Text fields and unselected day chips.
-  static const Color field = Color(0xFF1F1F1F);
-
-  /// Focused text field fill.
-  static const Color fieldFocused = Color(0xFF2C2C2C);
-
-  /// Field fill while showing a validation error.
-  static const Color fieldError = Color(0xFF3A1D1D);
-
-  /// Input outlines and hints.
-  static const Color outline = Color(0xFF707070);
-
-  /// Secondary text (labels, hints, non-critical copy).
-  static const Color muted = Color(0xFFA3A3A3);
-
-  /// Validation errors (soft red that reads on dark surfaces).
-  static const Color error = Color(0xFFF28B82);
-
-  /// Delete button.
-  static const Color danger = Color(0xFFE53935);
-
-  /// Delete button after the first tap (armed, waiting for confirmation).
-  static const Color dangerArmed = Color(0xFFB71C1C);
 }

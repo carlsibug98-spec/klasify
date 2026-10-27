@@ -36,8 +36,11 @@ class BottomNavigationItem extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
-        child: SizedBox(
-          height: 56,
+        // Min-height, not a fixed 56px box: at Android's 200% font scale the
+        // icon + label column needs more than 56px and a fixed box would
+        // overflow-clip the label. 56 is the floor; the row grows with text.
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 56),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
@@ -124,7 +127,7 @@ class BottomNavigationItem extends StatelessWidget {
                   ),
                   curve: AppTheme.motionEaseOut,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     height: 1.2,
                     letterSpacing: 0.2,
                     fontWeight: selected ? FontWeight.w800 : FontWeight.w600,

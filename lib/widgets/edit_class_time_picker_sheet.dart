@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../theme/compose_colors.dart';
+
 class TimePickerResult {
   final int minutes;
   final int? adjustedEndMinutes;
@@ -140,7 +142,7 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
 
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFF141414),
+        color: ComposeColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
       padding: EdgeInsets.fromLTRB(16, 12, 16, bottomInset + 16),
@@ -154,7 +156,7 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFF4A4A4A),
+                color: ComposeColors.grabber,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -177,7 +179,7 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                   child: const Text(
                     'Cancel',
                     style: TextStyle(
-                      color: Color(0xFFA3A3A3),
+                      color: ComposeColors.muted,
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
                     ),
@@ -202,7 +204,7 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                       _previewText,
                       key: const Key('time_picker_preview'),
                       style: const TextStyle(
-                        color: Color(0xFFA3A3A3),
+                        color: ComposeColors.muted,
                         fontSize: 15,
                         fontFeatures: [FontFeature.tabularFigures()],
                       ),
@@ -221,8 +223,12 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                   ),
                   child: const Text(
                     'Done',
+                    // White, not the stray blue this sheet used to carry:
+                    // the editor's affirmation color IS white-on-black (its
+                    // save button), so the sheet's confirm action speaks the
+                    // same language. #85B7EB belonged to no palette.
                     style: TextStyle(
-                      color: Color(0xFF85B7EB),
+                      color: Colors.white,
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),
@@ -239,7 +245,7 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
               key: const Key('time_picker_error_text'),
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: Color(0xFFF28B82),
+                color: ComposeColors.error,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -259,7 +265,7 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                   height: 44,
                   margin: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1F1F1F),
+                    color: ComposeColors.field,
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
@@ -308,7 +314,7 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                                       : FontWeight.normal,
                                   color: isSelected
                                       ? Colors.white
-                                      : const Color(0xFF707070),
+                                      : ComposeColors.hint,
                                   fontFeatures: const [
                                     FontFeature.tabularFigures(),
                                   ],
@@ -344,7 +350,7 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                                       : FontWeight.normal,
                                   color: isSelected
                                       ? Colors.white
-                                      : const Color(0xFF707070),
+                                      : ComposeColors.hint,
                                   fontFeatures: const [
                                     FontFeature.tabularFigures(),
                                   ],
@@ -380,7 +386,7 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                                       : FontWeight.normal,
                                   color: isSelected
                                       ? Colors.white
-                                      : const Color(0xFF707070),
+                                      : ComposeColors.hint,
                                 ),
                               ),
                             );

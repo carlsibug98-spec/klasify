@@ -411,10 +411,11 @@ class _ReminderPanel extends StatelessWidget {
   }
 }
 
-/// The 48x28 switch from the design. Material's Switch is 52x32 with a
-/// 60x48 tap target, which pushes the card's first row taller than the mock;
-/// this keeps the exact visual size while InkWell supplies focus and keyboard
-/// activation.
+/// The 48×28 switch from the design. Material's Switch is 52×32 with a
+/// 60×48 tap target, which pushes the card's first row taller than the mock;
+/// this keeps the exact visual size while the InkWell box carries the full
+/// 48×48 Material minimum target (the visual rides centered inside it) and
+/// supplies focus and keyboard activation.
 class _ReminderToggle extends StatelessWidget {
   const _ReminderToggle({required this.value, required this.onChanged});
 
@@ -448,30 +449,38 @@ class _ReminderToggle extends StatelessWidget {
           hoverColor: scheme.primary.withValues(alpha: 0.08),
           child: Opacity(
             opacity: enabled ? 1 : 0.55,
+            // 48×48 hit area (Material minimum); the 48×28 visual is
+            // centered so the mock's row silhouette is preserved.
             child: SizedBox(
               width: 48,
-              height: 28,
-              child: AnimatedContainer(
-                duration: duration,
-                curve: AppTheme.motionEaseOut,
-                decoration: BoxDecoration(
-                  color: trackColor,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: AnimatedAlign(
-                  duration: duration,
-                  curve: AppTheme.motionEaseOut,
-                  alignment: value
-                      ? Alignment.centerRight
-                      : Alignment.centerLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.all(3),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: knobColor,
-                        shape: BoxShape.circle,
+              height: 48,
+              child: Center(
+                child: SizedBox(
+                  width: 48,
+                  height: 28,
+                  child: AnimatedContainer(
+                    duration: duration,
+                    curve: AppTheme.motionEaseOut,
+                    decoration: BoxDecoration(
+                      color: trackColor,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: AnimatedAlign(
+                      duration: duration,
+                      curve: AppTheme.motionEaseOut,
+                      alignment: value
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.all(3),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: knobColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const SizedBox.square(dimension: 22),
+                        ),
                       ),
-                      child: const SizedBox.square(dimension: 22),
                     ),
                   ),
                 ),
