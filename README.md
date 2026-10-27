@@ -1,6 +1,6 @@
 # Klasify — know what’s next
 
-An offline-first Flutter app for maintaining a weekly class timetable. **All schedule data is stored in a local SQLite database on the device.** This project does not use Firebase, Supabase, a server, cloud sync, or online user accounts.
+An offline-first Flutter app for maintaining a weekly class timetable. **All schedule data is stored in a local SQLite database on the device.** This project does not use Firebase, Supabase, cloud sync, or online user accounts. The one optional network feature is a **self-hosted** high-accuracy scan server (see [Optional high-accuracy scan server](#optional-high-accuracy-scan-server)) that you configure yourself and that only ever receives scan images — never your schedule.
 
 ## Features
 - Add, edit, and delete classes with instant undo capability
@@ -11,15 +11,16 @@ An offline-first Flutter app for maintaining a weekly class timetable. **All sch
 - Home screen showing today's classes, remaining-class badge, and the next/in-progress class hero
 - Seven-day weekly schedule with day selector strip and class count indicators
 - Interactive class status sheet with per-class and multi-day status spans
-- Guided five-step coach tour, shown once right after the first class is added, plus a one-time swipe hint
+- Guided four-step coach tour, shown once right after the first class is added, plus a one-time swipe hint
 - Offline weekly schedule import from images/screenshots and PDF files via on-device OCR
+- Optional high-accuracy scan pass through a self-hosted PaddleOCR-VL 1.6 server, with automatic fallback to the on-device engine
 - In-memory import draft caching (`ImportRouteCache`) allowing users to pause and resume timetable reviews
 - Import review screen with conflict checks, uncertain room detection, and all-or-nothing atomic SQLite save
 - JSON schedule backup and restore with structure validation and confirmation dialogs
 - On-device weekly class reminders with notification permission and battery-saving handling
 - Android Home-screen widget integration (`NextClassWidgetService`) synced automatically on changes
 - First-launch onboarding (3 pages, skippable) and replayable anytime from Settings
-- Adaptive shell (`MainNavigationScreen`): floating pill navigation bar on mobile, navigation rail on wide screens (>= 600dp), and directional slide transitions
+- Adaptive shell (`MainNavigationScreen`): floating pill navigation bar on mobile, navigation rail on wide screens (>= 600dp), directional slide transitions, and Android 14+ predictive back support
 - Reusable component kit (`SectionHeader`, `SettingsRow`, `TimeBox`, `PinnedActionBar`, `KlasifySkeleton`)
 - Intelligent room label formatting (`formatRoom`: normalizes `304` to `Room 304` while preserving named locations like `Lab 2` and `MacLab`)
 - Real-time class status engine (`classStatusAt`: calculates `live`, `upcoming`, and `done` states relative to current minutes)
@@ -50,18 +51,21 @@ The app uses a black-and-white palette: white and grey surfaces, black for text 
 - **Onboarding**: three skippable pages with realistic UI previews (`lib/screens/onboarding_screen.dart`).
 - **Home-screen widget**: synced via `NextClassWidgetService` to show upcoming class information on Android home screens.
 - **Design Tokens**: 16px cards (`cardRadius`), 16px controls (`controlRadius`), 12px chips (`chipRadius`), 10px timeline blocks (`blockRadius`), and 28px bottom sheets (`sheetRadius`).
-- **Shared widgets**: `ClassCard`, `NextClassCard`, `DayChips`, `Pill`, `EmptyStateCard`, `ErrorView`, `StatusBanner`, `TimeBox`, `SectionHeader`, `SettingsRow`, `PinnedActionBar`, `addClassFab`.
+- **Shared widgets**: `ClassCard`, `NextClassCard`, `DayChips`, `Pill`, `EmptyStateCard`, `ErrorView`, `StatusBanner`, `TimeBox`, `SectionHeader`, `SettingsRow`, `PinnedActionBar`, `SwipeActions`, `QuickActionsButton`, `CoachTourOverlay`, `DayStatusSheet`.
 
 ## Import a weekly timetable (offline)
 1. Open **Settings** and choose **Import schedule**, or tap **Scan it** on the empty Today screen.
 2. Select a PNG/JPG/WEBP image or PDF from the device.
-3. Text recognition runs locally using PaddleOCR with its model assets bundled in the app; no model download or server is needed. PDF pages are rendered locally at 3x scale before OCR (up to the first 8 pages). OCR blocks are ordered using their bounding-box positions to preserve more layout information than a single flattened text string.
+3. Text recognition runs locally using PaddleOCR with its model assets bundled in the app; no model download is needed. PDF pages are rendered locally at 3x scale before OCR (up to the first 8 pages). OCR blocks are ordered using their bounding-box positions to preserve more layout information than a single flattened text string. If the optional scan server below is configured, scans try it first and fall back to the on-device engine.
 4. Review every detected row and edit the subject, room, day, start/end time, or professor. Missing professor values use `Not specified`; missing room values are marked `Room to confirm` and should be corrected.
 5. The importer checks overlap conflicts against existing saved classes and other imported rows. Resolve conflicts before saving.
 6. Confirm **Import classes**. The batch is saved in one SQLite transaction, so an insert failure rolls back the entire batch.
 
 ### Important OCR limitations
-The importer supports common 12-hour and 24-hour time ranges and uses OCR text-block bounding boxes to reconstruct approximate horizontal rows. This improves common timetable grids but does not guarantee perfect column-to-weekday mapping for every school layout. Always review all detected rows. A room is not inferred from generic subject wording such as “Computer Lab Programming”; room values that are not recognized are marked Room to confirm and must be corrected before saving. Manual class cancellation is explicitly reported. The app does not silently save uncertain results; manually add missed rows or edit detected rows before importing. No image or PDF is uploaded to a server.
+The importer supports common 12-hour and 24-hour time ranges and uses OCR text-block bounding boxes to reconstruct approximate horizontal rows. This improves common timetable grids but does not guarantee perfect column-to-weekday mapping for every school layout. Always review all detected rows. A room is not inferred from generic subject wording such as “Computer Lab Programming”; room values that are not recognized are marked Room to confirm and must be corrected before saving. Manual class cancellation is explicitly reported. The app does not silently save uncertain results; manually add missed rows or edit detected rows before importing. By default, no image or PDF leaves the device.
+
+### Optional high-accuracy scan server
+Scanning works fully offline out of the box. In the import screen you can optionally point Klasify at a **self-hosted** PaddleOCR-VL 1.6 server (free; run it from the PaddleOCR docker compose guide on a GPU PC). When a server URL is saved, image scans — and PDF pages that need a text pass after local rendering — are sent to that server first, and every scan silently falls back to the on-device engine if the server is unreachable. Your schedule data is never sent anywhere; only the scan image is. Clear the field to keep every scan on this device.
 
 ## Requirements
 - Flutter SDK installed and available on PATH
@@ -126,20 +130,26 @@ lib/
       models/
         import_draft.dart
       services/
+        ocr_image_preprocessor.dart
+        paddle_ocr_vl_client.dart       # optional self-hosted scan server client
         schedule_ocr_service.dart
         timetable_grid_scanner.dart
-      utils/
+      utils/                           # parsers, grid geometry, PDF helpers
         timetable_parser.dart
       widgets/
         import_review_widgets.dart
+        import_source_preview_screen.dart
   models/
     class_item.dart
+    class_status.dart
   routes/
-    app_router.dart
+    app_router.dart                    # the ONLY file that lists every screen
     app_routes.dart
   screens/
     backup_screen.dart
-    class_form_screen.dart
+    edit_class_screen.dart             # add / edit class (onboarding, quick
+                                       # actions, swipe planes, and import all
+                                       # route here)
     home_screen.dart
     main_navigation_screen.dart
     onboarding_screen.dart
@@ -147,36 +157,41 @@ lib/
     schedule_screen.dart
     settings_screen.dart
   services/
+    app_info.dart
+    coach_tour_store.dart
     next_class_widget_service.dart
     onboarding_store.dart
     reminder_service.dart
+    swipe_hint_store.dart
   theme/
-    app_theme.dart
+    app_theme.dart                     # light/dark themes + layout & motion tokens
+    compose_colors.dart                # dark compose-mode surface tokens
   utils/
+    class_text_input_rules.dart
     next_class.dart
     schedule_backup_codec.dart
-  widgets/
+    schedule_rules.dart
+  widgets/                             # one file, one job (30+ widgets)
     app_notification.dart
-    app_state_transition.dart
     class_card.dart
     class_delete_undo.dart
-    class_details_sheet.dart
-    component_kit.dart
-    day_chips.dart
+    day_status_sheet.dart
+    coach_tour_overlay.dart
+    edit_class_time_picker_sheet.dart
     empty_state_card.dart
-    error_view.dart
+    first_run_options.dart
     next_class_card.dart
-    pill.dart
-    status_banner.dart
+    swipe_actions.dart
+    ... (see the folder for the rest)
 test/
 ```
 
-There is no server component. The Android `INTERNET` permission is limited to Flutter's debug and profile manifests for development tooling; it is not present in the main/release app manifest.
+The Android `INTERNET` permission exists solely for the optional, user-configured scan server; the app makes no other network calls and contains no analytics, telemetry, or crash reporting.
 
 ## Local data and safety
 - Classes are stored in `class_schedule.db` on this device only.
 - Android system backups exclude the schedule database and app preferences; use the in-app JSON export when moving or reinstalling the app.
-- There is no online database, account, cloud sync, or backend service. OCR models are packaged with the app, and timetable images/PDFs are processed on-device.
+- There is no online database, account, cloud sync, or backend service. OCR models are packaged with the app, and timetable images/PDFs are processed on-device unless you configure the optional self-hosted scan server, which receives only scan images.
 - Uninstalling the app may remove its local database. Back up important schedules before uninstalling or clearing app data.
 - Database upgrade from version 1 to version 2 adds validation triggers without rebuilding the classes table. Existing rows are retained; invalid legacy rows are not silently dropped. New inserts/updates must meet validation rules.
 - UI errors remain understandable to users; detailed failures are written to the debug console for troubleshooting.
@@ -194,7 +209,7 @@ flutter build apk --release
 A ZIP/static-source review is not a substitute for running these commands on the actual Android SDK/NDK installation. The archive itself has not been claimed as build-tested unless the above commands complete successfully.
 
 ## Importer improvements in this build
-- OCR parsing is isolated in `lib/utils/timetable_parser.dart` so it can be unit-tested without Android OCR plugins.
+- OCR parsing is isolated in `lib/features/schedule_import/utils/timetable_parser.dart` so it can be unit-tested without Android OCR plugins.
 - The parser accepts common abbreviated weekdays and can infer an omitted end AM/PM marker when the end time would otherwise be earlier than the start time.
 - Identical OCR rows are deduplicated before review.
 - Files larger than 20 MB are rejected to reduce memory pressure on lower-memory phones.
@@ -215,6 +230,6 @@ A ZIP/static-source review is not a substitute for running these commands on the
 - Backup restore rejects files larger than 2 MB or with more than 10,000 class records before replacing the schedule.
 - Optional on-device weekly class reminders can be enabled in **Settings → Class reminders**. They request notification permission, use the device time zone, and schedule locally without an account or internet connection. Android can delay inexact notifications for battery saving; users should verify notification permission and battery settings on their own devices.
 
-## Full-app audit
+## Full-app audit (historical)
 
-See [`FULL_APP_AUDIT.md`](FULL_APP_AUDIT.md) for the component-by-component mapping to `components-import.html`, integration gaps, test priorities, and required device verification. This document distinguishes source implementation from behavior that has not yet been runtime-verified.
+See [`FULL_APP_AUDIT.md`](FULL_APP_AUDIT.md) for the capstone-era (2026-10-20) component-by-component mapping to `components-import.html`. It predates the swipe-action system, the edit-class screen, and the current test suite (344 tests), so treat it as a historical snapshot rather than a description of the current app.

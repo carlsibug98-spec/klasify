@@ -326,9 +326,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                         // classes count down ("Ends in 1h
                                         // 12m"), upcoming ones give the
                                         // start clock ("Starts 4:00 PM").
-                                        whenText: next.isNow
-                                            ? next.whenText
-                                            : next.whenText,
+                                        whenText: next.whenText,
                                         onLongPress: () =>
                                             _deleteClass(next.item),
                                       ),

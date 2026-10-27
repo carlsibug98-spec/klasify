@@ -314,9 +314,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
       }
       final file = File(path);
       if (file.existsSync() && file.lengthSync() > 20 * 1024 * 1024) {
-        _showError(
-          'Choose a file smaller than 20 MB for reliable on-device processing.',
-        );
+        _showError('Choose a file smaller than 20 MB for reliable processing.');
         return;
       }
       if (!mounted) return;
@@ -1650,7 +1648,12 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        'Works offline',
+                        // The badge tells the truth about where scans run:
+                        // fully on-device by default, on-device as the
+                        // fallback once a scan server is configured.
+                        _vlUrlController.text.trim().isEmpty
+                            ? 'Works offline'
+                            : 'Offline fallback',
                         style: textTheme.labelMedium?.copyWith(
                           color: scheme.onPrimaryContainer,
                           fontWeight: FontWeight.w700,
@@ -1777,7 +1780,14 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
             ),
             const SizedBox(height: 14),
             Text(
-              'Your timetable stays on your device. No internet connection is needed.',
+              // Mirrors what the scan actually does (the URL field above
+              // is the source of truth, empty = fully on-device).
+              _vlUrlController.text.trim().isEmpty
+                  ? 'Your timetable stays on your device. No internet '
+                        'connection is needed.'
+                  : 'Your timetable stays on your device. Image scans try '
+                        'your high-accuracy server first, then fall back to '
+                        'this device.',
               textAlign: TextAlign.center,
               style: textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,

@@ -39,8 +39,8 @@ class CoachTourOverlay extends StatefulWidget {
       target: CoachTarget.hero,
       title: 'Your next class, live',
       body:
-          'This black card shows what’s in progress or coming up. Tap it for '
-          'the room and details.',
+          'This black card shows what’s in progress or coming up, with the '
+          'room and the time.',
     ),
     CoachStepSpec(
       target: CoachTarget.swipeCard,

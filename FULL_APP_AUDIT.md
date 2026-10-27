@@ -1,5 +1,13 @@
 # Klasify full-app audit against `components-import.html`
 
+> **Historical snapshot (2026-10-20, capstone era).** This document predates
+> the swipe-action system, the edit-class screen (`edit_class_screen.dart`,
+> which replaced `class_form_screen.dart`), the import review screen, the
+> current 344-test suite, and the optional self-hosted scan server. It is kept
+> for reference only; see `README.md` and
+> `docs/superpowers/specs/2026-10-27-ui-full-audit.md` for the current state
+> of the app.
+
 Date: 2026-10-20
 
 ## Scope and confidence
