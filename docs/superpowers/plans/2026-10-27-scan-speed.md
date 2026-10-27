@@ -129,3 +129,39 @@ Notes:
 - r4_notice_mixed (grid-scan success): O1 skipped the text cascade entirely.
 - Full suite: 356 pass / 12 skip / 0 fail (delta vs 344 baseline: +12 = the
   11 bench5 fixture cases + the bench5 summary test).
+
+## Round-6 addendum: accuracy benchmark before vs after (2026-10-27)
+
+The speed table above proves time; this addendum proves the speed did not
+cost correctness. `test/bench6_accuracy_test.dart` runs the same orchestration
+with the same tesseract stand-in and scores the FINAL parsed rows of the 8
+round-4 photos against the hand-labeled truth in
+`test/fixtures/bench4_truth.json` (65 truth classes). Matching: 1-to-1
+greedy by day + interval overlap + normalized subject similarity >= 0.34.
+The three `timetable_grid_*.png` fixtures are excluded from scoring: they are
+deliberately text-free (zero rows in every run), so they carry no accuracy
+signal.
+
+| metric (micro over 65 truth classes) | before d508f6b | after d9c40b5 | delta |
+|---|---|---|---|
+| recall | 0.908 | 0.908 | 0 |
+| precision | 0.983 | 0.983 | 0 |
+| F1 | 0.944 | 0.944 | 0 |
+| subject exact-rate | 0.898 | 0.898 | 0 |
+| subject similarity (macro) | 0.963 | 0.963 | 0 |
+| recognize calls | 139 | 43 | -96 (-69%) |
+
+Per-fixture F1 and the parsed rows are identical before/after on all 8
+fixtures (byte-identical row lists). Evidence:
+`download/bench6_accuracy_before.json` / `bench6_accuracy_after.json`.
+
+Known pre-existing limitation (same on both sides, NOT introduced by the
+optimization): `r4_notice_mixed` — the grid scan locks onto the notice's
+"Claim at the office." line and returns 1 false-positive row while the 6
+truth classes go unparsed (the text cascade that could rescue it is skipped
+because the grid scan produced rows). Candidate future fix: let the text
+cascade still run when the grid scan's mean line confidence is weak, and
+merge/choose instead of discard.
+
+Bench wall time on this subset: 3m13s (before) -> 0m58s (after).
+Full suite after adding bench6: 365 pass / 12 skip / 0 fail.
