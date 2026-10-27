@@ -534,7 +534,8 @@ class _TodayEmptyState extends StatelessWidget {
       return const EmptyStateCard(
         icon: Icons.event_available_outlined,
         title: 'Nothing scheduled today',
-        message: 'Enjoy the open space.',
+        // Same line the Week agenda shows, in the app's second-person voice.
+        message: 'Enjoy your open space.',
       );
     }
     return FirstRunOptions(

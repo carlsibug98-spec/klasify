@@ -4,18 +4,21 @@ An offline-first Flutter app for maintaining a weekly class timetable. **All sch
 
 ## Features
 - Add, edit, and delete classes with instant undo capability
+- Swipe left on any class row (Today list, hero, Week agenda, import review) for Edit and Delete planes; a full swipe deletes with a five-second undo toast
+- Tap a class row to mark what happened to it (done / skipping / cancelled) and for how long
 - Required-field, time validation, and duration calculation
 - Prevent overlapping classes on the same day (adjacent classes are allowed)
 - Home screen showing today's classes, remaining-class badge, and the next/in-progress class hero
 - Seven-day weekly schedule with day selector strip and class count indicators
-- Interactive class details bottom sheet with quick edit and delete actions
+- Interactive class status sheet with per-class and multi-day status spans
+- Guided five-step coach tour, shown once right after the first class is added, plus a one-time swipe hint
 - Offline weekly schedule import from images/screenshots and PDF files via on-device OCR
 - In-memory import draft caching (`ImportRouteCache`) allowing users to pause and resume timetable reviews
 - Import review screen with conflict checks, uncertain room detection, and all-or-nothing atomic SQLite save
 - JSON schedule backup and restore with structure validation and confirmation dialogs
 - On-device weekly class reminders with notification permission and battery-saving handling
 - Android Home-screen widget integration (`NextClassWidgetService`) synced automatically on changes
-- First-launch onboarding (4 pages, skippable) and replayable anytime from Settings
+- First-launch onboarding (3 pages, skippable) and replayable anytime from Settings
 - Adaptive shell (`MainNavigationScreen`): floating pill navigation bar on mobile, navigation rail on wide screens (>= 600dp), and directional slide transitions
 - Reusable component kit (`SectionHeader`, `SettingsRow`, `TimeBox`, `PinnedActionBar`, `KlasifySkeleton`)
 - Intelligent room label formatting (`formatRoom`: normalizes `304` to `Room 304` while preserving named locations like `Lab 2` and `MacLab`)
@@ -38,18 +41,19 @@ The app uses a black-and-white palette: white and grey surfaces, black for text 
 - **Today**: a date line in the app bar, a hero block for the class in progress or the next one (the only inverted surface on the screen), and today's classes as a vertical timeline. The class in progress is marked by a live time colour. The next class in the list carries the hero's accent. Each day's remaining-class count is shown as a badge on the Today tab.
 - **Week**: a seven-day selector strip (initial, date, class count) above the selected day's classes with empty-state handling.
 - **Add / edit class**: sectioned fields (`Subject *`, `Room *`, optional `Professor`), weekday chips, Start/End `TimeBox` controls, and a pinned **Save class** bar. An empty professor defaults to `Not specified`.
-- **Class details**: a bottom sheet with the day, time, duration, room, and instructor, a full-width **Edit class** action, and a quiet **Delete class** action with undo. Dismiss by dragging the handle.
+- **Class status**: a bottom sheet per class row to mark what happened (done, skipping, cancelled) and how long it applies, with clear-status support.
+- **Swipe actions**: left-swipe reveals Edit and Delete planes (mockup-parity: snap, full-swipe arm-and-release, fling velocity, haptics, reduced-motion support) on Today rows, the hero card, Week agenda rows, and import review rows.
+- **Settings, Reminders, Backup, About**: grouped rows using shared `SettingsRow` on distinct surfaces with dedicated action panels; About states the version and the local-first promise and links the open-source licenses.
 - **Feedback & Undo**: transient notifications use `showAppNotification` (a top toast with success, warning, error, and loading kinds). Results that stay on settings-style screens use `StatusBanner`. Deleting a class triggers an undo toast with database rollback.
-- **Floating Quick Actions**: on mobile, a floating expandable `+` action button provides one-tap access to **Add class** or **Import timetable** (or **Resume import** if an in-progress draft exists).
+- Floating Quick Actions: on mobile, a floating expandable `+` action button provides one-tap access to **Add class** or **Import schedule** (opening the importer automatically resumes an in-progress draft).
 - **Navigation**: adaptive navigation uses a floating pill bar on mobile and an accessible `NavigationRail` on screens wider than 600 dp. Tabs transition using directional slide-and-fade motion, respecting system reduced-motion settings.
-- **Settings, Reminders, Backup**: grouped rows using shared `SettingsRow` on distinct surfaces with dedicated action panels.
-- **Onboarding**: four skippable pages with realistic UI previews (`lib/screens/onboarding_screen.dart`).
+- **Onboarding**: three skippable pages with realistic UI previews (`lib/screens/onboarding_screen.dart`).
 - **Home-screen widget**: synced via `NextClassWidgetService` to show upcoming class information on Android home screens.
 - **Design Tokens**: 16px cards (`cardRadius`), 16px controls (`controlRadius`), 12px chips (`chipRadius`), 10px timeline blocks (`blockRadius`), and 28px bottom sheets (`sheetRadius`).
 - **Shared widgets**: `ClassCard`, `NextClassCard`, `DayChips`, `Pill`, `EmptyStateCard`, `ErrorView`, `StatusBanner`, `TimeBox`, `SectionHeader`, `SettingsRow`, `PinnedActionBar`, `addClassFab`.
 
 ## Import a weekly timetable (offline)
-1. Open **Settings** and choose **Import a timetable**, or tap **Import a timetable** on the empty Today screen.
+1. Open **Settings** and choose **Import schedule**, or tap **Scan it** on the empty Today screen.
 2. Select a PNG/JPG/WEBP image or PDF from the device.
 3. Text recognition runs locally using PaddleOCR with its model assets bundled in the app; no model download or server is needed. PDF pages are rendered locally at 3x scale before OCR (up to the first 8 pages). OCR blocks are ordered using their bounding-box positions to preserve more layout information than a single flattened text string.
 4. Review every detected row and edit the subject, room, day, start/end time, or professor. Missing professor values use `Not specified`; missing room values are marked `Room to confirm` and should be corrected.

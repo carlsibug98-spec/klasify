@@ -1,5 +1,5 @@
 name: klasify
-description: A local-first Flutter class timetable with schedule and room search.
+description: A local-first weekly class timetable with offline OCR import, class reminders, and an Android home-screen widget.
 publish_to: 'none'
 version: 1.3.3+8
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../routes/app_routes.dart';
+import '../services/app_info.dart';
 import '../services/reminder_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/component_kit.dart';
@@ -96,6 +97,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 20),
+              const _SettingsGroup(
+                title: 'About',
+                rows: [
+                  _SettingsRowData(
+                    icon: Icons.info_outline_rounded,
+                    title: 'About Klasify',
+                    subtitle: AppInfo.versionLabel,
+                    opensAbout: true,
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -105,15 +118,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 }
 
 class _SettingsRowData {
-  const _SettingsRowData({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.route,
-    this.arguments,
-    this.badge,
-  });
-
   final IconData icon;
   final String title;
   final String subtitle;
@@ -122,6 +126,19 @@ class _SettingsRowData {
 
   /// Short state label shown at the row's end, such as "On" or "Off".
   final String? badge;
+
+  /// Opens the About bottom sheet instead of navigating to [route].
+  final bool opensAbout;
+
+  const _SettingsRowData({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.route = '',
+    this.arguments,
+    this.badge,
+    this.opensAbout = false,
+  });
 }
 
 /// A grouped panel of rows separated by hairlines. One surface per group,
@@ -195,6 +212,10 @@ class _SettingsGroup extends StatelessWidget {
                   subtitle: rows[i].subtitle,
                   trailing: _rowTrailing(context, rows[i]),
                   onTap: () {
+                    if (rows[i].opensAbout) {
+                      _showAboutSheet(context);
+                      return;
+                    }
                     Navigator.pushNamed(
                       context,
                       rows[i].route,
@@ -207,6 +228,140 @@ class _SettingsGroup extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+Future<void> _showAboutSheet(BuildContext context) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(AppTheme.sheetRadius),
+      ),
+    ),
+    builder: (_) => const _AboutSheet(),
+  );
+}
+
+/// The About bottom sheet: the app's identity, version, and its defining
+/// fact, with the licenses one tap away. Same layout idiom as the day
+/// status sheet (icon block + title + subtitle on a single quiet surface).
+class _AboutSheet extends StatelessWidget {
+  const _AboutSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.pageInset,
+        6,
+        AppTheme.pageInset,
+        24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Image.asset(
+                  'assets/klasify_logo.png',
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(width: AppTheme.itemGap),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppInfo.name,
+                      style: textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      AppInfo.versionLabel,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            AppInfo.tagline,
+            style: textTheme.bodyMedium?.copyWith(color: scheme.onSurface),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Timetable, reminders, and the home-screen widget all work '
+            'offline. Back up a file to move your schedule to a new phone.',
+            style: textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Divider(color: scheme.outlineVariant),
+          InkWell(
+            onTap: () => showLicensePage(
+              context: context,
+              applicationName: AppInfo.name,
+              applicationVersion: '${AppInfo.version} (${AppInfo.build})',
+              applicationIcon: const ImageIcon(
+                AssetImage('assets/klasify_logo.png'),
+                size: 44,
+              ),
+              applicationLegalese: AppInfo.tagline,
+            ),
+            borderRadius: BorderRadius.circular(AppTheme.controlRadius),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.description_outlined,
+                    size: 20,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Open-source licenses',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
