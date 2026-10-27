@@ -90,38 +90,50 @@ class ScheduleOcrService {
     if (cancelled()) return [];
     await _initializeOcr();
     if (cancelled()) return [];
+    final firstScanStats = GridScanStats();
     final rows = await _gridScanner.scan(
       path,
       onProgress: onProgress,
       isCancelled: cancelled,
+      stats: firstScanStats,
     );
     if (rows.isNotEmpty || cancelled()) return rows;
 
     // Grid geometry relies on upright weekday headers in the top band of
     // the image. When the first pass finds none, retry quarter-turn copies
-    // the same way the list-based scan does before giving up.
-    final temporaryFiles = <File>[];
-    try {
-      for (final turns in const [1, 3, 2]) {
-        if (cancelled()) return [];
-        onProgress(.9, 'Trying a rotated grid scan');
-        final rotated = await _preprocessor.prepare(path, quarterTurns: turns);
-        if (rotated == null) continue;
-        temporaryFiles.add(rotated.file);
-        final rotatedRows = await _gridScanner.scan(
-          rotated.file.path,
-          onProgress: (progress, detail) =>
-              onProgress(.9 + .09 * progress.clamp(0.0, 1.0), detail),
-          isCancelled: cancelled,
-        );
-        if (rotatedRows.isNotEmpty) return rotatedRows;
-      }
-    } finally {
-      for (final file in temporaryFiles) {
-        try {
-          if (await file.exists()) await file.delete();
-        } catch (error) {
-          debugPrint('Could not remove temporary rotated grid image: $error');
+    // the same way the list-based scan does before giving up — but only
+    // when the upright scan did NOT read clean text. The rotated retries
+    // exist to recover orientation; an image that was already read cleanly
+    // upright cannot gain a header row from being scanned sideways. (This
+    // is the same principle scanImage applies: it only rotates when
+    // nothing parsed at all.)
+    if (!firstScanStats.readCleanText) {
+      final temporaryFiles = <File>[];
+      try {
+        for (final turns in const [1, 3, 2]) {
+          if (cancelled()) return [];
+          onProgress(.9, 'Trying a rotated grid scan');
+          final rotated = await _preprocessor.prepare(
+            path,
+            quarterTurns: turns,
+          );
+          if (rotated == null) continue;
+          temporaryFiles.add(rotated.file);
+          final rotatedRows = await _gridScanner.scan(
+            rotated.file.path,
+            onProgress: (progress, detail) =>
+                onProgress(.9 + .09 * progress.clamp(0.0, 1.0), detail),
+            isCancelled: cancelled,
+          );
+          if (rotatedRows.isNotEmpty) return rotatedRows;
+        }
+      } finally {
+        for (final file in temporaryFiles) {
+          try {
+            if (await file.exists()) await file.delete();
+          } catch (error) {
+            debugPrint('Could not remove temporary rotated grid image: $error');
+          }
         }
       }
     }
@@ -145,14 +157,17 @@ class ScheduleOcrService {
     final temporaryFiles = <File>[];
 
     var candidateProgress = .46;
-    Future<void> addCandidate(String imagePath, String label) async {
-      if (cancelled()) return;
+    Future<_OcrTextCandidate?> addCandidate(
+      String imagePath,
+      String label,
+    ) async {
+      if (cancelled()) return null;
       onProgress(candidateProgress, '$label text recognition');
       try {
         final result = await _ocr.recognize(imagePath);
-        if (cancelled()) return;
+        if (cancelled()) return null;
         final text = _joinOcrRegions(result.results);
-        if (text.trim().isEmpty) return;
+        if (text.trim().isEmpty) return null;
         final confidence = result.results.isEmpty
             ? 0.0
             : result.results
@@ -162,9 +177,12 @@ class ScheduleOcrService {
                       )
                       .fold<double>(0.0, (sum, value) => sum + value) /
                   result.results.length;
-        candidates.add(_OcrTextCandidate(text, confidence, label));
+        final candidate = _OcrTextCandidate(text, confidence, label);
+        candidates.add(candidate);
+        return candidate;
       } catch (error) {
         debugPrint('$label OCR pass failed: $error');
+        return null;
       } finally {
         candidateProgress = (candidateProgress + .09)
             .clamp(.46, .82)
@@ -174,39 +192,67 @@ class ScheduleOcrService {
     }
 
     try {
-      await addCandidate(path, 'Original');
-      if (cancelled()) return '';
-      onProgress(candidateProgress, 'Preparing an enhanced image');
-      final enhanced = await _preprocessor.prepare(path);
-      if (enhanced != null) temporaryFiles.add(enhanced.file);
-      if (cancelled()) return '';
-      if (enhanced != null) {
-        await addCandidate(enhanced.file.path, 'Contrast enhanced');
-      }
+      var candidate = await addCandidate(path, 'Original');
       if (cancelled()) return '';
 
-      // Adaptive thresholding can help faint text, but can also erase thin
-      // strokes and timetable grid details. Treat it as a candidate, not truth.
-      onProgress(candidateProgress, 'Preparing a high-contrast image');
-      final adaptive = await _preprocessor.prepare(
-        path,
-        adaptiveThreshold: true,
-      );
-      if (adaptive != null) temporaryFiles.add(adaptive.file);
-      if (cancelled()) return '';
-      if (adaptive != null) {
-        await addCandidate(adaptive.file.path, 'Adaptive threshold');
+      // The cascade stops as soon as a pass parses strongly: a clear,
+      // upright photo is fully read by its first pass, and the variant
+      // passes below exist to rescue faint, low-contrast, or inverted
+      // photos that the first pass could not read. Running all of them for
+      // every photo multiplied the scan time by the pass count for no gain.
+      // The bar is deliberately high (>= 2 rows through the shared parser
+      // chain AND mean confidence >= 0.85): anything weaker keeps the full
+      // cascade, so hard photos keep exactly today's recall.
+      bool strongEnough() => _strongScan(candidate);
+
+      if (!strongEnough()) {
+        onProgress(candidateProgress, 'Preparing an enhanced image');
+        final enhanced = await _preprocessor.prepare(path);
+        if (enhanced != null) temporaryFiles.add(enhanced.file);
+        if (cancelled()) return '';
+        if (enhanced != null) {
+          candidate = await addCandidate(
+            enhanced.file.path,
+            'Contrast enhanced',
+          );
+        }
+        if (cancelled()) return '';
       }
-      final inverted = await _preprocessor.prepare(
-        path,
-        invertDarkBackground: true,
-      );
-      if (inverted != null) temporaryFiles.add(inverted.file);
-      if (cancelled()) return '';
-      if (inverted != null) {
-        await addCandidate(inverted.file.path, 'Dark-background inversion');
+
+      if (!strongEnough()) {
+        // Adaptive thresholding can help faint text, but can also erase thin
+        // strokes and timetable grid details. Treat it as a candidate, not truth.
+        onProgress(candidateProgress, 'Preparing a high-contrast image');
+        final adaptive = await _preprocessor.prepare(
+          path,
+          adaptiveThreshold: true,
+        );
+        if (adaptive != null) temporaryFiles.add(adaptive.file);
+        if (cancelled()) return '';
+        if (adaptive != null) {
+          candidate = await addCandidate(
+            adaptive.file.path,
+            'Adaptive threshold',
+          );
+        }
+        if (cancelled()) return '';
       }
-      if (cancelled()) return '';
+
+      if (!strongEnough()) {
+        final inverted = await _preprocessor.prepare(
+          path,
+          invertDarkBackground: true,
+        );
+        if (inverted != null) temporaryFiles.add(inverted.file);
+        if (cancelled()) return '';
+        if (inverted != null) {
+          candidate = await addCandidate(
+            inverted.file.path,
+            'Dark-background inversion',
+          );
+        }
+        if (cancelled()) return '';
+      }
 
       // Rotation is expensive and normally unnecessary. Try it only when the
       // initial independent candidates fail to yield a usable parsed row.
@@ -278,6 +324,20 @@ class ScheduleOcrService {
   /// drift.
   double _scoreOcrCandidate(_OcrTextCandidate candidate) =>
       ParseChain.score(candidate.text, candidate.meanConfidence);
+
+  /// True when a single OCR pass already parsed into a usable timetable
+  /// through the same chain the review screen runs: at least two rows and a
+  /// high mean confidence. Used by the scanImage cascade to stop before the
+  /// rescue passes; the bar is intentionally conservative because the pass
+  /// that fails it keeps the full multi-candidate fallback.
+  bool _strongScan(_OcrTextCandidate? candidate) {
+    if (candidate == null || candidate.meanConfidence < .85) return false;
+    final chain = ParseChain.parse(candidate.text);
+    final rows = chain.sectioned.isNotEmpty
+        ? chain.sectioned.length
+        : chain.list.length;
+    return rows >= 2;
+  }
 
   Future<PdfTimetableScanResult> scanPdf(
     String path, {

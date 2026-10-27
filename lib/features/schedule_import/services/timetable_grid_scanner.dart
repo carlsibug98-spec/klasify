@@ -130,10 +130,15 @@ class TimetableGridScanner {
   /// Geometry-aware fallback for weekly timetable screenshots. Unlike a plain
   /// OCR string, this keeps weekday columns and uses the table's horizontal
   /// rules to estimate the start/end slot for each class cell.
+  ///
+  /// When [stats] is provided, it is filled with what the scan read, so the
+  /// caller can judge whether rotated rescans (a purely ORIENTATION fix) could
+  /// still add anything.
   Future<List<ParsedTimetableRow>> scan(
     String path, {
     required void Function(double progress, String detail) onProgress,
     bool Function()? isCancelled,
+    GridScanStats? stats,
   }) async {
     bool cancelled() => isCancelled?.call() ?? false;
     if (cancelled()) return [];
@@ -352,6 +357,18 @@ class TimetableGridScanner {
         }
       }
       if (lines.isEmpty) return [];
+      if (stats != null) {
+        stats
+          ..lineCount = lines.length
+          ..alnumChars = lines.fold<int>(
+            0,
+            (sum, line) =>
+                sum + line.text.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').length,
+          )
+          ..meanLineConfidence =
+              lines.map((line) => line.confidence).reduce((a, b) => a + b) /
+              lines.length;
+      }
       String norm(String s) =>
           s.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
       bool isPlausibleCourseLabel(String value) {
@@ -1185,4 +1202,18 @@ class _SpatialText {
   final double confidence;
 
   const _SpatialText(this.text, this.box, [this.confidence = 0]);
+}
+
+/// What a grid scan read, filled by [TimetableGridScanner.scan] when the
+/// caller passes a [stats] box.
+class GridScanStats {
+  int lineCount = 0;
+  int alnumChars = 0;
+  double meanLineConfidence = 0;
+
+  /// True when the upright scan already read substantial, clean text: the
+  /// image is upright and readable, so the rotated rescans - which exist
+  /// purely to recover orientation - cannot add anything. Sideways or faint
+  /// photos read as little or low-confidence text and keep the retries.
+  bool get readCleanText => alnumChars >= 40 && meanLineConfidence >= .6;
 }

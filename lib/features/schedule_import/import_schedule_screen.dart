@@ -333,7 +333,12 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
         _finishCancelledScan();
         return;
       }
-      if (ext != '.pdf') {
+      // A weekly grid's rows carry the full structure, and the selection
+      // logic below keeps gridRows whenever they exist - the flat-text
+      // cascade would only burn several more recognition passes whose
+      // result is then discarded. Its text is only consumed when the grid
+      // scan found nothing, so it is skipped in that case.
+      if (ext != '.pdf' && gridRows.isEmpty) {
         _reportScanProgress(
           .43,
           'Trying text recognition',
@@ -342,12 +347,14 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
       }
       final text = ext == '.pdf'
           ? pdfScan!.text
-          : await _ocrService.scanImage(
+          : gridRows.isEmpty
+          ? await _ocrService.scanImage(
               path,
               onProgress: (progress, detail) =>
                   _reportScanProgress(progress, detail),
               isCancelled: () => _cancelScanRequested,
-            );
+            )
+          : '';
       if (_cancelScanRequested) {
         _finishCancelledScan();
         return;
