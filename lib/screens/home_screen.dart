@@ -8,6 +8,7 @@ import '../models/class_item.dart';
 import '../models/class_status.dart';
 import '../widgets/day_status_sheet.dart';
 import '../utils/next_class.dart';
+import '../widgets/app_notification.dart';
 import '../widgets/class_card.dart';
 import '../widgets/class_delete_undo.dart';
 import '../widgets/error_view.dart';
@@ -135,6 +136,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       await ReminderService.instance.sync();
     } catch (error) {
       debugPrint('Reminder sync failed: $error');
+      if (mounted) {
+        showAppNotification(
+          context,
+          'Class reminders could not be refreshed.',
+          kind: AppNotificationKind.warning,
+        );
+      }
     }
   }
 

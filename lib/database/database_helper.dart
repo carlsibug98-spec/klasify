@@ -433,6 +433,18 @@ class DatabaseHelper extends ChangeNotifier {
     return restored;
   }
 
+  /// Removes a class's marks that start on or after [fromDateKey]. Used when the
+  /// class moves to another weekday: those marks no longer match any of its
+  /// dates. Past marks stay, as a record of what happened.
+  Future<int> deleteStatusesFrom(int classId, String fromDateKey) async {
+    final db = await _database;
+    return db.delete(
+      'class_status',
+      where: 'class_id = ? AND start_date >= ?',
+      whereArgs: [classId, fromDateKey],
+    );
+  }
+
   /// The statuses one class has now. Read before a delete, so Undo can restore them.
   Future<List<ClassStatusEntry>> statusesForClass(int classId) async {
     final db = await _database;

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import '../database/database_helper.dart';
 import '../models/class_item.dart';
+import '../models/class_status.dart';
 import '../theme/compose_colors.dart';
 import '../services/reminder_service.dart';
 import '../utils/schedule_rules.dart';
@@ -383,6 +384,18 @@ class _EditClassScreenState extends State<EditClassScreen> {
         if (!mounted) return;
         setState(() => _isSaving = false);
         if (changed > 0) {
+          // A weekday change leaves future marks on the old day with nothing to
+          // apply to, so remove them. Past marks are kept as history.
+          final classId = itemToSave.id;
+          final previousDay = widget.classItem?.day;
+          if (classId != null &&
+              previousDay != null &&
+              previousDay != itemToSave.day) {
+            await DatabaseHelper.instance.deleteStatusesFrom(
+              classId,
+              dateKey(DateTime.now()),
+            );
+          }
           final remindersUpdated = await _syncReminders();
           if (!mounted) return;
           _baselineClass = itemToSave;
