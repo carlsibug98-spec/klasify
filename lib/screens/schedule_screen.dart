@@ -9,6 +9,7 @@ import '../models/class_status.dart';
 import '../utils/next_class.dart';
 import '../widgets/day_status_sheet.dart';
 import '../routes/app_routes.dart';
+import '../widgets/app_notification.dart';
 import '../widgets/app_state_transition.dart';
 import '../widgets/class_delete_undo.dart';
 import '../widgets/error_view.dart';
@@ -129,6 +130,13 @@ class _ScheduleScreenState extends State<ScheduleScreen>
       ) {
         // Statuses are secondary. If they can't be read, show the schedule without them.
         debugPrint('Class statuses failed to load: $error\n$stackTrace');
+        if (mounted) {
+          showAppNotification(
+            context,
+            'Your class marks could not be loaded. Showing classes without them.',
+            kind: AppNotificationKind.warning,
+          );
+        }
         return <int, List<ClassStatusEntry>>{};
       });
       if (!mounted || version != _loadVersion) return;

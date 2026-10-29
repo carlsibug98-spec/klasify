@@ -156,6 +156,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ) {
         // Statuses are secondary. If they can't be read, show the schedule without them.
         debugPrint('Class statuses failed to load: $error\n$stackTrace');
+        if (mounted) {
+          showAppNotification(
+            context,
+            'Your class marks could not be loaded. Showing classes without them.',
+            kind: AppNotificationKind.warning,
+          );
+        }
         return <int, List<ClassStatusEntry>>{};
       });
       if (!mounted || version != _loadVersion) return;

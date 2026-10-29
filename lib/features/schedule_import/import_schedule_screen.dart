@@ -164,6 +164,13 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
       });
     } catch (error) {
       debugPrint('Could not refresh saved classes for import review: $error');
+      if (mounted) {
+        showAppNotification(
+          context,
+          'Could not check against your saved classes. Conflicts may not be detected.',
+          kind: AppNotificationKind.warning,
+        );
+      }
     }
   }
 
@@ -480,6 +487,13 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
         existing = await _db.getAll();
       } catch (e) {
         debugPrint('Could not preload saved classes: $e');
+        if (mounted) {
+          showAppNotification(
+            context,
+            'Could not check against your saved classes. Conflicts may not be detected.',
+            kind: AppNotificationKind.warning,
+          );
+        }
       }
       if (_cancelScanRequested) {
         _finishCancelledScan();

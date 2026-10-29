@@ -35,17 +35,23 @@ Future<bool> deleteClassWithUndo(BuildContext context, ClassItem item) async {
   // The destructive action really happened — confirm it physically.
   HapticFeedback.mediumImpact();
 
+  var remindersOk = true;
   try {
     await ReminderService.instance.sync();
   } catch (error, stackTrace) {
+    remindersOk = false;
     debugPrint('Reminder sync after delete failed: $error\n$stackTrace');
   }
 
   showAppNotificationOnMessenger(
     messenger,
     scheme,
-    'Class deleted',
-    kind: AppNotificationKind.info,
+    remindersOk
+        ? 'Class deleted'
+        : 'Class deleted, but reminders could not be updated.',
+    kind: remindersOk
+        ? AppNotificationKind.info
+        : AppNotificationKind.warning,
     duration: const Duration(seconds: 5),
     actionLabel: 'Undo',
     onAction: () async {
@@ -54,16 +60,22 @@ Future<bool> deleteClassWithUndo(BuildContext context, ClassItem item) async {
         if (marks.isNotEmpty) {
           await DatabaseHelper.instance.restoreClassStatuses(id, marks);
         }
+        var restoredRemindersOk = true;
         try {
           await ReminderService.instance.sync();
         } catch (error, stackTrace) {
+          restoredRemindersOk = false;
           debugPrint('Reminder sync after restore failed: $error\n$stackTrace');
         }
         showAppNotificationOnMessenger(
           messenger,
           scheme,
-          'Class restored',
-          kind: AppNotificationKind.success,
+          restoredRemindersOk
+              ? 'Class restored'
+              : 'Class restored, but reminders could not be updated.',
+          kind: restoredRemindersOk
+              ? AppNotificationKind.success
+              : AppNotificationKind.warning,
           replaceCurrent: true,
         );
       } catch (error, stackTrace) {
