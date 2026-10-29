@@ -54,6 +54,8 @@ class _EditClassScreenState extends State<EditClassScreen> {
   Timer? _deleteTimer;
   bool _isSaving = false;
   bool _isDeleting = false;
+  // False when the last delete could not refresh reminders.
+  bool _remindersUpdated = true;
 
   ClassItem? _baselineClass;
 
@@ -213,8 +215,12 @@ class _EditClassScreenState extends State<EditClassScreen> {
       if (success) {
         showAppNotification(
           context,
-          'Class deleted',
-          kind: AppNotificationKind.info,
+          _remindersUpdated
+              ? 'Class deleted'
+              : 'Class deleted, but reminders could not be updated.',
+          kind: _remindersUpdated
+              ? AppNotificationKind.info
+              : AppNotificationKind.warning,
         );
         Navigator.of(context).pop(true);
       } else {
@@ -237,14 +243,24 @@ class _EditClassScreenState extends State<EditClassScreen> {
     }
   }
 
+  /// Refreshes reminders after a save or delete. Returns false if that failed,
+  /// so the caller can tell the user their reminders may be out of date.
+  Future<bool> _syncReminders() async {
+    try {
+      await ReminderService.instance.sync();
+      return true;
+    } catch (e) {
+      debugPrint('Reminder sync failed: $e');
+      return false;
+    }
+  }
+
   Future<bool> _defaultDelete(ClassItem item) async {
     final id = item.id;
     if (id == null) return false;
     final deleted = await DatabaseHelper.instance.delete(id);
     if (deleted > 0) {
-      try {
-        await ReminderService.instance.sync();
-      } catch (_) {}
+      _remindersUpdated = await _syncReminders();
       return true;
     }
     return false;
@@ -367,30 +383,42 @@ class _EditClassScreenState extends State<EditClassScreen> {
         if (!mounted) return;
         setState(() => _isSaving = false);
         if (changed > 0) {
-          try {
-            await ReminderService.instance.sync();
-          } catch (_) {}
+          final remindersUpdated = await _syncReminders();
           if (!mounted) return;
           _baselineClass = itemToSave;
           showAppNotification(
             context,
-            'Class updated.',
-            kind: AppNotificationKind.success,
+            remindersUpdated
+                ? 'Class updated.'
+                : 'Class updated, but reminders could not be updated.',
+            kind: remindersUpdated
+                ? AppNotificationKind.success
+                : AppNotificationKind.warning,
           );
           Navigator.of(context).pop(true);
+        } else {
+          // The row is gone, so there is nothing to update. Say so instead of
+          // leaving the screen silently idle.
+          showAppNotification(
+            context,
+            'This class no longer exists, so it could not be updated.',
+            kind: AppNotificationKind.error,
+          );
         }
       } else {
         await DatabaseHelper.instance.insert(itemToSave);
-        try {
-          await ReminderService.instance.sync();
-        } catch (_) {}
+        final remindersUpdated = await _syncReminders();
         if (!mounted) return;
         setState(() => _isSaving = false);
         HapticFeedback.lightImpact();
         showAppNotification(
           context,
-          'Class added.',
-          kind: AppNotificationKind.success,
+          remindersUpdated
+              ? 'Class added.'
+              : 'Class added, but reminders could not be updated.',
+          kind: remindersUpdated
+              ? AppNotificationKind.success
+              : AppNotificationKind.warning,
         );
         Navigator.of(context).pop(true);
       }
@@ -950,37 +978,9 @@ class _EditClassScreenState extends State<EditClassScreen> {
             excludeSemantics: true,
             child: SizedBox(
               height: 48,
-              child: ElevatedButton.icon(
+              child: ElevatedButton(
                 key: const Key('edit_class_delete_button'),
                 onPressed: _isDeleting || _isSaving ? null : _onDeleteTap,
-                icon: _isDeleting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: Colors.white70,
-                        ),
-                      )
-                    : _deleteArmed
-                    ? const SizedBox.shrink()
-                    : const Icon(
-                        Icons.delete_outline_rounded,
-                        size: 20,
-                        color: Colors.white,
-                      ),
-                label: Text(
-                  _isDeleting
-                      ? 'Deleting…'
-                      : _deleteArmed
-                      ? 'Tap to confirm'
-                      : 'Delete',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _deleteArmed
                       ? ComposeColors.dangerArmed
@@ -990,6 +990,48 @@ class _EditClassScreenState extends State<EditClassScreen> {
                   ),
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                // The button is the narrow third of the row. Scale the whole
+                // row down instead of letting "Tap to confirm" wrap or drift
+                // off-center when the delete icon disappears on arming.
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_isDeleting) ...[
+                        const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white70,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ] else if (!_deleteArmed) ...[
+                        const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 20,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(
+                        _isDeleting
+                            ? 'Deleting…'
+                            : _deleteArmed
+                            ? 'Tap to confirm'
+                            : 'Delete',
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: _deleteArmed ? 14 : 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

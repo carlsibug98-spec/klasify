@@ -9,15 +9,10 @@ import '../database/database_helper.dart';
 import '../models/class_item.dart';
 import '../models/class_status.dart';
 
+/// Pending reminder IDs that the current schedule no longer uses.
 @visibleForTesting
-Future<List<ClassItem>> readClassesBeforeClearingReminders({
-  required Future<List<ClassItem>> Function() readClasses,
-  required Future<void> Function() cancelAll,
-}) async {
-  final classes = await readClasses();
-  await cancelAll();
-  return classes;
-}
+List<int> staleReminderIds(Iterable<int> pending, Set<int> scheduled) =>
+    pending.where((id) => !scheduled.contains(id)).toList();
 
 /// Local-only weekly system notifications scheduled before each class.
 class ReminderService extends ChangeNotifier {
@@ -31,7 +26,7 @@ class ReminderService extends ChangeNotifier {
   static const _leadChoices = [5, 10, 15, 30];
   // Android keeps a channel's description from its first creation, so the ID
   // is bumped to pick up the corrected description on existing installs.
-  static const _channelId = 'class_schedule_reminders_v4';
+  static const _channelId = 'class_schedule_reminders_v5';
   static const _channelDescription = 'Reminders before each class, every week.';
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -68,6 +63,9 @@ class ReminderService extends ChangeNotifier {
     );
     // Remove the channels from before the ID bumps so they stop appearing in
     // settings.
+    await android?.deleteNotificationChannel(
+      channelId: 'class_schedule_reminders_v4',
+    );
     await android?.deleteNotificationChannel(
       channelId: 'class_schedule_reminders_v3',
     );
@@ -171,14 +169,17 @@ class ReminderService extends ChangeNotifier {
   Future<void> sync() async {
     if (!await isEnabled) return;
     await initialize();
-    // Read the marks before anything is cleared. If this fails, the current
-    // reminders stay in place.
+    // Read everything before touching notifications. If a read fails, the
+    // current reminders stay in place.
     final statuses = await DatabaseHelper.instance.getClassStatuses();
-    // Keep the current reminders if the local schedule cannot be read.
-    final classes = await readClassesBeforeClearingReminders(
-      readClasses: DatabaseHelper.instance.getAll,
-      cancelAll: _plugin.cancelAll,
-    );
+    final classes = await DatabaseHelper.instance.getAll();
+    final previousIds = (await _plugin.pendingNotificationRequests())
+        .map((request) => request.id)
+        .toList();
+    // Nothing is cancelled up front. Reminder IDs are deterministic, so
+    // rescheduling one replaces it, and stale ones are removed at the end. A
+    // failure partway through leaves the reminders not yet rescheduled intact.
+    final scheduledIds = <int>{};
     final android = _plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
@@ -225,6 +226,7 @@ class ReminderService extends ChangeNotifier {
           if (!when.isAfter(now)) continue;
           await _scheduleAt(
             id: _occurrenceId(c, date),
+            scheduledIds: scheduledIds,
             c: c,
             when: when,
             repeat: false,
@@ -248,6 +250,7 @@ class ReminderService extends ChangeNotifier {
         }
         await _scheduleAt(
           id: _repeatId(c),
+          scheduledIds: scheduledIds,
           c: c,
           when: when,
           repeat: true,
@@ -256,16 +259,22 @@ class ReminderService extends ChangeNotifier {
         );
       }
     }
+
+    for (final id in staleReminderIds(previousIds, scheduledIds)) {
+      await _plugin.cancel(id: id);
+    }
   }
 
   Future<void> _scheduleAt({
     required int id,
+    required Set<int> scheduledIds,
     required ClassItem c,
     required tz.TZDateTime when,
     required bool repeat,
     required bool exact,
     required int leadMinutes,
   }) async {
+    scheduledIds.add(id);
     await _plugin.zonedSchedule(
       id: id,
       title: 'Class starting soon',
@@ -277,8 +286,10 @@ class ReminderService extends ChangeNotifier {
           'Upcoming classes',
           channelDescription: _channelDescription,
           importance: Importance.high,
-          priority: Priority.high,
-        ),
+           priority: Priority.high,
+           playSound: true,
+           enableVibration: true,
+         ),
         iOS: DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,

@@ -15,6 +15,7 @@ import org.json.JSONArray
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import kotlin.math.roundToInt
 
 private data class ScheduledWidgetClass(
     val subject: String,
@@ -30,7 +31,9 @@ private data class ScheduledWidgetClass(
 
 private data class NextWidgetClass(
     val item: ScheduledWidgetClass,
-    val isHappeningNow: Boolean,
+    // 0 = today, 1 = tomorrow, 7 = same weekday next week.
+    val dayDifference: Int,
+    // Milliseconds to the class start (next up) or end (live now).
     val millisToBoundary: Long,
 )
 
@@ -73,6 +76,7 @@ class NextClassWidgetProvider : AppWidgetProvider() {
         when (intent.action) {
             Intent.ACTION_DATE_CHANGED,
             Intent.ACTION_TIME_CHANGED,
+            Intent.ACTION_TIME_TICK,
             Intent.ACTION_TIMEZONE_CHANGED,
             Intent.ACTION_LOCALE_CHANGED,
             Intent.ACTION_BOOT_COMPLETED,
@@ -86,19 +90,24 @@ class NextClassWidgetProvider : AppWidgetProvider() {
         const val PREFERENCES_NAME = "klasify_next_class_widget"
         const val SCHEDULE_KEY = "saved_schedule_json"
 
-        // Fires just after the next class starts or ends so the "In class" chip
+        // Fires just after the next class starts or ends so the "In class" state
         // and the countdowns change on time instead of waiting for the 30-minute
         // periodic refresh.
         private const val BOUNDARY_ACTION = "com.klasify.app.NEXT_CLASS_BOUNDARY"
         private const val BOUNDARY_REQUEST_CODE = 4217
 
-        // Height tiers for the redesigned layout: the calendar needs ~190dp,
-        // the today cards need ~240dp. Very short widgets (below 120dp) fall
-        // back to the compact legacy line so the subject always stays readable.
+        // Board layout is width-first; height decides how much of it fits.
+        // Below 120dp the widget falls back to the compact status line. The
+        // full 4x3 board needs ~315dp for the LATER TODAY rows; the month
+        // calendar is only kept for tall 4x5-style layouts.
         private const val COMPACT_MAX_HEIGHT_DP = 120
-        private const val CALENDAR_MIN_HEIGHT_DP = 190
-        private const val CARDS_MIN_HEIGHT_DP = 240
-        private const val NEXT_CARD_MIN_HEIGHT_DP = 150
+        private const val SHELF_MIN_HEIGHT_DP = 190
+        private const val LATER_MIN_HEIGHT_DP = 315
+        private const val CALENDAR_MIN_HEIGHT_DP = 480
+
+        // Launchers that never report OPTION_APPWIDGET_MIN_HEIGHT fall back to
+        // the widget's default 3-cell height instead of its tallest layout.
+        private const val DEFAULT_HEIGHT_DP = 190
 
         // Compile-time cell ids, generated alongside the layout XML
         // (scripts/make_v52_widget_layout.py emits WidgetCalendarIds.kt).
@@ -186,7 +195,7 @@ class NextClassWidgetProvider : AppWidgetProvider() {
             ).minOrNull() ?: return
             // Inexact on purpose: no exact-alarm permission needed, and a few
             // minutes of drift is acceptable for a minute-granularity countdown.
-            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC, triggerAt, pendingIntent)
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
         }
 
         private fun nextMinuteUpdateMillis(now: Calendar): Long {
@@ -202,31 +211,31 @@ class NextClassWidgetProvider : AppWidgetProvider() {
             now: Calendar,
         ): Long? {
             if (classes.isEmpty()) return null
-            val today = when (now.get(Calendar.DAY_OF_WEEK)) {
-                Calendar.SUNDAY -> 7
-                else -> now.get(Calendar.DAY_OF_WEEK) - 1
-            }
+            val today = dayOfWeekIndex(now)
             val nowMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
-            var soonestMinutes: Int? = null
+            // Int.MAX_VALUE stands for "no boundary found yet", so no nullable
+            // value needs unwrapping below.
+            var soonestMinutes = Int.MAX_VALUE
             for (item in classes) {
                 for (boundary in listOf(item.startMinutes, item.endMinutes)) {
                     val dayDifference = (item.day - today + 7) % 7
                     var minutesUntil = dayDifference * 1440 + boundary - nowMinutes
                     if (minutesUntil <= 0) minutesUntil += 7 * 1440
-                    if (soonestMinutes == null || minutesUntil < soonestMinutes) {
+                    if (minutesUntil < soonestMinutes) {
                         soonestMinutes = minutesUntil
                     }
                 }
             }
             val minutesUntilMidnight = 1440 - nowMinutes
-            if (minutesUntilMidnight > 0 && (soonestMinutes == null || minutesUntilMidnight < soonestMinutes)) {
+            if (minutesUntilMidnight > 0 && minutesUntilMidnight < soonestMinutes) {
                 soonestMinutes = minutesUntilMidnight
             }
+            if (soonestMinutes == Int.MAX_VALUE) return null
             val secondsIntoMinute =
                 now.get(Calendar.SECOND) * 1000L + now.get(Calendar.MILLISECOND)
             // One second past the boundary so the widget reads the new state.
             return now.timeInMillis - secondsIntoMinute +
-                soonestMinutes!! * 60_000L + 1_000L
+                soonestMinutes * 60_000L + 1_000L
         }
 
         /** yyyy-MM-dd for [calendar], matching the app's date keys. */
@@ -240,10 +249,16 @@ class NextClassWidgetProvider : AppWidgetProvider() {
             )
         }
 
-        /** Occurrence of [item] at [dayDifference] days from today is marked? */
-        private fun isMarked(item: ScheduledWidgetClass, dayDifference: Int): Boolean {
+        /** Occurrence of [item] at [dayDifference] days from [now] is marked? */
+        private fun isMarked(
+            item: ScheduledWidgetClass,
+            dayDifference: Int,
+            now: Calendar,
+        ): Boolean {
             if (item.markedDates.isEmpty()) return false
-            val date = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, dayDifference) }
+            val date = (now.clone() as Calendar).apply {
+                add(Calendar.DAY_OF_YEAR, dayDifference)
+            }
             return dateKey(date) in item.markedDates
         }
 
@@ -253,48 +268,49 @@ class NextClassWidgetProvider : AppWidgetProvider() {
         ): NextWidgetClass? {
             if (classes.isEmpty()) return null
 
-            val today = when (now.get(Calendar.DAY_OF_WEEK)) {
-                Calendar.SUNDAY -> 7
-                else -> now.get(Calendar.DAY_OF_WEEK) - 1
-            }
+            val today = dayOfWeekIndex(now)
             val nowMinutes =
                 now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
             val millisIntoMinute =
                 now.get(Calendar.SECOND) * 1000L + now.get(Calendar.MILLISECOND)
 
-            val live = classes.firstOrNull { item ->
-                item.day == today &&
-                    item.startMinutes <= nowMinutes &&
-                    nowMinutes < item.endMinutes &&
-                    !isMarked(item, 0)
-            }
+            val live = classes
+                .filter { item ->
+                    item.day == today &&
+                        item.startMinutes <= nowMinutes &&
+                        nowMinutes < item.endMinutes &&
+                        !isMarked(item, 0, now)
+                }
+                .minByOrNull { it.startMinutes }
             if (live != null) {
                 return NextWidgetClass(
                     item = live,
-                    isHappeningNow = true,
+                    dayDifference = 0,
                     millisToBoundary = (live.endMinutes - nowMinutes) * 60_000L -
                         millisIntoMinute,
                 )
             }
 
-            val next = classes
-                .filter { !(it.day == today && isMarked(it, 0)) }
-                .minByOrNull { item ->
-                    val dayDifference = (item.day - today + 7) % 7
-                    var minutesUntil =
-                        dayDifference * 1440 + item.startMinutes - nowMinutes
-                    if (minutesUntil <= 0) minutesUntil += 7 * 1440
-                    minutesUntil
-                } ?: return null
-            val dayDifference = (next.day - today + 7) % 7
-            if (isMarked(next, dayDifference)) return null
-            var minutesUntil = dayDifference * 1440 + next.startMinutes - nowMinutes
-            if (minutesUntil <= 0) minutesUntil += 7 * 1440
-            return NextWidgetClass(
-                item = next,
-                isHappeningNow = false,
-                millisToBoundary = minutesUntil * 60_000L - millisIntoMinute,
-            )
+            var best: NextWidgetClass? = null
+            for (item in classes) {
+                var dayDifference = (item.day - today + 7) % 7
+                var minutesUntil =
+                    dayDifference * 1440 + item.startMinutes - nowMinutes
+                if (minutesUntil <= 0) {
+                    dayDifference += 7
+                    minutesUntil += 7 * 1440
+                }
+                if (isMarked(item, dayDifference, now)) continue
+                val candidate = NextWidgetClass(
+                    item = item,
+                    dayDifference = dayDifference,
+                    millisToBoundary = minutesUntil * 60_000L - millisIntoMinute,
+                )
+                if (best == null || candidate.millisToBoundary < best.millisToBoundary) {
+                    best = candidate
+                }
+            }
+            return best
         }
 
         /** 42 cells (Sunday-first) for the month of [now]; null = blank slot. */
@@ -328,33 +344,39 @@ class NextClassWidgetProvider : AppWidgetProvider() {
         ) {
             val views = RemoteViews(context.packageName, R.layout.widget_next_class)
             val now = Calendar.getInstance()
-            val today = when (now.get(Calendar.DAY_OF_WEEK)) {
-                Calendar.SUNDAY -> 7
-                else -> now.get(Calendar.DAY_OF_WEEK) - 1
-            }
+            val today = dayOfWeekIndex(now)
             val nowMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
             val todayKey = dateKey(now)
 
-            val heightDp = manager
-                .getAppWidgetOptions(appWidgetId)
-                .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
-            val compactLegacy = heightDp in 1 until COMPACT_MAX_HEIGHT_DP
-            val showCalendar = heightDp == 0 || heightDp >= CALENDAR_MIN_HEIGHT_DP
-            val maxCards = when {
-                heightDp == 0 || heightDp >= CARDS_MIN_HEIGHT_DP -> 2
-                heightDp >= CALENDAR_MIN_HEIGHT_DP -> 1
-                else -> 0
-            }
-            val showNextCard = heightDp == 0 || heightDp >= NEXT_CARD_MIN_HEIGHT_DP
+            val options = manager.getAppWidgetOptions(appWidgetId)
+            val heightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+            val heightKnown = heightDp > 0
+            // HiOS reports 0 for some freshly placed widgets. Treating that as
+            // "unknown, show everything" renders the tallest composition and
+            // clips the bottom of a 4x3 card, so assume the default 3-cell
+            // height until the launcher sends real options.
+            val effectiveHeightDp = if (heightKnown) heightDp else DEFAULT_HEIGHT_DP
+            val compact = effectiveHeightDp < COMPACT_MAX_HEIGHT_DP
+            val showLater = heightKnown && effectiveHeightDp >= LATER_MIN_HEIGHT_DP
+            val showShelf = effectiveHeightDp >= SHELF_MIN_HEIGHT_DP
+            val showCalendar = heightKnown && effectiveHeightDp >= CALENDAR_MIN_HEIGHT_DP
 
-            val markedTodayCount = classes.count { it.day == today && todayKey in it.markedDates }
-            val todayClasses = classes.filter { it.day == today && todayKey !in it.markedDates }
-            val liveClass = todayClasses.firstOrNull {
-                it.startMinutes <= nowMinutes && nowMinutes < it.endMinutes
+            val todayClasses = classes.filter {
+                it.day == today && todayKey !in it.markedDates
             }
+            val live = todayClasses
+                .filter { it.startMinutes <= nowMinutes && nowMinutes < it.endMinutes }
+                .minByOrNull { it.startMinutes }
             val upcomingToday = todayClasses
                 .filter { it.startMinutes > nowMinutes }
                 .sortedBy { it.startMinutes }
+                .map { item ->
+                    NextWidgetClass(
+                        item = item,
+                        dayDifference = 0,
+                        millisToBoundary = millisUntil(now, item.startMinutes),
+                    )
+                }
             val allDoneToday = todayClasses.isNotEmpty() &&
                 todayClasses.all { it.endMinutes <= nowMinutes }
             val freeDay = todayClasses.isEmpty()
@@ -363,80 +385,92 @@ class NextClassWidgetProvider : AppWidgetProvider() {
             when {
                 classes.isEmpty() -> showEmpty(views)
 
-                liveClass != null && !compactLegacy -> {
-                    showInClass(context, views, liveClass, nowMinutes)
-                }
-
-                liveClass != null -> {
-                    showCompactActive(
-                        context, views,
-                        label = context.getString(R.string.next_class_widget_in_class),
-                        whenText = context.getString(
-                            R.string.next_class_widget_ends_in,
-                            formatCountdown((liveClass.endMinutes - nowMinutes) * 60_000L),
-                        ),
-                        item = liveClass,
+                live != null && !compact -> {
+                    showInClass(
+                        context,
+                        views,
+                        live,
+                        now,
                     )
                 }
 
-                upcomingToday.isNotEmpty() && !compactLegacy -> {
+                live != null -> {
+                    showCompact(
+                        context,
+                        views,
+                        templateRes = R.string.next_class_widget_compact_in_class,
+                        millis = millisUntil(now, live.endMinutes),
+                        item = live,
+                    )
+                }
+
+                upcomingToday.isNotEmpty() && !compact -> {
                     showUpcoming(
-                        context, views, now,
+                        context,
+                        views,
+                        now,
                         nextClass = upcomingToday.first(),
-                        remaining = upcomingToday,
-                        maxCards = maxCards,
+                        remaining = upcomingToday.drop(1),
+                        showLater = showLater,
                         showCalendar = showCalendar,
                     )
                 }
 
                 upcomingToday.isNotEmpty() -> {
-                    val item = upcomingToday.first()
-                    val minutesUntil = item.startMinutes - nowMinutes
-                    showCompactActive(
-                        context, views,
-                        label = context.getString(R.string.next_class_widget_label),
-                        whenText = context.getString(
-                            R.string.next_class_widget_starts_in,
-                            formatCountdown(minutesUntil * 60_000L),
-                        ),
-                        item = item,
+                    showCompact(
+                        context,
+                        views,
+                        templateRes = R.string.next_class_widget_compact_next,
+                        millis = upcomingToday.first().millisToBoundary,
+                        item = upcomingToday.first().item,
                     )
                 }
 
                 next != null && (allDoneToday || freeDay) -> {
                     showAllDone(
-                        context, views, now, next,
-                        titleRes = if (allDoneToday) {
-                            R.string.next_class_widget_all_done_title
-                        } else {
-                            R.string.next_class_widget_free_day_title
-                        },
-                        showCard = showNextCard,
+                        context,
+                        views,
+                        now,
+                        next = next,
+                        allDone = allDoneToday,
+                        showShelf = showShelf,
+                    )
+                }
+
+                next != null && !compact -> {
+                    // Marked-out day: everything today is skipped but the next
+                    // occurrence is still ahead. Render the next-up state with
+                    // no LATER TODAY rows because the class is on another day.
+                    showUpcoming(
+                        context,
+                        views,
+                        now,
+                        nextClass = next,
+                        remaining = emptyList(),
+                        showLater = false,
+                        showCalendar = showCalendar,
                     )
                 }
 
                 next != null -> {
-                    // Marked-out day: everything today is skipped but the next
-                    // occurrence is still ahead. Render the upcoming state.
-                    if (compactLegacy) {
-                        showCompactActive(
-                            context, views,
-                            label = context.getString(R.string.next_class_widget_label),
-                            whenText = context.getString(
-                                R.string.next_class_widget_starts_in,
-                                formatCountdown(next.millisToBoundary),
-                            ),
-                            item = next.item,
-                        )
-                    } else {
-                        showUpcoming(
-                            context, views, now,
-                            nextClass = next.item,
-                            remaining = listOf(next.item),
-                            maxCards = maxCards,
-                            showCalendar = showCalendar,
-                        )
-                    }
+                    showCompact(
+                        context,
+                        views,
+                        templateRes = R.string.next_class_widget_compact_next,
+                        millis = next.millisToBoundary,
+                        item = next.item,
+                    )
+                }
+
+                allDoneToday || freeDay -> {
+                    showAllDone(
+                        context,
+                        views,
+                        now,
+                        next = null,
+                        allDone = allDoneToday,
+                        showShelf = false,
+                    )
                 }
 
                 else -> showEmpty(views)
@@ -468,44 +502,50 @@ class NextClassWidgetProvider : AppWidgetProvider() {
             context: Context,
             views: RemoteViews,
             now: Calendar,
-            nextClass: ScheduledWidgetClass,
-            remaining: List<ScheduledWidgetClass>,
-            maxCards: Int,
+            nextClass: NextWidgetClass,
+            remaining: List<NextWidgetClass>,
+            showLater: Boolean,
             showCalendar: Boolean,
         ) {
             views.showOnly(R.id.container_upcoming)
+            val item = nextClass.item
 
-            // Headline: "Design Class in 8 minutes" / "in 1h 12m" / "in 1d 3h".
-            val minutesUntil = ((nextClass.startMinutes -
-                (now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)))
-                .coerceAtLeast(0))
-            val phrase = if (minutesUntil < 60) {
-                val count = minutesUntil.coerceAtLeast(1)
-                context.resources.getQuantityString(
-                    R.plurals.next_class_widget_in_minutes,
-                    count,
-                    count,
-                )
-            } else {
-                context.getString(
-                    R.string.next_class_widget_in_compact,
-                    formatCountdown(minutesUntil * 60_000L),
-                )
-            }
-            views.setTextViewText(
-                R.id.widget_headline,
-                nextClass.subject + " " + phrase,
+            bindRoomCta(
+                views,
+                cta = R.id.widget_upcoming_cta,
+                room = R.id.widget_upcoming_cta_room,
+                roomText = item.room,
             )
+            bindCountdown(
+                context,
+                views,
+                millis = nextClass.millisToBoundary,
+                value1 = R.id.widget_upcoming_value_1,
+                unit1 = R.id.widget_upcoming_unit_1,
+                value2 = R.id.widget_upcoming_value_2,
+                unit2 = R.id.widget_upcoming_unit_2,
+            )
+            views.setTextViewText(R.id.widget_upcoming_subject, item.subject)
 
-            // Room CTA pill.
-            val room = formatRoom(nextClass.room)
+            // LATER TODAY belongs to the current day only.
+            val later = if (showLater) remaining.take(2) else emptyList()
             views.setViewVisibility(
-                R.id.widget_cta_pill,
-                if (room.isEmpty()) View.GONE else View.VISIBLE,
+                R.id.widget_upcoming_later_label,
+                if (later.isEmpty()) View.GONE else View.VISIBLE,
             )
-            views.setTextViewText(R.id.widget_cta_room, room)
+            bindLaterRow(
+                views,
+                index = 1,
+                item = later.getOrNull(0),
+                showRow = later.isNotEmpty(),
+            )
+            bindLaterRow(
+                views,
+                index = 2,
+                item = later.getOrNull(1),
+                showRow = later.size > 1,
+            )
 
-            // Calendar column.
             views.setViewVisibility(
                 R.id.widget_cal_section,
                 if (showCalendar) View.VISIBLE else View.GONE,
@@ -515,112 +555,105 @@ class NextClassWidgetProvider : AppWidgetProvider() {
                 views.setTextViewText(R.id.widget_month_label, monthLabel.format(now.time))
                 bindCalendar(context, views, now)
             }
-
-            // Remaining-classes cards.
-            val cards = remaining.take(maxCards)
-            views.setViewVisibility(
-                R.id.widget_cards_section,
-                if (cards.isEmpty()) View.GONE else View.VISIBLE,
-            )
-            bindCard(views, 1, cards.getOrNull(0))
-            bindCard(views, 2, cards.getOrNull(1))
         }
 
         private fun showInClass(
             context: Context,
             views: RemoteViews,
             item: ScheduledWidgetClass,
-            nowMinutes: Int,
+            now: Calendar,
         ) {
             views.showOnly(R.id.container_inclass)
-            views.setTextViewText(
-                R.id.widget_inclass_ends,
-                context.getString(
-                    R.string.next_class_widget_ends_in,
-                    formatCountdown((item.endMinutes - nowMinutes) * 60_000L),
-                ),
+
+            bindRoomCta(
+                views,
+                cta = R.id.widget_inclass_cta,
+                room = R.id.widget_inclass_cta_room,
+                roomText = item.room,
             )
+
+            // The board's live hero reads "24 min left"; a long class reads
+            // "1 h 30 min left" instead of dumping 90 minutes.
+            bindLiveCountdown(
+                context,
+                views,
+                millis = millisUntil(now, item.endMinutes),
+            )
+
             views.setTextViewText(R.id.widget_inclass_subject, item.subject)
-            views.setTextViewText(
-                R.id.widget_inclass_time,
-                formatMinutes(item.startMinutes) + " - " + formatMinutes(item.endMinutes),
-            )
-
-            val room = formatRoom(item.room)
-            views.setViewVisibility(
-                R.id.widget_inclass_cta,
-                if (room.isEmpty()) View.GONE else View.VISIBLE,
-            )
-            views.setTextViewText(R.id.widget_inclass_cta_room, room)
-
-            val professor = cleanProfessor(item.professor)
-            views.setViewVisibility(
-                R.id.widget_inclass_prof_row,
-                if (professor.isEmpty()) View.GONE else View.VISIBLE,
-            )
-            views.setTextViewText(R.id.widget_inclass_professor, professor)
         }
 
         private fun showAllDone(
             context: Context,
             views: RemoteViews,
             now: Calendar,
-            next: NextWidgetClass,
-            titleRes: Int,
-            showCard: Boolean,
+            next: NextWidgetClass?,
+            allDone: Boolean,
+            showShelf: Boolean,
         ) {
             views.showOnly(R.id.container_alldone)
-            views.setTextViewText(R.id.widget_alldone_title, context.getString(titleRes))
-            val weekday = SimpleDateFormat("EEEE", Locale.getDefault()).format(now.time)
-            views.setTextViewText(
-                R.id.widget_alldone_subtitle,
-                context.getString(R.string.next_class_widget_enjoy_rest, weekday),
-            )
 
+            val isWeekend = dayOfWeekIndex(now) >= 6
+            val title = when {
+                allDone -> context.getString(R.string.next_class_widget_all_done_title)
+                isWeekend -> context.getString(R.string.next_class_widget_weekend_title)
+                else -> context.getString(R.string.next_class_widget_free_day_title)
+            }
+            val subtitle = when {
+                allDone -> context.getString(
+                    R.string.next_class_widget_enjoy_rest,
+                    weekdayName(dayOfWeekIndex(now)),
+                )
+                isWeekend -> context.getString(R.string.next_class_widget_weekend_message)
+                else -> context.getString(R.string.next_class_widget_free_day_message)
+            }
+            views.setTextViewText(R.id.widget_alldone_title, title)
+            views.setTextViewText(R.id.widget_alldone_subtitle, subtitle)
+
+            val hasShelf = showShelf && next != null
             views.setViewVisibility(
                 R.id.widget_alldone_card,
-                if (showCard) View.VISIBLE else View.GONE,
+                if (hasShelf) View.VISIBLE else View.GONE,
             )
-            if (showCard) {
-                val dayDifference = (next.item.day - dayOfWeekIndex(now) + 7) % 7
-                val dayPill = if (dayDifference == 1) {
+            if (hasShelf && next != null) {
+                val item = next.item
+                val dayPill = if (next.dayDifference == 1) {
                     context.getString(R.string.next_class_widget_day_tomorrow)
                 } else {
-                    weekdayName(next.item.day)
+                    weekdayName(item.day).uppercase(Locale.getDefault())
                 }
                 views.setTextViewText(R.id.widget_alldone_day_pill, dayPill)
                 views.setTextViewText(
                     R.id.widget_alldone_starts,
                     context.getString(
                         R.string.next_class_widget_starts_in,
-                        formatCountdown(next.millisToBoundary),
+                        formatShortCountdown(next.millisToBoundary),
                     ),
                 )
-                views.setTextViewText(R.id.widget_alldone_subject, next.item.subject)
+                views.setTextViewText(R.id.widget_alldone_subject, item.subject)
                 views.setTextViewText(
                     R.id.widget_alldone_time,
-                    formatMinutes(next.item.startMinutes) + " - " +
-                        formatMinutes(next.item.endMinutes),
+                    formatTimeRange(item.startMinutes, item.endMinutes),
                 )
-                views.setTextViewText(R.id.widget_alldone_room, formatRoom(next.item.room))
             }
         }
 
-        private fun showCompactActive(
+        private fun showCompact(
             context: Context,
             views: RemoteViews,
-            label: String,
-            whenText: String,
+            templateRes: Int,
+            millis: Long,
             item: ScheduledWidgetClass,
         ) {
             views.showOnly(R.id.container_active)
-            views.setTextViewText(R.id.widget_label, label)
-            views.setTextViewText(R.id.widget_when, whenText)
-            views.setTextViewText(R.id.widget_subject, item.subject)
             views.setTextViewText(
-                R.id.widget_time,
-                formatMinutes(item.startMinutes) + " - " + formatMinutes(item.endMinutes),
+                R.id.widget_label,
+                context.getString(
+                    templateRes,
+                    formatShortCountdown(millis),
+                ),
             )
+            views.setTextViewText(R.id.widget_subject, item.subject)
         }
 
         // -- View helpers ----------------------------------------------------
@@ -632,6 +665,109 @@ class NextClassWidgetProvider : AppWidgetProvider() {
             setViewVisibility(R.id.container_active, View.GONE)
             setViewVisibility(R.id.widget_empty_container, View.GONE)
             setViewVisibility(containerId, View.VISIBLE)
+        }
+
+        private fun bindRoomCta(
+            views: RemoteViews,
+            cta: Int,
+            room: Int,
+            roomText: String,
+        ) {
+            val trimmed = roomText.trim()
+            views.setViewVisibility(cta, if (trimmed.isEmpty()) View.GONE else View.VISIBLE)
+            views.setTextViewText(room, trimmed)
+        }
+
+        private fun bindCountdown(
+            context: Context,
+            views: RemoteViews,
+            millis: Long,
+            value1: Int,
+            unit1: Int,
+            value2: Int,
+            unit2: Int,
+        ) {
+            val parts = countdownParts(millis)
+            views.setTextViewText(value1, parts[0].first)
+            views.setTextViewText(unit1, context.getString(parts[0].second))
+            val hasSecond = parts.size > 1
+            views.setViewVisibility(value2, if (hasSecond) View.VISIBLE else View.GONE)
+            views.setViewVisibility(unit2, if (hasSecond) View.VISIBLE else View.GONE)
+            if (hasSecond) {
+                views.setTextViewText(value2, parts[1].first)
+                views.setTextViewText(unit2, context.getString(parts[1].second))
+            }
+        }
+
+        /**
+         * Live hero countdown: "24 min left", "1 h 30 min left" or "1 h left".
+         * The trailing unit carries "left" so long classes don't collapse into
+         * a wall of minutes.
+         */
+        private fun bindLiveCountdown(
+            context: Context,
+            views: RemoteViews,
+            millis: Long,
+        ) {
+            val parts = countdownParts(millis)
+            views.setTextViewText(R.id.widget_inclass_value_1, parts[0].first)
+            views.setTextViewText(
+                R.id.widget_inclass_unit_1,
+                context.getString(
+                    if (parts.size == 1) liveUnit(parts[0].second) else parts[0].second,
+                ),
+            )
+            val hasSecond = parts.size > 1
+            views.setViewVisibility(
+                R.id.widget_inclass_value_2,
+                if (hasSecond) View.VISIBLE else View.GONE,
+            )
+            views.setViewVisibility(
+                R.id.widget_inclass_unit_2,
+                if (hasSecond) View.VISIBLE else View.GONE,
+            )
+            if (hasSecond) {
+                views.setTextViewText(R.id.widget_inclass_value_2, parts[1].first)
+                views.setTextViewText(
+                    R.id.widget_inclass_unit_2,
+                    context.getString(liveUnit(parts[1].second)),
+                )
+            }
+        }
+
+        /** "min" -> "min left", "h" -> "h left" for the last live unit. */
+        private fun liveUnit(unitRes: Int): Int = when (unitRes) {
+            R.string.next_class_widget_unit_minutes -> R.string.next_class_widget_min_left
+            R.string.next_class_widget_unit_hours -> R.string.next_class_widget_hour_left
+            else -> unitRes
+        }
+
+        private fun bindLaterRow(
+            views: RemoteViews,
+            index: Int,
+            item: NextWidgetClass?,
+            showRow: Boolean,
+        ) {
+            val divider = if (index == 1) {
+                R.id.widget_later_divider_1
+            } else {
+                R.id.widget_later_divider_2
+            }
+            val row = if (index == 1) R.id.widget_later_row_1 else R.id.widget_later_row_2
+            val time = if (index == 1) R.id.widget_later_time_1 else R.id.widget_later_time_2
+            val subject =
+                if (index == 1) R.id.widget_later_subject_1 else R.id.widget_later_subject_2
+            val room = if (index == 1) R.id.widget_later_room_1 else R.id.widget_later_room_2
+
+            views.setViewVisibility(divider, if (showRow) View.VISIBLE else View.GONE)
+            views.setViewVisibility(row, if (showRow) View.VISIBLE else View.GONE)
+            if (!showRow || item == null) return
+
+            views.setTextViewText(time, formatMinutes12(item.item.startMinutes))
+            views.setTextViewText(subject, item.item.subject)
+            val roomText = formatRoom(item.item.room)
+            views.setViewVisibility(room, if (roomText.isEmpty()) View.GONE else View.VISIBLE)
+            views.setTextViewText(room, roomText)
         }
 
         private fun bindCalendar(context: Context, views: RemoteViews, now: Calendar) {
@@ -667,47 +803,19 @@ class NextClassWidgetProvider : AppWidgetProvider() {
             }
         }
 
-        private fun bindCard(views: RemoteViews, cardNumber: Int, item: ScheduledWidgetClass?) {
-            val root = if (cardNumber == 1) R.id.widget_card_1 else R.id.widget_card_2
-            if (item == null) {
-                views.setViewVisibility(root, View.GONE)
-                return
-            }
-            views.setViewVisibility(root, View.VISIBLE)
-            views.setTextViewText(
-                root.subjectId(cardNumber), item.subject,
-            )
-            views.setTextViewText(
-                root.roomId(cardNumber), formatRoom(item.room),
-            )
-            views.setTextViewText(
-                root.timeId(cardNumber),
-                formatMinutes(item.startMinutes) + " - " + formatMinutes(item.endMinutes),
-            )
-        }
-
-        private fun Int.subjectId(cardNumber: Int) =
-            if (cardNumber == 1) R.id.widget_card_1_subject else R.id.widget_card_2_subject
-
-        private fun Int.roomId(cardNumber: Int) =
-            if (cardNumber == 1) R.id.widget_card_1_room else R.id.widget_card_2_room
-
-        private fun Int.timeId(cardNumber: Int) =
-            if (cardNumber == 1) R.id.widget_card_1_time else R.id.widget_card_2_time
-
         private fun dayOfWeekIndex(now: Calendar): Int = when (now.get(Calendar.DAY_OF_WEEK)) {
             Calendar.SUNDAY -> 7
             else -> now.get(Calendar.DAY_OF_WEEK) - 1
         }
 
         private fun weekdayName(day: Int): String = when (day) {
-            1 -> "MONDAY"
-            2 -> "TUESDAY"
-            3 -> "WEDNESDAY"
-            4 -> "THURSDAY"
-            5 -> "FRIDAY"
-            6 -> "SATURDAY"
-            7 -> "SUNDAY"
+            1 -> "Monday"
+            2 -> "Tuesday"
+            3 -> "Wednesday"
+            4 -> "Thursday"
+            5 -> "Friday"
+            6 -> "Saturday"
+            7 -> "Sunday"
             else -> ""
         }
 
@@ -717,39 +825,92 @@ class NextClassWidgetProvider : AppWidgetProvider() {
             else if (Regex("[A-Za-z]{3,}").containsMatchIn(room)) room
             else "Class " + room
 
-        private fun cleanProfessor(professor: String): String =
-            professor.takeIf {
-                it.isNotBlank() && !it.equals("Not specified", ignoreCase = true)
-            }.orEmpty()
+        /** Milliseconds from [now] to [targetMinutes] on the current day. */
+        private fun millisUntil(now: Calendar, targetMinutes: Int): Long {
+            val nowMinutes =
+                now.get(Calendar.HOUR_OF_DAY) * 60L + now.get(Calendar.MINUTE)
+            val secondsIntoMinute =
+                now.get(Calendar.SECOND) * 1000L + now.get(Calendar.MILLISECOND)
+            return (targetMinutes * 60_000L - nowMinutes * 60_000L - secondsIntoMinute)
+                .coerceAtLeast(0L)
+        }
 
-        // 24h clock, tabular digits — matches the mockup ("16:00 - 18:00").
-        private fun formatMinutes(minutes: Int): String {
+        /** 12-hour clock: 10:00 AM, 1:30 PM, and 12:00 AM at midnight/1440. */
+        private fun formatMinutes12(minutes: Int): String {
             val normalized = minutes.coerceIn(0, 1440)
-            val hour = if (normalized == 1440) 24 else normalized / 60
-            return String.format(
-                Locale.US,
-                "%02d:%02d",
-                hour,
-                normalized % 60,
+            val hour24 = if (normalized == 1440) 24 else normalized / 60
+            val period = if (hour24 in 12..23) "PM" else "AM"
+            val hour12 = if (hour24 % 12 == 0) 12 else hour24 % 12
+            val minute = (normalized % 60).toString().padStart(2, '0')
+            return "$hour12:$minute $period"
+        }
+
+        /** "10:00 – 11:30 AM": en dash, one period when both ends share it. */
+        private fun formatTimeRange(startMinutes: Int, endMinutes: Int): String {
+            val start = formatMinutes12(startMinutes)
+            val end = formatMinutes12(endMinutes)
+            val startPeriod = start.takeLast(2)
+            val endPeriod = end.takeLast(2)
+            return if (startPeriod == endPeriod) {
+                "${start.dropLast(3)} – $end"
+            } else {
+                "$start – $end"
+            }
+        }
+
+        /**
+         * Big hero countdown: the two largest units, e.g. "1 h 25 min",
+         * "2 d 3 h" or "25 min". Returns (value, unit string resource) pairs.
+         */
+        private fun countdownParts(millis: Long): List<Pair<String, Int>> {
+            val totalMinutes = (((millis.coerceAtLeast(0L) + 59_999L) / 60_000L)
+                .toInt()).coerceAtMost(7 * 24 * 60)
+            if (totalMinutes >= 1440) {
+                val days = totalMinutes / 1440
+                val hours = (totalMinutes % 1440) / 60
+                return buildList {
+                    add(days.toString() to R.string.next_class_widget_unit_days)
+                    if (hours > 0) {
+                        add(hours.toString() to R.string.next_class_widget_unit_hours)
+                    }
+                }
+            }
+            if (totalMinutes >= 60) {
+                val hours = totalMinutes / 60
+                val minutes = totalMinutes % 60
+                return buildList {
+                    add(hours.toString() to R.string.next_class_widget_unit_hours)
+                    if (minutes > 0) {
+                        add(minutes.toString() to R.string.next_class_widget_unit_minutes)
+                    }
+                }
+            }
+            return listOf(
+                totalMinutes.coerceAtLeast(1).toString() to
+                    R.string.next_class_widget_unit_minutes,
             )
         }
 
-        private fun formatCountdown(millisToBoundary: Long): String {
-            val minutes = ((millisToBoundary.coerceAtLeast(0L) + 59_999L) / 60_000L)
-                .toInt()
-            if (minutes < 60) return "$minutes min"
+        /**
+         * Short countdown used by the shelf and compact states: "16h 30m",
+         * "1h", "24m", "2d 3h". Matches the board copy.
+         */
+        private fun formatShortCountdown(millis: Long): String {
+            val totalMinutes = (((millis.coerceAtLeast(0L) + 59_999L) / 60_000L)
+                .toInt()).coerceAtLeast(1)
+            if (totalMinutes < 60) return "${totalMinutes}m"
 
-            val days = minutes / 1_440
-            val hours = (minutes % 1_440) / 60
-            val remainingMinutes = minutes % 60
+            val days = totalMinutes / 1440
+            val hours = (totalMinutes % 1440) / 60
+            val minutes = totalMinutes % 60
+            if (days == 0) {
+                return if (minutes == 0) "${hours}h" else "${hours}h ${minutes}m"
+            }
             return when {
-                days > 0 && hours > 0 && remainingMinutes > 0 ->
-                    "${days}d ${hours}h ${remainingMinutes}m"
-                days > 0 && hours > 0 -> "${days}d ${hours}h"
-                days > 0 && remainingMinutes > 0 -> "${days}d ${remainingMinutes}m"
-                days > 0 -> "${days}d"
-                remainingMinutes > 0 -> "${hours}h ${remainingMinutes}m"
-                else -> "${hours}h"
+                hours > 0 && minutes > 0 -> "${days}d ${hours}h ${minutes}m"
+                hours > 0 -> "${days}d ${hours}h"
+                minutes > 0 -> "${days}d ${minutes}m"
+                else -> "${days}d"
             }
         }
     }

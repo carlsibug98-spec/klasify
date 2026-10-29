@@ -23,45 +23,15 @@ void main() {
     },
   );
 
-  test(
-    'does not clear reminders when reading the saved schedule fails',
-    () async {
-      var cancelled = false;
+  test('only reminders missing from the new schedule are stale', () {
+    expect(staleReminderIds([1, 2, 3, 4], {2, 4, 5}), [1, 3]);
+  });
 
-      await expectLater(
-        readClassesBeforeClearingReminders(
-          readClasses: () async => throw StateError('database unavailable'),
-          cancelAll: () async {
-            cancelled = true;
-          },
-        ),
-        throwsStateError,
-      );
+  test('nothing is stale when every pending reminder is rescheduled', () {
+    expect(staleReminderIds([7, 8], {7, 8, 9}), isEmpty);
+  });
 
-      expect(cancelled, isFalse);
-    },
-  );
-
-  test('reads the schedule before clearing current reminders', () async {
-    final events = <String>[];
-    const item = ClassItem(
-      subject: 'Mathematics',
-      room: '101',
-      professor: 'Prof. Cruz',
-      day: 1,
-      startMinutes: 480,
-      endMinutes: 540,
-    );
-
-    final result = await readClassesBeforeClearingReminders(
-      readClasses: () async {
-        events.add('read');
-        return [item];
-      },
-      cancelAll: () async => events.add('cancel'),
-    );
-
-    expect(result, [item]);
-    expect(events, ['read', 'cancel']);
+  test('an empty schedule makes every pending reminder stale', () {
+    expect(staleReminderIds([10, 11], <int>{}), [10, 11]);
   });
 }
