@@ -1,4 +1,3 @@
-import 'package:klasify/models/class_item.dart';
 import 'package:klasify/services/reminder_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
