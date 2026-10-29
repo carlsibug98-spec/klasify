@@ -54,7 +54,11 @@ class ScheduleOcrService {
         recScoreThresh: 0.0,
       ),
       engine: const EngineConfig(numThreads: 4),
-    );
+    ).catchError((Object error) {
+      // Forget a failed setup, so the next scan tries again.
+      _ocrInitialization = null;
+      throw error;
+    });
   }
 
   Future<void> _initializePdfText() {
@@ -159,6 +163,7 @@ class ScheduleOcrService {
     await _initializeOcr();
     if (cancelled()) return '';
     final candidates = <_OcrTextCandidate>[];
+    var failedPasses = 0;
     final temporaryFiles = <File>[];
 
     var candidateProgress = .46;
@@ -186,6 +191,7 @@ class ScheduleOcrService {
         candidates.add(candidate);
         return candidate;
       } catch (error) {
+        failedPasses++;
         debugPrint('$label OCR pass failed: $error');
         return null;
       } finally {
@@ -285,7 +291,11 @@ class ScheduleOcrService {
       }
 
       if (cancelled()) return '';
-      if (candidates.isEmpty) return '';
+      if (candidates.isEmpty) {
+        // Every pass threw. That is an engine failure, not an image with no text.
+        if (failedPasses > 0) throw const OcrEngineFailure();
+        return '';
+      }
       candidates.sort(
         (a, b) => _scoreOcrCandidate(b).compareTo(_scoreOcrCandidate(a)),
       );
@@ -1136,4 +1146,16 @@ class _PdfTextLine {
   final double centerY;
 
   double get centerX => (left + right) / 2;
+}
+
+/// Text recognition itself failed (every pass threw). This is different from
+/// an image that contains no readable text.
+class OcrEngineFailure implements Exception {
+  const OcrEngineFailure();
+
+  String get message =>
+      'Text recognition failed on this device. Try again, or add classes manually.';
+
+  @override
+  String toString() => message;
 }

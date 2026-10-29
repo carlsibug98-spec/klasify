@@ -535,7 +535,11 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
         _scanProgress = 0;
         _scanDetail = '';
       });
-      _showError('Could not read this file. Try a clearer image or PDF.');
+      _showError(
+        e is OcrEngineFailure
+            ? e.message
+            : 'Could not read this file. Try a clearer image or PDF.',
+      );
     }
   }
 
