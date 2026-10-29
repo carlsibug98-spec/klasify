@@ -13,7 +13,10 @@ import '../widgets/class_delete_undo.dart';
 import '../widgets/error_view.dart';
 import '../widgets/first_run_options.dart';
 import '../widgets/next_class_card.dart';
+import '../services/first_class_coach_store.dart';
 import '../services/reminder_service.dart';
+import '../services/coach_tour_store.dart';
+import '../widgets/coach_tour_overlay.dart';
 import '../widgets/swipe_actions.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_state_transition.dart';
@@ -24,8 +27,11 @@ class HomeScreen extends StatefulWidget {
     super.key,
     this.heroKey,
     this.swipeTargetKey,
+    this.firstRunTilesKey,
     this.tourSwipeDemo,
     this.onScheduleBecameNonEmpty,
+    this.onPeekWeek,
+    this.onJumpToDay,
   });
 
   /// Coach-tour anchors when the tour is active: the hero block and the first
@@ -33,12 +39,24 @@ class HomeScreen extends StatefulWidget {
   final Key? heroKey;
   final Key? swipeTargetKey;
 
+  /// Key of the first-run Scan/Add tiles — the spotlight anchor for the
+  /// one-time empty-schedule coach ("Explore first" path). Null outside of
+  /// MainNavigationScreen, where the coach stays hidden (tests).
+  final GlobalKey? firstRunTilesKey;
+
   /// True while the tour demonstrates the swipe gesture on the first card.
   final ValueListenable<bool>? tourSwipeDemo;
 
   /// Fires the moment the schedule goes from empty to having a first class —
   /// the approved trigger for the one-time coach tour.
   final VoidCallback? onScheduleBecameNonEmpty;
+
+  /// The "2 of 4 done" counter taps through to the Week tab (peek).
+  final VoidCallback? onPeekWeek;
+
+  /// The celebration teaser taps through to the Week tab with a day (1..7)
+  /// preselected.
+  final ValueChanged<int>? onJumpToDay;
 
   /// Shared no-op listenable for callers that don't run the tour (tests).
   static final ValueNotifier<bool> swipeDemoOff = ValueNotifier<bool>(false);
@@ -56,6 +74,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _loadVersion = 0;
   Timer? _heroRefreshTimer;
   bool _scheduleWasEmpty = true;
+
+  // ---- First-run coach (one-time, on an empty schedule) ----
+  /// The spotlight over the Scan/Add tiles for newcomers who came through
+  /// "Explore first" or skipped onboarding, mounted on top of this Scaffold.
+  bool _firstClassCoachActive = false;
+
+  /// Set once the eligibility check has run: the overlay shows on the
+  /// schedule load that finds zero classes, and later empty states (a user
+  /// who deleted everything) stay coach-free rather than nagging again.
+  bool _firstClassCoachDecided = false;
 
   @override
   void initState() {
@@ -135,6 +163,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _loading = false;
         _error = null;
       });
+      // Post-frame: the empty state renders on this frame, and the coach's
+      // own post-frame prune needs to find the tiles key laid out.
+      if (list.isEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _maybeStartFirstClassCoach(),
+        );
+      }
     } catch (error, stackTrace) {
       debugPrint('Home load failed: $error\n$stackTrace');
       if (!mounted || version != _loadVersion) return;
@@ -151,9 +186,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _load();
   }
 
+  /// The one-time empty-schedule coach: newcomers who explore without adding
+  /// a class land on the bare Scan/Add tiles with no tour yet (the tour only
+  /// fires after the first class exists). One shot, persisted, and never
+  /// stacked on top of the full tour.
+  Future<void> _maybeStartFirstClassCoach() async {
+    if (widget.firstRunTilesKey == null) return;
+    if (_firstClassCoachActive || _firstClassCoachDecided) return;
+    _firstClassCoachDecided = true;
+    // Whoever already took the full tour knows their way around.
+    if (await CoachTourStore.isShown()) return;
+    if (await FirstClassCoachStore.isDismissed()) return;
+    if (!mounted) return;
+    setState(() => _firstClassCoachActive = true);
+  }
+
+  /// Dismiss the empty-schedule coach and persist the one-shot, whether the
+  /// user tapped Dismiss, Got it, or anywhere outside the tooltip.
+  void _endFirstClassCoach() {
+    if (!_firstClassCoachActive) return;
+    unawaited(FirstClassCoachStore.markDismissed());
+    setState(() => _firstClassCoachActive = false);
+  }
+
   /// The free-time card: all done for today, a weekday with no classes, or a
-  /// weekend. It shows only the status, never the next class.
-  Widget _celebrationHero({required bool allDone, required DateTime now}) {
+  /// weekend. It shows only the status — plus, when the schedule has a next
+  /// class coming up (e.g. Monday's first one), a tappable teaser shelf that
+  /// jumps to that day on the Week tab.
+  Widget _celebrationHero({
+    required bool allDone,
+    required DateTime now,
+    NextClass? next,
+  }) {
     final isWeekend = now.weekday >= DateTime.saturday;
     final String title;
     final String subtitle;
@@ -172,11 +236,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       icon = Icons.wb_sunny_outlined;
     }
 
+    final teaser = next;
+    final hasTeaser = teaser != null && !teaser.isNow;
     return NextClassCard.celebration(
       key: const ValueKey('next-class-celebration'),
       title: title,
       subtitle: subtitle,
       icon: icon,
+      dayPillText: hasTeaser ? teaser.dayPillText(now) : null,
+      whenText: hasTeaser ? teaser.whenText : '',
+      subject: hasTeaser ? teaser.item.subject : '',
+      time: hasTeaser ? teaser.item.timeRange : '',
+      room: hasTeaser ? formatRoom(teaser.item.room) : '',
+      onTeaserTap: hasTeaser
+          ? () => widget.onJumpToDay?.call(teaser.item.day)
+          : null,
     );
   }
 
@@ -209,7 +283,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final isCelebration =
         (allDoneForToday || isFreeDay) && (next == null || !next.isNow);
 
-    return Scaffold(
+    final scaffold = Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Column(
@@ -253,7 +327,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         _DateHeader(date: now),
                         if (next != null || _classes.isEmpty)
                           Padding(
-                            key: widget.heroKey,
                             padding: const EdgeInsets.fromLTRB(
                               AppTheme.pageInset,
                               4,
@@ -287,6 +360,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   ? _celebrationHero(
                                       allDone: allDoneForToday,
                                       now: now,
+                                      next: next,
                                     )
                                   : next == null
                                   ? const NextClassCard.empty(
@@ -302,31 +376,56 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       key: ValueKey(
                                         '${next.item.day}:${next.item.startMinutes}:${next.item.subject}:${next.isNow}',
                                       ),
+                                      targetKey: widget.heroKey,
                                       radius: 28,
                                       onEdit: () =>
                                           _open(AppRoutes.classForm, next.item),
                                       onDelete: () => _deleteClass(next.item),
                                       child: NextClassCard(
                                         label: next.isNow
-                                            ? 'In class'
-                                            : 'Upcoming',
+                                            ? 'Live now'
+                                            : 'Next up',
                                         subject: next.item.subject,
+                                        // The room rides the status line in
+                                        // both states, matching the widget.
                                         room: next.item.room.trim().isEmpty
                                             ? ''
                                             : formatRoom(next.item.room),
-                                        professor:
-                                            next.item.professor
-                                                    .trim()
-                                                    .toLowerCase() ==
-                                                'not specified'
-                                            ? ''
-                                            : next.item.professor.trim(),
-                                        time: next.item.timeRange,
-                                        // The scheduling widget's copy: live
-                                        // classes count down ("Ends in 1h
-                                        // 12m"), upcoming ones give the
-                                        // start clock ("Starts 4:00 PM").
-                                        whenText: next.whenText,
+                                        countdown: next.isNow
+                                            ? Duration(
+                                                minutes: next.minutesToEnd,
+                                              )
+                                            : Duration(
+                                                minutes: next.minutesUntil,
+                                              ),
+                                        // The live row's right side: "Ends in
+                                        // 24m". The next-up state carries the
+                                        // big countdown instead.
+                                        whenText: next.isNow
+                                            ? next.whenText
+                                            : '',
+                                        // The elapsed bar sits inside the
+                                        // live card now (6px rounded gradient
+                                        // track), not on its bottom edge.
+                                        liveProgress: next.isNow
+                                            ? ((nowMinutes -
+                                                          next
+                                                              .item
+                                                              .startMinutes) /
+                                                      (next.item.endMinutes -
+                                                          next
+                                                              .item
+                                                              .startMinutes))
+                                                  .clamp(0.0, 1.0)
+                                            : null,
+                                        liveRemaining: next.isNow
+                                            ? Duration(
+                                                minutes:
+                                                    (next.item.endMinutes -
+                                                            nowMinutes)
+                                                        .clamp(0, 24 * 60),
+                                              )
+                                            : null,
                                         onLongPress: () =>
                                             _deleteClass(next.item),
                                       ),
@@ -351,17 +450,41 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 ),
                               ),
                               if (hasTodayClasses)
-                                Text(
-                                  '$doneCount of ${today.length} done',
-                                  style: Theme.of(context).textTheme.labelLarge
-                                      ?.copyWith(
+                                Semantics(
+                                  button: widget.onPeekWeek != null,
+                                  enabled: widget.onPeekWeek != null,
+                                  label: 'View week',
+                                  excludeSemantics: true,
+                                  child: InkWell(
+                                    onTap: widget.onPeekWeek,
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
                                         color: Theme.of(
                                           context,
-                                        ).colorScheme.onSurfaceVariant,
-                                        fontFeatures: const [
-                                          FontFeature.tabularFigures(),
-                                        ],
+                                        ).colorScheme.surfaceContainerHigh,
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
+                                      child: Text(
+                                        '$doneCount of ${today.length} done',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelLarge
+                                            ?.copyWith(
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.onSurfaceVariant,
+                                              fontFeatures: const [
+                                                FontFeature.tabularFigures(),
+                                              ],
+                                            ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                             ],
                           ),
@@ -373,6 +496,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             ),
                             child: _TodayEmptyState(
                               hasSchedule: _classes.isNotEmpty,
+                              tilesKey: widget.firstRunTilesKey,
                             ),
                           )
                         else
@@ -382,11 +506,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               // demo target: the tour holds its actions
                               // plane open while step 2 is showing.
                               ValueListenableBuilder<bool>(
-                                key: widget.swipeTargetKey,
                                 valueListenable:
                                     widget.tourSwipeDemo ??
                                     HomeScreen.swipeDemoOff,
                                 builder: (context, demo, card) => SwipeActions(
+                                  targetKey: widget.swipeTargetKey,
                                   padding: const EdgeInsets.fromLTRB(
                                     AppTheme.pageInset,
                                     0,
@@ -430,8 +554,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       nextId != null &&
                                       c.id == nextId &&
                                       !isCelebration,
-                                  onEdit: () => _open(AppRoutes.classForm, c),
-                                  onDelete: () => _deleteClass(c),
                                   onLongPress: () => _deleteClass(c),
                                 ),
                               )
@@ -477,8 +599,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       nextId != null &&
                                       c.id == nextId &&
                                       !isCelebration,
-                                  onEdit: () => _open(AppRoutes.classForm, c),
-                                  onDelete: () => _deleteClass(c),
                                   onLongPress: () => _deleteClass(c),
                                 ),
                               ),
@@ -489,6 +609,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
       ),
     );
+
+    // The end of the stack is the empty-schedule coach: positioned.fill over
+    // the shell, the same arrangement as the shell's full coach tour.
+    if (_firstClassCoachActive) {
+      return Stack(
+        children: [
+          Positioned.fill(child: scaffold),
+          CoachTourOverlay(
+            keys: CoachTargetKeys.single(widget.firstRunTilesKey!),
+            steps: CoachTourOverlay.firstRunSteps,
+            onDone: _endFirstClassCoach,
+          ),
+        ],
+      );
+    }
+    return scaffold;
   }
 }
 
@@ -522,9 +658,12 @@ class _DateHeader extends StatelessWidget {
 }
 
 class _TodayEmptyState extends StatelessWidget {
-  const _TodayEmptyState({required this.hasSchedule});
+  const _TodayEmptyState({required this.hasSchedule, this.tilesKey});
 
   final bool hasSchedule;
+
+  /// Spotlight anchor for the empty-schedule coach; null hides the coach.
+  final Key? tilesKey;
 
   @override
   Widget build(BuildContext context) {
@@ -537,6 +676,7 @@ class _TodayEmptyState extends StatelessWidget {
       );
     }
     return FirstRunOptions(
+      key: tilesKey,
       onScan: () => Navigator.of(
         context,
         rootNavigator: true,

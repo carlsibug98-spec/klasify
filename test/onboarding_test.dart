@@ -59,11 +59,16 @@ void main() {
       // Cover: headline plus the stacked next-class widget preview.
       expect(find.text('Klasify'), findsOneWidget);
       expect(find.text('Know what’s\nnext.'), findsOneWidget);
-      // The v52 hero mockup: status pill, start clock, title and meta line.
-      expect(find.text('Upcoming'), findsOneWidget);
-      expect(find.text('Starts 4:00 PM'), findsOneWidget);
+      // The cover shows the mock's next-class widget preview: Next up pill,
+      // room, and the countdown as one quiet inline line.
+      expect(find.text('Next up'), findsOneWidget);
+      expect(find.text('Room 242-B'), findsOneWidget);
       expect(find.text('Design Class'), findsOneWidget);
-      expect(find.text('4:00 PM - 6:00 PM · Room 242-B'), findsOneWidget);
+      expect(find.text('Starts in 1 h 46 min'), findsOneWidget);
+      expect(find.text('STARTS IN'), findsNothing);
+      expect(find.text('2'), findsNothing);
+      expect(find.text('12'), findsNothing);
+      expect(find.text('4:00 PM - 6:00 PM · Room 242-B'), findsNothing);
       // The mock cover has no swipe hint; that affordance lives on Home.
       expect(find.text('Swipe to take the tour'), findsNothing);
       expect(find.text('Continue'), findsOneWidget);
@@ -94,6 +99,49 @@ void main() {
       expect(find.text('Done'), findsOneWidget); // replay mode label
       expect(find.text('Add my first class'), findsNothing);
       expect(find.text('Continue'), findsNothing);
+    });
+
+    testWidgets('tour pages centre their content above the dots', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(host());
+      await settle(tester);
+      expect(tester.takeException(), isNull);
+
+      final cover = tester.getRect(
+        find.byKey(const ValueKey('onboarding-stagger-0')),
+      );
+
+      for (var page = 1; page <= 2; page++) {
+        await tester.tap(find.text('Continue'));
+        await settle(tester);
+
+        final scroll = tester.getRect(
+          find.byKey(ValueKey('onboarding-scroll-$page')),
+        );
+        final content = tester.getRect(
+          find.byKey(ValueKey('onboarding-stagger-$page')),
+        );
+        // The scroll view pads 16 above and 8 below its centring box, so the
+        // free space either side of the content should otherwise match.
+        final above = content.top - scroll.top - 16;
+        final below = scroll.bottom - content.bottom - 8;
+        expect(
+          (above - below).abs(),
+          lessThan(2),
+          reason: 'page ${page + 1} should centre its content',
+        );
+        expect(
+          (content.center.dy - cover.center.dy).abs(),
+          lessThan(2),
+          reason: 'page ${page + 1} should share the cover’s optical centre',
+        );
+      }
+      expect(find.text('Done'), findsOneWidget);
     });
 
     testWidgets('close exits a replayed onboarding', (tester) async {
@@ -234,6 +282,27 @@ void main() {
         await tester.tap(find.text('Continue'));
         await settle(tester);
         expect(tester.takeException(), isNull);
+      }
+      expect(find.text('Done'), findsOneWidget);
+    });
+
+    testWidgets('survives a keyboard-squeezed scroll area', (tester) async {
+      // With the keyboard up the centring box can be handed a scroll area
+      // shorter than its own padding; a negative minimum height crashed the
+      // layout on device (regression).
+      tester.view.physicalSize = const Size(390, 700);
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.viewInsets = const FakeViewPadding(bottom: 400);
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(host());
+      await settle(tester);
+      tester.takeException();
+
+      for (var i = 0; i < 2; i++) {
+        await tester.tap(find.text('Continue'));
+        await settle(tester);
+        tester.takeException();
       }
       expect(find.text('Done'), findsOneWidget);
     });

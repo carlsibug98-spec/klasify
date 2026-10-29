@@ -19,9 +19,13 @@ import '../widgets/week_agenda_view.dart';
 /// Displays the single-day agenda view with a week strip, sticky day header,
 /// time-ordered class cards, and campus break dividers.
 class ScheduleScreen extends StatefulWidget {
-  const ScheduleScreen({super.key, this.onSelectedDayChanged});
+  const ScheduleScreen({super.key, this.onSelectedDayChanged, this.dayRequest});
 
   final ValueChanged<int>? onSelectedDayChanged;
+
+  /// Optional jump channel: another surface (the Today celebration teaser)
+  /// sets a weekday 1..7 here; this screen selects it and clears the value.
+  final ValueNotifier<int?>? dayRequest;
 
   @override
   State<ScheduleScreen> createState() => _ScheduleScreenState();
@@ -47,16 +51,37 @@ class _ScheduleScreenState extends State<ScheduleScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _db.addListener(_onScheduleChanged);
+    widget.dayRequest?.addListener(_onDayRequested);
     _load();
     _startMinuteTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant ScheduleScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.dayRequest != oldWidget.dayRequest) {
+      oldWidget.dayRequest?.removeListener(_onDayRequested);
+      widget.dayRequest?.addListener(_onDayRequested);
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _db.removeListener(_onScheduleChanged);
+    widget.dayRequest?.removeListener(_onDayRequested);
     _minuteTimer?.cancel();
     super.dispose();
+  }
+
+  /// Consume an external day jump (teaser tap): select that day and reset
+  /// the channel so the same day can be requested again later.
+  void _onDayRequested() {
+    final day = widget.dayRequest?.value;
+    if (day == null || !mounted) return;
+    widget.dayRequest?.value = null;
+    if (day < 1 || day > 7) return;
+    _selectDay(day);
   }
 
   @override

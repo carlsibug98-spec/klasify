@@ -11,7 +11,7 @@ An offline-first Flutter app for maintaining a weekly class timetable. **All sch
 - Home screen showing today's classes, remaining-class badge, and the next/in-progress class hero
 - Seven-day weekly schedule with day selector strip and class count indicators
 - Interactive class status sheet with per-class and multi-day status spans
-- Guided four-step coach tour, shown once right after the first class is added, plus a one-time swipe hint
+- Guided five-step coach tour, shown once right after the first class is added, plus a one-time swipe hint
 - Offline weekly schedule import from images/screenshots and PDF files via on-device OCR
 - In-memory import draft caching (`ImportRouteCache`) allowing users to pause and resume timetable reviews
 - Import review screen with conflict checks, uncertain room detection, and all-or-nothing atomic SQLite save

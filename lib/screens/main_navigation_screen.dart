@@ -25,10 +25,16 @@ class MainNavigationScreen extends StatefulWidget {
   /// Tab indexes, so other screens can ask for one without magic numbers.
   static const todayTab = 0;
   static const weekTab = 1;
+  static const settingsTab = 2;
 
   /// Pages pushed on top of this shell (e.g. timetable import) set this to ask
   /// for a tab once they close. The shell switches to it and clears the value.
   static final ValueNotifier<int?> tabRequest = ValueNotifier<int?>(null);
+
+  /// Today's celebration teaser (and similar jumps) set this to land on the
+  /// Week tab with a specific day preselected. The shell switches to Week;
+  /// the ScheduleScreen consumes the day and clears it.
+  static final ValueNotifier<int?> weekDayRequest = ValueNotifier<int?>(null);
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
@@ -62,21 +68,28 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   );
   static final GlobalKey _tourFabKey = GlobalKey(debugLabel: 'tour-fab');
   static final GlobalKey _tourNavKey = GlobalKey(debugLabel: 'tour-nav');
+  static final GlobalKey _tourTilesKey = GlobalKey(
+    debugLabel: 'tour-first-run-tiles',
+  );
   final ValueNotifier<bool> _tourSwipeDemo = ValueNotifier<bool>(false);
   bool _coachTourActive = false;
+  bool _pendingCoachTour = false;
 
   CoachTargetKeys get _tourKeys => CoachTargetKeys(
     heroKey: _tourHeroKey,
     swipeTargetKey: _tourSwipeKey,
     fabKey: _tourFabKey,
     navKey: _tourNavKey,
+    tilesKey: _tourTilesKey,
   );
 
   /// The one-time coach tour trigger: the schedule just went from empty to
   /// holding a first class. Fires once, only if the tour hasn't been shown,
   /// and retires the old swipe coach hint permanently.
   Future<void> _maybeStartCoachTour() async {
+    if (!_pendingCoachTour) return;
     if (_coachTourActive || await CoachTourStore.isShown()) return;
+    _pendingCoachTour = false;
     await CoachTourStore.markShown();
     unawaited(SwipeHintStore.dismiss());
     if (!mounted) return;
@@ -87,6 +100,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     _tourSwipeDemo.value = false;
     if (!mounted) return;
     setState(() => _coachTourActive = false);
+  }
+
+  /// Settings' Help section asks to replay the one-time coach tour: clear
+  /// the shown flag, land on Today, and mount the guided walkthrough.
+  Future<void> _replayCoachTour() async {
+    if (_coachTourActive) return;
+    await CoachTourStore.reset();
+    if (!mounted) return;
+    _pendingCoachTour = true;
+    _selectDestination(MainNavigationScreen.todayTab);
+    await _maybeStartCoachTour();
   }
 
   @override
@@ -104,6 +128,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     _database.addListener(_onScheduleChanged);
     ReminderService.instance.addListener(_onReminderSettingsChanged);
     MainNavigationScreen.tabRequest.addListener(_onTabRequested);
+    MainNavigationScreen.weekDayRequest.addListener(_onWeekDayRequested);
     unawaited(_loadReminderState());
     _minuteTimer = Timer.periodic(
       const Duration(minutes: 1),
@@ -117,6 +142,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     _database.removeListener(_onScheduleChanged);
     ReminderService.instance.removeListener(_onReminderSettingsChanged);
     MainNavigationScreen.tabRequest.removeListener(_onTabRequested);
+    MainNavigationScreen.weekDayRequest.removeListener(_onWeekDayRequested);
     _minuteTimer?.cancel();
     _widgetSyncVersion++;
     _screenOpacity.dispose();
@@ -134,6 +160,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     MainNavigationScreen.tabRequest.value = null;
     if (!mounted || index < 0 || index >= _destinations.length) return;
     _selectDestination(index);
+  }
+
+  /// The celebration teaser (etc.) wants the Week tab; the day itself is
+  /// consumed by the ScheduleScreen listening to the same notifier.
+  ///
+  /// The shell must not clear the request here: ScheduleScreen registers its
+  /// listener after this state (the shell's initState runs before its build),
+  /// so clearing first would null the value before the screen that needs it
+  /// reads it. The screen clears after selecting the day.
+  void _onWeekDayRequested() {
+    if (MainNavigationScreen.weekDayRequest.value == null) return;
+    if (!mounted) return;
+    _selectDestination(MainNavigationScreen.weekTab);
   }
 
   void _onReminderSettingsChanged() {
@@ -239,7 +278,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
   Widget _quickActionMenu() => QuickActionMenu(
     onAddClass: () => unawaited(_openQuickAction(AppRoutes.classForm)),
-      importLabel: 'Import schedule',
+    importLabel: 'Import schedule',
     onImportClass: () => unawaited(_openQuickAction(AppRoutes.importSchedule)),
   );
 
@@ -280,6 +319,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
   Widget _mobileNavigationBar() {
     final scheme = Theme.of(context).colorScheme;
+    final showQuickActions = _selectedIndex != MainNavigationScreen.settingsTab;
     return SafeArea(
       top: false,
       child: Padding(
@@ -311,7 +351,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
                           badge: i == 0 && _todayRemaining > 0
                               ? '$_todayRemaining'
                               : null,
-                          showDot: i == 2 && !_remindersEnabled,
+                          showDot:
+                              i == MainNavigationScreen.settingsTab &&
+                              !_remindersEnabled,
                           onTap: () => _selectDestination(i),
                         ),
                       ),
@@ -319,8 +361,23 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            _quickActionsButton(),
+            AnimatedSwitcher(
+              duration: AppTheme.motionDuration(context, AppTheme.motionFast),
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: ScaleTransition(scale: animation, child: child),
+              ),
+              child: showQuickActions
+                  ? Row(
+                      key: const ValueKey('fab'),
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(width: 12),
+                        _quickActionsButton(),
+                      ],
+                    )
+                  : const SizedBox.shrink(key: ValueKey('no-fab')),
+            ),
           ],
         ),
       ),
@@ -332,15 +389,29 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final expanded = constraints.maxWidth >= 600;
+        final showQuickActions =
+            _selectedIndex != MainNavigationScreen.settingsTab;
         final screens = <Widget>[
           HomeScreen(
             heroKey: _tourHeroKey,
             swipeTargetKey: _tourSwipeKey,
+            firstRunTilesKey: _tourTilesKey,
             tourSwipeDemo: _tourSwipeDemo,
-            onScheduleBecameNonEmpty: () => unawaited(_maybeStartCoachTour()),
+            onScheduleBecameNonEmpty: () {
+              _pendingCoachTour = true;
+              if (_selectedIndex == MainNavigationScreen.todayTab) {
+                unawaited(_maybeStartCoachTour());
+              }
+            },
+            onPeekWeek: () => _selectDestination(MainNavigationScreen.weekTab),
+            onJumpToDay: (day) =>
+                MainNavigationScreen.weekDayRequest.value = day,
           ),
-          ScheduleScreen(onSelectedDayChanged: _onWeekdaySelected),
-          const SettingsScreen(),
+          ScheduleScreen(
+            onSelectedDayChanged: _onWeekdaySelected,
+            dayRequest: MainNavigationScreen.weekDayRequest,
+          ),
+          SettingsScreen(onReplayCoachTour: _replayCoachTour),
         ];
         // Shared-axis motion: the screen fades in while sliding from the side
         // of the tab it came from, so moving left or right reads as direction.
@@ -372,15 +443,24 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
                         labelType: NavigationRailLabelType.none,
                         leading: Padding(
                           padding: const EdgeInsets.fromLTRB(0, 12, 0, 20),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.asset(
-                              'assets/klasify_logo.png',
-                              width: 40,
-                              height: 40,
-                              excludeFromSemantics: true,
-                            ),
-                          ),
+                     child: ClipRRect(
+                       borderRadius: BorderRadius.circular(12),
+                       child: Container(
+                         decoration: BoxDecoration(
+                           border: Border.all(
+                             color: Theme.of(context).colorScheme.outlineVariant,
+                             width: 1,
+                           ),
+                           borderRadius: BorderRadius.circular(12),
+                         ),
+                         child: Image.asset(
+                           'assets/klasify_logo.png',
+                           width: 40,
+                           height: 40,
+                           excludeFromSemantics: true,
+                         ),
+                       ),
+                     ),
                         ),
                         onDestinationSelected: _selectDestination,
                         destinations: [
@@ -413,15 +493,37 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
                 )
               : screen,
           floatingActionButton: expanded
-              ? Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    _quickActionMenuTransition(withBottomGap: true),
-                    _quickActionsButton(),
-                  ],
+              ? AnimatedOpacity(
+                  opacity: showQuickActions ? 1 : 0,
+                  duration: AppTheme.motionDuration(
+                    context,
+                    AppTheme.motionFast,
+                  ),
+                  curve: AppTheme.motionEaseOut,
+                  child: IgnorePointer(
+                    ignoring: !showQuickActions,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        _quickActionMenuTransition(withBottomGap: true),
+                        _quickActionsButton(),
+                      ],
+                    ),
+                  ),
                 )
-              : _quickActionMenuTransition(),
+              : AnimatedOpacity(
+                  opacity: showQuickActions ? 1 : 0,
+                  duration: AppTheme.motionDuration(
+                    context,
+                    AppTheme.motionFast,
+                  ),
+                  curve: AppTheme.motionEaseOut,
+                  child: IgnorePointer(
+                    ignoring: !showQuickActions,
+                    child: _quickActionMenuTransition(),
+                  ),
+                ),
           bottomNavigationBar: expanded ? null : _mobileNavigationBar(),
         );
 
@@ -434,8 +536,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
               CoachTourOverlay(
                 keys: _tourKeys,
                 onDone: _endCoachTour,
-                onTargetActive: (target) =>
-                    _tourSwipeDemo.value = target == CoachTarget.swipeCard,
+                onTargetActive: (step) => _tourSwipeDemo.value = step.demoSwipe,
               ),
             ],
           );
@@ -456,6 +557,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
         _direction = index > _selectedIndex ? 1 : -1;
         _selectedIndex = index;
       });
+      if (index == MainNavigationScreen.todayTab && _pendingCoachTour) {
+        unawaited(_maybeStartCoachTour());
+      }
       return;
     }
 
@@ -468,5 +572,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
       _selectedIndex = index;
     });
     _screenTransitionController.forward(from: 0);
+    if (index == MainNavigationScreen.todayTab && _pendingCoachTour) {
+      unawaited(_maybeStartCoachTour());
+    }
   }
 }

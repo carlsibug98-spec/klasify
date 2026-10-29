@@ -45,6 +45,10 @@ void main() {
   testWidgets('Settings has an About group that opens the about sheet', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
     await tester.pumpWidget(
       MaterialApp(theme: AppTheme.light(), home: const SettingsScreen()),
     );
@@ -54,7 +58,13 @@ void main() {
     expect(find.text('About'), findsOneWidget);
     expect(find.text('About Klasify'), findsOneWidget);
     expect(find.text(AppInfo.versionLabel), findsOneWidget);
+    // The privacy footer states the tagline once on the page. It sits below
+    // the fold on a phone, so bring it into the built range first.
+    await tester.scrollUntilVisible(find.text(AppInfo.tagline), 200);
+    expect(find.text(AppInfo.tagline), findsOneWidget);
 
+    await tester.ensureVisible(find.text('About Klasify'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('About Klasify'));
     await tester.pumpAndSettle();
 
@@ -63,7 +73,7 @@ void main() {
     // and the sheet's own version line.
     expect(find.text('Klasify'), findsOneWidget);
     expect(find.text(AppInfo.versionLabel), findsNWidgets(2));
-    expect(find.text(AppInfo.tagline), findsOneWidget);
+    expect(find.text(AppInfo.tagline), findsNWidgets(2));
     expect(find.text('Open-source licenses'), findsOneWidget);
   });
 }

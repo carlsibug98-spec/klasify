@@ -48,12 +48,50 @@ void main() {
     await tester.pump();
     expect(find.text('Class deleted'), findsOneWidget);
     expect(find.text('Undo'), findsOneWidget);
-    expect(find.byType(TweenAnimationBuilder<double>), findsWidgets);
+    // The toast is clean: no countdown copy or ticking progress bar.
+    expect(find.text('Undo available'), findsNothing);
+    expect(find.text('5s left'), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
 
     await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('Undo'));
     await tester.pumpAndSettle();
     expect(undone, isTrue);
+    expect(find.text('Class deleted'), findsNothing);
+  });
+
+  testWidgets('action notification expires after its duration', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => showAppNotification(
+                context,
+                'Class deleted',
+                kind: AppNotificationKind.info,
+                duration: const Duration(seconds: 1),
+                actionLabel: 'Undo',
+                onAction: () async {},
+              ),
+              child: const Text('Show notification'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Show notification'));
+    await tester.pump();
+    expect(find.text('Class deleted'), findsOneWidget);
+
+    // Finish the entrance first: the display timer only starts once the
+    // snackbar is fully visible.
+    await tester.pump(const Duration(milliseconds: 300));
+    // 1s display, then the exit transition must leave the screen.
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
     expect(find.text('Class deleted'), findsNothing);
   });
 
@@ -312,20 +350,13 @@ void main() {
       expect(opacityWidget.opacity, 0.5);
     });
 
-    testWidgets('offers Edit and Delete in a visible more-options menu', (
+    testWidgets('has no overflow menu; swipe actions own edit and delete', (
       tester,
     ) async {
-      var deleteRequested = false;
-      await tester.pumpWidget(
-        _host(ClassCard(item: item, onDelete: () => deleteRequested = true)),
-      );
+      await tester.pumpWidget(_host(const ClassCard(item: item)));
 
-      await tester.tap(find.byIcon(Icons.more_vert_rounded));
-      await tester.pumpAndSettle();
-      expect(find.text('Edit class'), findsNothing);
-      await tester.tap(find.text('Delete class'));
-      await tester.pumpAndSettle();
-      expect(deleteRequested, isTrue);
+      expect(find.byIcon(Icons.more_vert_rounded), findsNothing);
+      expect(find.byType(PopupMenuButton), findsNothing);
     });
 
     testWidgets('long subject and professor names fit a narrow card', (
@@ -364,16 +395,50 @@ void main() {
           label: 'Next up',
           subject: 'Data Structures',
           room: 'Room 304',
-          time: '1:00 PM - 2:30 PM',
-          whenText: 'Starts in 45 min',
+          countdown: Duration(minutes: 45),
         ),
       ),
     );
     expect(find.text('Next up'), findsOneWidget);
     expect(find.text('Data Structures'), findsOneWidget);
-    expect(find.text('Starts in 45 min'), findsOneWidget);
-    expect(find.text('1:00 PM - 2:30 PM'), findsOneWidget);
     expect(find.text('Room 304'), findsOneWidget);
+    // The class hero deliberately carries no time range or professor: the
+    // schedule list owns those details.
+    expect(find.textContaining('–'), findsNothing);
+    expect(find.text('Prof. Lim'), findsNothing);
+    // The next-up hero uses the board's structured 45 min countdown, with a
+    // STARTS IN caption so the numbers don't read as the class's duration.
+    expect(find.text('STARTS IN'), findsOneWidget);
+    expect(find.text('45'), findsOneWidget);
+    expect(find.text('min'), findsOneWidget);
+  });
+
+  testWidgets('only the upcoming countdown carries the STARTS IN caption', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        const NextClassCard(
+          label: 'Next up',
+          subject: 'Data Structures',
+          countdown: Duration(minutes: 45),
+        ),
+      ),
+    );
+    expect(find.text('STARTS IN'), findsOneWidget);
+
+    await tester.pumpWidget(
+      _host(
+        const NextClassCard(
+          label: 'Live now',
+          subject: 'Data Structures',
+          countdown: Duration(minutes: 24),
+        ),
+      ),
+    );
+    // Live units already say "left"; a second caption would be noise.
+    expect(find.text('STARTS IN'), findsNothing);
+    expect(find.text('min left'), findsOneWidget);
   });
 
   testWidgets('hero status tag pulses only while in class', (tester) async {
@@ -383,15 +448,15 @@ void main() {
         label: label,
         subject: 'Data Structures',
         room: 'Room 304',
-        time: '1:00 PM - 2:30 PM',
-        whenText: label == 'In class' ? 'Ends in 25 min' : 'Starts in 45 min',
+        time: '1:00 – 2:30 PM',
+        whenText: label == 'Live now' ? 'Ends in 25 min' : '',
       ),
     );
 
     await tester.pumpWidget(hero('Next up'));
     expect(find.byType(LivePulse), findsNothing);
 
-    await tester.pumpWidget(hero('In class'));
+    await tester.pumpWidget(hero('Live now'));
     expect(find.byType(LivePulse), findsOneWidget);
     // Let the pulse run a few frames; it must not throw or leak timers.
     await tester.pump(const Duration(milliseconds: 600));
@@ -466,12 +531,11 @@ void main() {
     expect(find.text('All classes done'), findsOneWidget);
     expect(find.text('Good job today — rest up and recharge.'), findsOneWidget);
     expect(find.byIcon(Icons.check_circle_outline_rounded), findsOneWidget);
-    // The up-next shelf in the design: day pill left, meta right, then the
-    // subject line with its time, and the room beneath.
+    // The up-next shelf in the design: day pill left, starts-in right, then
+    // the subject line with its time. The board omits the room here.
     expect(find.text('TOMORROW'), findsOneWidget);
     expect(find.text('Starts in 16h 20m'), findsOneWidget);
     expect(find.text('Advanced Mathematics'), findsOneWidget);
     expect(find.text('08:00 AM - 09:30 AM'), findsOneWidget);
-    expect(find.text('Room 304'), findsOneWidget);
   });
 }

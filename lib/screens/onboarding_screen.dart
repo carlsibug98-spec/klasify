@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -40,8 +42,9 @@ final _pages = <_OnboardingPageIndex>[
   _OnboardingPageIndex(
     title: 'Know what’s\nnext.',
     body:
-        'Your timetable, close at hand. What’s on now, what’s next, and '
-        'the week ahead. Everything stays on your phone.',
+        'Today shows the class in progress and what’s coming up, with '
+        'its room. Week lays out every day. Everything stays on your '
+        'phone.',
     kicker: 'WELCOME',
     previewDescription: 'Welcome cover: Klasify logo and a next-class example',
     preview: (_) => const _WelcomeWidget(),
@@ -49,8 +52,8 @@ final _pages = <_OnboardingPageIndex>[
   _OnboardingPageIndex(
     title: 'Add your timetable',
     body:
-        'Scan a photo or PDF, or type classes in. You review every time '
-        'and room before anything is saved.',
+        'Scan a photo or PDF, or add classes by hand. Klasify flags any '
+        'room to check, and nothing is saved until you confirm it.',
     kicker: 'ADD & SCAN',
     previewDescription:
         'Two ways to add a class: scan a photo or PDF, or '
@@ -62,8 +65,9 @@ final _pages = <_OnboardingPageIndex>[
   _OnboardingPageIndex(
     title: 'Stay on track',
     body:
-        'Get a nudge before class. Everything stays on your phone, so '
-        'export a backup before you switch.',
+        'Get a reminder before each class, every week, at the time you '
+        'choose. Everything stays on your phone, so export a backup '
+        'before you switch.',
     kicker: 'REMINDERS',
     previewDescription:
         'Reminder settings preview: a weekly reminder that '
@@ -162,7 +166,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final reduced = MediaQuery.of(context).disableAnimations;
-    final topInset = MediaQuery.paddingOf(context).top;
 
     // The cover sits on the inverted surface, so all its ink inverts too.
     final foreground = isCover ? scheme.onInverseSurface : scheme.onSurface;
@@ -189,6 +192,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     // First run only: a quiet exit that skips the form. Replay already has a
     // Close in the header, so a second exit would be noise there.
     final showExploreFirst = isLastPage && !widget.isReplay;
+    // The dots below already announce the step to screen readers. The
+    // readable counter is a sighted companion, and it steps aside when large
+    // text needs the header width for the brand and the exit.
+    final showStepCounter =
+        !isCover && MediaQuery.textScalerOf(context).scale(1.0) <= 1.3;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlay,
@@ -197,67 +205,74 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         color: isCover ? scheme.inverseSurface : scheme.surface,
         child: Stack(
           children: [
-            // Pages 2 and 3 carry a giant ghost step numeral behind
-            // everything — quiet editorial texture that moves against the
-            // swipe for depth.
-            if (!isCover)
-              Positioned(
-                top: topInset > 6 ? topInset - 6 : 0,
-                right: 12,
-                child: _Parallax(
-                  controller: _controller,
-                  pageIndex: i,
-                  enabled: !reduced,
-                  factor: -16,
-                  child: ExcludeSemantics(
-                    child: Text(
-                      '$i',
-                      style: textTheme.displaySmall?.copyWith(
-                        fontSize: 168,
-                        height: 1,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -8,
-                        color: scheme.surfaceContainerHighest,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
             SafeArea(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Header: brand on the cover, skip/close on every page.
+                  // Header: brand on every page; the tour pages add a quiet
+                  // step count, and every page keeps one skip/close exit.
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 8, 12, 0),
                     child: Row(
                       children: [
-                        if (isCover) ...[
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Image.asset(
-                              'assets/klasify_logo.png',
-                              width: 36,
-                              height: 36,
-                              excludeFromSemantics: true,
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(isCover ? 10 : 8),
+                          child: Image.asset(
+                            Theme.of(context).brightness == Brightness.light
+                                ? 'assets/klasify_logo_light.png'
+                                : 'assets/klasify_logo.png',
+                            width: isCover ? 36 : 28,
+                            height: isCover ? 36 : 28,
+                            excludeFromSemantics: true,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        // Flexible so extreme text scale truncates the
+                        // wordmark instead of pushing the exit off the edge.
+                        Expanded(
+                          child: Text(
+                            'Klasify',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.titleMedium?.copyWith(
+                              color: foreground,
+                              fontSize: isCover ? null : 15,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          // Flexible so extreme text scale truncates the
-                          // wordmark instead of pushing Skip off the edge.
-                          Expanded(
-                            child: Text(
-                              'Klasify',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.titleMedium?.copyWith(
-                                color: foreground,
-                                fontWeight: FontWeight.w800,
+                        ),
+                        if (showStepCounter) ...[
+                          const SizedBox(width: 8),
+                          ExcludeSemantics(
+                            child: Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: '${i + 1}'.padLeft(2, '0'),
+                                    style: TextStyle(
+                                      color: foreground,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text:
+                                        ' / ${_pages.length.toString().padLeft(2, '0')}',
+                                  ),
+                                ],
+                              ),
+                              style: textTheme.labelLarge?.copyWith(
+                                color: muted,
+                                fontSize: 12,
+                                height: 1.2,
+                                letterSpacing: 0.4,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
                               ),
                             ),
                           ),
+                          const SizedBox(width: 4),
                         ],
-                        if (!isCover) const Spacer(),
                         TextButton(
                           onPressed: _finish,
                           style: TextButton.styleFrom(
@@ -277,15 +292,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   Expanded(
                     child: LayoutBuilder(
                       builder: (context, constraints) => SingleChildScrollView(
+                        key: ValueKey('onboarding-scroll-$i'),
                         padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                         child: ConstrainedBox(
                           constraints: BoxConstraints(
-                            minHeight: constraints.maxHeight - 24,
+                            // The scroll box can be shorter than its padding
+                            // (keyboard open, portrait shell) — a negative
+                            // minimum height would crash the layout.
+                            minHeight: math.max(0, constraints.maxHeight - 24),
                           ),
                           child: Align(
-                            alignment: isCover
-                                ? Alignment.center
-                                : Alignment.topCenter,
+                            // Every page composes around the same optical
+                            // centre: the cover does it with its own stack, and
+                            // the tour pages centre their preview + copy instead
+                            // of leaving the lower half of the page empty.
+                            alignment: Alignment.center,
                             child: ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 420),
                               child: _StaggeredIn(
@@ -295,10 +316,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   if (!isCover) ...[
                                     // Editorial eyebrow: what section you're in,
                                     // with the "Example" qualifier next to it.
+                                    // The filled kicker anchors the page; the
+                                    // outlined qualifier stays quiet.
                                     Padding(
                                       padding: const EdgeInsets.only(
-                                        left: 4,
-                                        bottom: 12,
+                                        bottom: 14,
                                       ),
                                       child: Row(
                                         children: [
@@ -308,19 +330,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                           Flexible(
                                             child: _SectionChip(
                                               label: page.kicker,
-                                              background:
-                                                  scheme.surfaceContainerHigh,
-                                              foreground: scheme.onSurface,
+                                              background: scheme.primary,
+                                              foreground: scheme.onPrimary,
                                             ),
                                           ),
                                           const SizedBox(width: 8),
                                           Flexible(
                                             child: _SectionChip(
-                                              label: 'EXAMPLE',
-                                              background:
-                                                  scheme.surfaceContainerHigh,
+                                              label: 'Example',
+                                              background: Colors.transparent,
                                               foreground:
                                                   scheme.onSurfaceVariant,
+                                              border: scheme.outlineVariant,
                                               dot: false,
                                               small: true,
                                             ),
@@ -337,7 +358,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   ],
                                   Padding(
                                     padding: EdgeInsets.only(
-                                      top: isCover ? 0 : 26,
+                                      top: isCover ? 0 : 28,
                                       bottom: 0,
                                     ),
                                     child: Text(
@@ -347,29 +368,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                       style: isCover
                                           ? textTheme.displaySmall?.copyWith(
                                               color: foreground,
-                                              fontSize: 42,
-                                              height: 1.1,
+                                              fontSize: 46,
+                                              height: 1.05,
                                               fontWeight: FontWeight.w800,
-                                              letterSpacing: -1.47,
+                                              letterSpacing: -1.6,
                                             )
-                                          : textTheme.headlineSmall?.copyWith(
-                                              fontSize: 26,
-                                              height: 1.23,
-                                              fontWeight: FontWeight.w700,
-                                              letterSpacing: -0.52,
+                                          : textTheme.headlineMedium?.copyWith(
+                                              fontSize: 30,
+                                              height: 1.12,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: -0.9,
                                             ),
                                     ),
                                   ),
                                   Padding(
                                     padding: EdgeInsets.only(
-                                      top: isCover ? 16 : 10,
+                                      top: isCover ? 16 : 12,
                                     ),
                                     child: Text(
                                       page.body,
                                       style: textTheme.bodyLarge?.copyWith(
                                         color: muted,
                                         fontSize: 17,
-                                        height: 1.53,
+                                        height: 1.55,
                                       ),
                                     ),
                                   ),
@@ -511,6 +532,7 @@ class _SectionChip extends StatelessWidget {
     required this.foreground,
     this.dot = true,
     this.small = false,
+    this.border,
   });
 
   final String label;
@@ -518,17 +540,18 @@ class _SectionChip extends StatelessWidget {
   final Color foreground;
   final bool dot;
   final bool small;
+  final Color? border;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     return Container(
-      height: small ? 24 : 28,
+      height: small ? 26 : 28,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(small ? 12 : 14),
+        borderRadius: BorderRadius.circular(small ? 13 : 14),
+        border: border == null ? null : Border.all(color: border!),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -546,7 +569,7 @@ class _SectionChip extends StatelessWidget {
           ],
           Flexible(
             child: Text(
-              small ? 'Example' : label.toUpperCase(),
+              small ? label : label.toUpperCase(),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: textTheme.labelSmall?.copyWith(
@@ -573,52 +596,41 @@ class _WelcomeWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    // The card is a decorative mock, so its height follows large text instead
+    // of clipping or shrinking it. Capped so the cover stays proportionate.
+    final textScale = MediaQuery.textScalerOf(
+      context,
+    ).scale(1.0).clamp(1.0, 2.0);
+    final cardHeight = 150 + (textScale - 1) * 60;
     return Padding(
       padding: const EdgeInsets.only(top: 44),
       child: SizedBox(
-        height: 196,
+        height: cardHeight + 46,
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            // Two receding layers behind the card, top-aligned toward it.
-            Positioned(
-              left: 28,
-              right: 28,
-              top: 28,
-              height: 128,
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFF151515),
-                  borderRadius: BorderRadius.all(Radius.circular(20)),
-                ),
-              ),
-            ),
-            Positioned(
-              left: 14,
-              right: 14,
-              top: 14,
-              height: 128,
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFF242424),
-                  borderRadius: BorderRadius.all(Radius.circular(20)),
-                ),
-              ),
-            ),
+            // The next-class card itself.
             Positioned(
               left: 0,
               right: 0,
               top: 0,
-              height: 136,
+              height: cardHeight,
               child: Semantics(
                 container: true,
                 label:
-                    'Example of the next-class widget: Design Class, '
-                    '4:00 PM to 6:00 PM, Room 242-B, starting at 4:00 PM.',
+                    'Example of the next-class widget: Next up, Design Class, '
+                    'starts in 2 hours 12 minutes, Room 242-B.',
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: scheme.onInverseSurface,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x26000000),
+                        blurRadius: 24,
+                        offset: Offset(0, 12),
+                      ),
+                    ],
                   ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
@@ -627,7 +639,6 @@ class _WelcomeWidget extends StatelessWidget {
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Row(
                           children: [
@@ -642,7 +653,7 @@ class _WelcomeWidget extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(13),
                               ),
                               child: Text(
-                                'Upcoming',
+                                'Next up',
                                 style: textTheme.labelMedium?.copyWith(
                                   color: scheme.onSurface,
                                   fontSize: 12,
@@ -653,56 +664,74 @@ class _WelcomeWidget extends StatelessWidget {
                             ),
                             const Spacer(),
                             // Flexible so extreme text scale truncates the
-                            // start clock instead of overflowing the card.
+                            // room instead of overflowing the card.
                             Flexible(
-                              child: Text(
-                                'Starts 4:00 PM',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.end,
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                  fontSize: 13,
-                                  height: 1.2,
-                                  fontWeight: FontWeight.w600,
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures(),
+                              child: Container(
+                                height: 26,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: scheme.surfaceContainerHigh,
+                                  borderRadius: BorderRadius.circular(13),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.near_me_rounded,
+                                      size: 13,
+                                      color: scheme.onSurface,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        'Room 242-B',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: textTheme.bodySmall?.copyWith(
+                                          color: scheme.onSurface,
+                                          fontSize: 12,
+                                          height: 1.2,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Design Class',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.titleLarge?.copyWith(
-                                color: scheme.onSurface,
-                                fontSize: 22,
-                                height: 1.18,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.44,
-                              ),
-                            ),
-                            Text(
-                              '4:00 PM - 6:00 PM · Room 242-B',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                                fontSize: 15,
-                                height: 1.33,
-                                fontWeight: FontWeight.w500,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures(),
-                                ],
-                              ),
-                            ),
-                          ],
+                        const SizedBox(height: 10),
+                        Text(
+                          'Design Class',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.titleLarge?.copyWith(
+                            color: scheme.onSurface,
+                            fontSize: 22,
+                            height: 1.18,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.44,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        // The mock's cover preview: the countdown reads as
+                        // one quiet line under the title ("Starts in 1 h 46
+                        // min") — the caption-over-countdown anatomy belongs
+                        // to the real hero and launcher widget.
+                        Text(
+                          'Starts in 1 h 46 min',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            fontSize: 14,
+                            height: 20 / 14,
+                            fontWeight: FontWeight.w400,
+                            fontFeatures: const [
+                              FontFeature.tabularFigures(),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -733,7 +762,6 @@ class _RemindersPreview extends StatelessWidget {
       decoration: BoxDecoration(
         color: scheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: scheme.outlineVariant),
       ),
       child: child,
     );
@@ -742,7 +770,9 @@ class _RemindersPreview extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainer,
+        // Same quiet stage as page 2's scan/type panel, so the two tour
+        // previews read as one family.
+        color: scheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -973,22 +1003,23 @@ class _StaggeredInState extends State<_StaggeredIn>
   }
 }
 
-/// Content lags the page swipe for a quiet sense of depth — the ghost numeral
-/// moves the opposite way ([factor] < 0), so the two layers shear against
-/// each other. Costs one Transform per layer. Disabled for reduced motion.
+/// Content lags the page swipe for a quiet sense of depth: the preview drifts
+/// a step behind the page's own motion. Costs one Transform per layer.
+/// Disabled for reduced motion.
 class _Parallax extends StatelessWidget {
   const _Parallax({
     required this.controller,
     required this.pageIndex,
     required this.enabled,
-    this.factor = 24.0,
     required this.child,
   });
+
+  /// How far the preview trails the page at most, in logical pixels.
+  static const double _shift = 24;
 
   final PageController controller;
   final int pageIndex;
   final bool enabled;
-  final double factor;
   final Widget child;
 
   @override
@@ -996,15 +1027,14 @@ class _Parallax extends StatelessWidget {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, child) {
-        double shift = 0;
+        double offset = 0;
         if (enabled &&
             controller.hasClients &&
             controller.position.haveDimensions) {
           final page = controller.page ?? pageIndex.toDouble();
-          final limit = factor.abs();
-          shift = ((page - pageIndex) * factor).clamp(-limit, limit);
+          offset = ((page - pageIndex) * _shift).clamp(-_shift, _shift);
         }
-        return Transform.translate(offset: Offset(shift, 0), child: child);
+        return Transform.translate(offset: Offset(offset, 0), child: child);
       },
       child: child,
     );
@@ -1044,7 +1074,7 @@ class _ProgressDots extends StatelessWidget {
             for (var i = 0; i < count; i++) ...[
               if (i > 0) const SizedBox(width: 6),
               AnimatedContainer(
-                width: i == current ? 22 : 6,
+                width: i == current ? 28 : 6,
                 height: 6,
                 duration: AppTheme.motionDuration(
                   context,

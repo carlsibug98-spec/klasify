@@ -5,6 +5,7 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:klasify/database/database_helper.dart';
 import 'package:klasify/models/class_item.dart';
+import 'package:klasify/models/class_status.dart';
 import 'package:klasify/routes/app_router.dart';
 import 'package:klasify/screens/home_screen.dart';
 import 'package:klasify/theme/app_theme.dart';
@@ -83,8 +84,10 @@ void main() {
       expect(find.text('All done for today'), findsOneWidget);
       expect(find.text('Enjoy the rest of your $todayName.'), findsOneWidget);
       expect(find.byIcon(Icons.check_circle_outline_rounded), findsOneWidget);
-      expect(find.text('TOMORROW'), findsNothing);
-      expect(find.text('Tomorrow Math'), findsNothing);
+      // The celebration now teases the next class (Tomorrow Math) on a
+      // tappable shelf.
+      expect(find.text('TOMORROW'), findsOneWidget);
+      expect(find.text('Tomorrow Math'), findsOneWidget);
     },
   );
 
@@ -137,19 +140,27 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('TOMORROW'), findsNothing);
-      expect(find.text('Next Day Chemistry'), findsNothing);
+      // The teaser shelf shows tomorrow's class.
+      expect(find.text('TOMORROW'), findsOneWidget);
+      expect(find.text('Next Day Chemistry'), findsOneWidget);
     },
   );
 
   group('hero swipe', () {
-    // One class later today: the hero shows it as "Upcoming" and the Today
-    // list shows the same class, so swipe finders must target the hero's
-    // wrapper specifically.
+    // One class today: the hero shows it as "Upcoming" (or "In class" in the
+    // last minutes of the day) and the Today list shows the same class, so
+    // swipe finders must target the hero's wrapper specifically.
+    //
+    // The window must stay inside the current day even when the test runs at
+    // 23:xx. A fixed now+120 start used to push endMinutes past 1440 after
+    // 21:00, which made DatabaseHelper reject the fixture before the widget
+    // under test was ever built.
     Future<void> pumpUpcomingHero(WidgetTester tester) async {
       final db = DatabaseHelper.instance;
       final now = DateTime.now();
-      final start = now.hour * 60 + now.minute + 120;
+      final nowMinutes = now.hour * 60 + now.minute;
+      final start = nowMinutes + 2 > 1438 ? 1438 : nowMinutes + 2;
+      final end = start + 60 > 1440 ? 1440 : start + 60;
       await tester.runAsync(() async {
         await db.replaceAll([]);
         await db.insert(
@@ -159,7 +170,7 @@ void main() {
             professor: 'Dr. Who',
             day: now.weekday,
             startMinutes: start,
-            endMinutes: start + 60,
+            endMinutes: end,
           ),
         );
       });
@@ -265,6 +276,135 @@ void main() {
         ),
         findsNothing,
       );
+    });
+
+    testWidgets('the celebration teaser jumps to that day on Week', (
+      tester,
+    ) async {
+      final db = DatabaseHelper.instance;
+      final now = DateTime.now();
+      final tomorrowWeekday = (now.weekday % 7) + 1;
+      var jumpedTo = 0;
+      await tester.runAsync(() async {
+        await db.replaceAll([]);
+        await db.insert(
+          ClassItem(
+            subject: 'Tomorrow Math',
+            room: 'Room 202',
+            professor: 'Prof. Lee',
+            day: tomorrowWeekday,
+            startMinutes: 480,
+            endMinutes: 540,
+          ),
+        );
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: HomeScreen(onJumpToDay: (day) => jumpedTo = day),
+        ),
+      );
+      await tester.runAsync(() async {
+        await Future.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pump();
+
+      // No class today, so the hero is the free-day celebration and the
+      // shelf teases tomorrow's class. This fixture stays valid at any
+      // wall-clock time, including the first minute of the day.
+      expect(find.text('TOMORROW'), findsOneWidget);
+      expect(find.text('Tomorrow Math'), findsOneWidget);
+
+      await tester.tap(find.text('Tomorrow Math'));
+      await tester.pump();
+      expect(jumpedTo, tomorrowWeekday);
+    });
+
+    testWidgets('the done counter peeks the week when tapped', (tester) async {
+      final db = DatabaseHelper.instance;
+      final now = DateTime.now();
+      var peeked = false;
+      await tester.runAsync(() async {
+        await db.replaceAll([]);
+        final id = await db.insert(
+          ClassItem(
+            subject: 'Finished Physics',
+            room: 'Room 1',
+            professor: 'Dr. Past',
+            day: now.weekday,
+            startMinutes: 480,
+            endMinutes: 540,
+          ),
+        );
+        // Mark it finished for today instead of relying on a past time:
+        // the counter then reads "1 of 1 done" even before 08:00, when no
+        // class of the day can have ended yet.
+        await db.setClassStatus(
+          ClassStatusEntry(
+            classId: id,
+            status: DayStatus.finished,
+            startDate: dateKey(now),
+            endDate: dateKey(now),
+          ),
+        );
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: HomeScreen(onPeekWeek: () => peeked = true),
+        ),
+      );
+      await tester.runAsync(() async {
+        await Future.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pump();
+
+      expect(find.text('1 of 1 done'), findsOneWidget);
+      await tester.tap(find.text('1 of 1 done'));
+      await tester.pump();
+      expect(peeked, isTrue);
+    });
+
+    testWidgets('the in-class hero carries the 6px elapsed bar', (
+      tester,
+    ) async {
+      final db = DatabaseHelper.instance;
+      final now = DateTime.now();
+      final nowMinutes = now.hour * 60 + now.minute;
+      // A class that is live right now and fits inside the day at any
+      // wall-clock time. The zip's fixture (now-30 .. now+60) goes invalid
+      // in the first half hour and after 22:30; this window does not.
+      final start = nowMinutes > 0 ? nowMinutes - 1 : 0;
+      final end = start + 90 > 1440 ? 1440 : start + 90;
+      await tester.runAsync(() async {
+        await db.replaceAll([]);
+        await db.insert(
+          ClassItem(
+            subject: 'Live Physics',
+            room: 'Room 5',
+            professor: 'Dr. Live',
+            day: now.weekday,
+            startMinutes: start,
+            endMinutes: end,
+          ),
+        );
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light(), home: const HomeScreen()),
+      );
+      await tester.runAsync(() async {
+        await Future.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pump();
+
+      expect(find.text('Live now'), findsOneWidget);
+      final card = tester.widget<NextClassCard>(find.byType(NextClassCard));
+      expect(card.liveProgress, isNotNull);
+      expect(card.liveProgress, inInclusiveRange(0.0, 1.0));
+      expect(card.liveRemaining, isNotNull);
     });
   });
 }

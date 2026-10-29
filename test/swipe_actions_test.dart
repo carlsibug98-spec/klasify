@@ -28,6 +28,7 @@ void main() {
     VoidCallback? onTap,
     VoidCallback? onSwipe,
     double? radius,
+    bool forceOpen = false,
   }) {
     return MaterialApp(
       home: Scaffold(
@@ -36,6 +37,7 @@ void main() {
             SwipeActions(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               radius: radius,
+              forceOpen: forceOpen,
               onEdit: onEdit,
               onDelete: onDelete,
               onSwipe: onSwipe,
@@ -109,13 +111,79 @@ void main() {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
 
-      // 100px is past the half-plane snap threshold (72px) but far from a
-      // full swipe (144px).
+      // 100px is one full plane — past the 50px half-plane snap threshold
+      // but short of the 115px full-swipe point.
       await tester.drag(find.byType(SwipeActions), const Offset(-100, 0));
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
       expect(find.byIcon(Icons.delete_outline_rounded), findsOneWidget);
+    });
+
+    testWidgets('releasing the tour hold closes the plane it held open', (
+      tester,
+    ) async {
+      // The coach tour latches this row open (forceOpen) for its swipe step.
+      // When the tour moves on and flips forceOpen back, the release must
+      // close the plane in motion — before, nothing listened on that
+      // direction, so the demonstration froze open for the rest of the tour.
+      Opacity planeFade() => tester.widget<Opacity>(
+        find.byWidgetPredicate((w) => w is Opacity && w.child is IgnorePointer),
+      );
+
+      await tester.pumpWidget(host(forceOpen: true));
+
+      // The demonstration starts from rest: the first frame is a closed row,
+      // so the step shows the gesture happening instead of a pre-swiped card.
+      expect(planeFade().opacity, 0);
+
+      await tester.pumpAndSettle();
+      expect(planeFade().opacity, 1);
+
+      await tester.pumpWidget(host(forceOpen: false));
+      await tester.pumpAndSettle();
+
+      expect(planeFade().opacity, 0);
+    });
+
+    testWidgets('the tour anchor is the card slot, not the padded row', (
+      tester,
+    ) async {
+      // The coach spotlight must hug the card (page insets excluded) and stay
+      // put while the card travels, so a full-width row slot is the wrong
+      // anchor: its ring would leave the screen on both sides.
+      final anchor = GlobalKey();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ListView(
+              children: [
+                SwipeActions(
+                  targetKey: anchor,
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                  child: const ClassCard(
+                    item: item,
+                    insetHorizontally: false,
+                    trailingGap: false,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.getRect(find.byKey(anchor)), tester.getRect(find.byType(ClassCard)));
+
+      // ...and it stays on the resting slot while the card slides open.
+      await tester.drag(find.byType(SwipeActions), const Offset(-100, 0));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getRect(find.byKey(anchor)),
+        tester.getRect(find.byType(ClassCard)).shift(const Offset(100, 0)),
+      );
     });
 
     testWidgets('a full swipe deletes on release, flies the row off and '
@@ -131,8 +199,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Far past the 144px plane: rubber-banded to ~1.6 planes, above the
-      // 1.15 full-swipe threshold.
+      // Far past the 100px plane: rubber-banded to ~1.75 planes, above the
+      // 115px full-swipe threshold.
       await tester.drag(find.byType(SwipeActions), const Offset(-400, 0));
       await tester.pumpAndSettle();
 
@@ -194,11 +262,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 150px only reaches ~0.9 of the plane — short of the full-swipe
-      // point — but the fling velocity is far past the open threshold.
+      // 90px only reaches 0.9 of the 100px plane — short of the 115px
+      // full-swipe point — but the fling velocity is far past the open
+      // threshold.
       await tester.fling(
         find.byType(SwipeActions),
-        const Offset(-150, 0),
+        const Offset(-90, 0),
         2500,
       );
       await tester.pumpAndSettle();
@@ -292,28 +361,34 @@ void main() {
       expect(find.byIcon(Icons.delete_outline_rounded), findsOneWidget);
     });
 
-    testWidgets('reveals Edit and Delete labels under each icon', (
+    testWidgets('actions are icon-only pills with class semantics', (
       tester,
     ) async {
-      // swipe-mockup.html stacks a 12px/600 label under each icon ("Edit"
-      // and "Delete"). The Text widgets live in the tree even at rest
-      // (covered by the card), so the meaningful assertion is that the
-      // labels render with the right typography and are reachable once
-      // revealed.
+      // The v5 mockup's plane is two 44px icon-only pills (16px rounding,
+      // 20px icons) carrying aria-labels "Edit class" / "Delete class".
+      // No text label renders; semantics carries the names.
+      final semantics = tester.ensureSemantics();
+
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
 
-      // A short swipe snaps the plane open, putting both labels on screen.
+      // A short swipe snaps the plane open, putting both pills on screen.
       await tester.drag(find.byType(SwipeActions), const Offset(-100, 0));
       await tester.pumpAndSettle();
 
-      final editLabel = tester.widget<Text>(find.text('Edit'));
-      expect(editLabel.style?.fontSize, 12);
-      expect(editLabel.style?.fontWeight, FontWeight.w600);
-
-      final delLabel = tester.widget<Text>(find.text('Delete'));
-      expect(delLabel.style?.fontSize, 12);
-      expect(delLabel.style?.fontWeight, FontWeight.w600);
+      expect(find.text('Edit'), findsNothing);
+      expect(find.text('Delete'), findsNothing);
+      expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.delete_outline_rounded), findsOneWidget);
+      expect(
+        tester.widget<Icon>(find.byIcon(Icons.edit_outlined)).size,
+        20,
+      );
+      expect(find.bySemanticsLabel('Edit class'), findsOneWidget);
+      expect(find.bySemanticsLabel('Delete class'), findsOneWidget);
+      // The framework verifies handles at the end of the body, before any
+      // addTearDown callback runs — dispose inline.
+      semantics.dispose();
     });
 
     testWidgets('icons grow in with the reveal, not at full size from rest', (
@@ -354,16 +429,14 @@ void main() {
       final gesture = await tester.startGesture(
         tester.getCenter(find.byType(SwipeActions)),
       );
-      // -200px is past the 1.15 full-swipe threshold (≈165.6px) even after
-      // the arena's ~18px slop is consumed.
+      // -200px is past the 115px full-swipe threshold (1.15 planes) even
+      // after the arena's ~18px slop is consumed.
       for (var i = 0; i < 20; i++) {
         await gesture.moveBy(const Offset(-10, 0));
         await tester.pump();
       }
-      // Still holding — _onDragEnd has not fired, so the plane is mid-drag,
-      // armed, and shows Release.
-      expect(find.text('Release'), findsOneWidget);
-      expect(find.text('Delete'), findsNothing);
+      // Still holding — _onDragEnd has not fired, so the plane is mid-drag
+      // and armed: Edit has collapsed and Delete has taken the freed width.
       // The Edit action's SizedBox has collapsed to 0 width, so the icon
       // (still in the tree) is clipped out of view.
       final editSizedBox = tester.widget<SizedBox>(
@@ -383,7 +456,7 @@ void main() {
             )
             .first,
       );
-      expect(delSizedBox.width, SwipeActions.planeWidth);
+      expect(delSizedBox.width, SwipeActions.actionExtent * 2);
       // The plane has slid inside the row: background shows on its right.
       expect(plane().right, greaterThan(0));
 
@@ -391,14 +464,11 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets("the card's right corners square off as the plane reveals", (
+    testWidgets('the card keeps uniform rounding while the plane reveals', (
       tester,
     ) async {
-      // swipe-mockup.html squares the card's trailing corners as it pulls
-      // open (radius 16 -> 0) so the card's edge meets the Edit button in a
-      // straight line. The card clip is a ClipRRect ancestor of the card's
-      // text; the row clip is the other one. Only the card clip's right
-      // radius changes.
+      // The v5 mockup narrows the card without squaring its corners, so no
+      // clip above the card text ever drops its radius — closed or open.
       double? topRightOf(ClipRRect clip) =>
           clip.borderRadius.resolve(TextDirection.ltr).topRight.x;
 
@@ -416,38 +486,44 @@ void main() {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
 
-      // Closed: every clip keeps the full 16px radius on the right.
+      // Closed: no clip squares the card's trailing corners off.
       expect(cardClipRightRadii(), isNot(contains(0)));
 
       await tester.drag(find.byType(SwipeActions), const Offset(-100, 0));
       await tester.pumpAndSettle();
 
-      // Open: the card clip's right radius has squared off to 0 while the
-      // row clip keeps its 16.
-      expect(cardClipRightRadii(), contains(0));
+      // Open: the card still reads uniformly rounded — the row clip keeps
+      // its 16px corners and nothing has squared off to 0.
+      expect(cardClipRightRadii(), isNot(contains(0)));
       expect(cardClipRightRadii(), contains(AppTheme.cardRadius));
     });
 
-    testWidgets('delete carries its own outer rounding', (tester) async {
-      // `.del` rounds its own right edge so it doesn't rely on the row's
-      // clip — that edge ends up inside the row once armed. The delete
-      // action is wrapped in a right-only ClipRRect of the card radius.
+    testWidgets('each pill clips itself to 16px rounding on all corners', (
+      tester,
+    ) async {
+      // The v5 mockup's pills are standalone 16px-rounded buttons; they
+      // don't rely on the row's clip for any of their edges.
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
 
-      final deleteClip = tester.widget<ClipRRect>(
-        find
-            .ancestor(
-              of: find.byIcon(Icons.delete_outline_rounded),
-              matching: find.byType(ClipRRect),
-            )
-            .first,
-      );
-      final shape = deleteClip.borderRadius.resolve(TextDirection.ltr);
-      expect(shape.topRight.x, AppTheme.cardRadius);
-      expect(shape.bottomRight.x, AppTheme.cardRadius);
-      expect(shape.topLeft.x, 0);
-      expect(shape.bottomLeft.x, 0);
+      for (final icon in const [
+        Icons.edit_outlined,
+        Icons.delete_outline_rounded,
+      ]) {
+        final pillClip = tester.widget<ClipRRect>(
+          find
+              .ancestor(
+                of: find.byIcon(icon),
+                matching: find.byType(ClipRRect),
+              )
+              .first,
+        );
+        final shape = pillClip.borderRadius.resolve(TextDirection.ltr);
+        expect(shape.topLeft.x, 16);
+        expect(shape.topRight.x, 16);
+        expect(shape.bottomLeft.x, 16);
+        expect(shape.bottomRight.x, 16);
+      }
     });
   });
 

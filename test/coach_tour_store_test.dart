@@ -13,4 +13,12 @@ void main() {
     await CoachTourStore.markShown();
     expect(await CoachTourStore.isShown(), isTrue);
   });
+
+  test('coach tour resets so Settings can replay it', () async {
+    SharedPreferences.setMockInitialValues({});
+    await CoachTourStore.markShown();
+    expect(await CoachTourStore.isShown(), isTrue);
+    await CoachTourStore.reset();
+    expect(await CoachTourStore.isShown(), isFalse);
+  });
 }

@@ -204,6 +204,16 @@ void main() {
       expect(find.text('Tap to confirm'), findsOneWidget);
       expect(deleteCalled, isFalse);
 
+      // The confirmation label stays on one line, centered in the narrow
+      // delete button, instead of wrapping or sitting off to one side.
+      final buttonRect = tester.getRect(
+        find.byKey(const Key('edit_class_delete_button')),
+      );
+      final labelRect = tester.getRect(find.text('Tap to confirm'));
+      expect(labelRect.height, lessThan(24));
+      expect((buttonRect.center.dx - labelRect.center.dx).abs(), lessThan(1.5));
+      expect((buttonRect.center.dy - labelRect.center.dy).abs(), lessThan(1.5));
+
       // 2nd tap within 3 seconds: calls delete
       await tester.tap(find.byKey(const Key('edit_class_delete_button')));
       await tester.pumpAndSettle();

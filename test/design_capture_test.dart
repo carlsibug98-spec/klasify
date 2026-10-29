@@ -185,12 +185,13 @@ void main() {
       tester,
       panel(
         NextClassCard(
-          label: 'In class',
+          label: 'Live now',
           subject: 'Advanced Mathematics',
           room: '304',
-          professor: 'Prof. Santos',
-          time: '10:00 AM - 11:30 AM',
+          countdown: const Duration(minutes: 24),
           whenText: 'Ends in 24m',
+          liveProgress: 0.4,
+          liveRemaining: const Duration(minutes: 24),
           onTap: () {},
         ),
       ),
@@ -201,12 +202,10 @@ void main() {
       tester,
       panel(
         NextClassCard(
-          label: 'Upcoming',
+          label: 'Next up',
           subject: 'Data Structures',
           room: 'Room 211',
-          professor: 'Prof. Lim',
-          time: '4:00 PM - 5:30 PM',
-          whenText: 'Starts 4:00 PM',
+          countdown: const Duration(hours: 16, minutes: 20),
           onTap: () {},
         ),
       ),
@@ -232,6 +231,100 @@ void main() {
     );
   });
 
+  testWidgets('capture coach tour', (tester) async {
+    final keys = CoachTargetKeys(
+      heroKey: GlobalKey(),
+      swipeTargetKey: GlobalKey(),
+      fabKey: GlobalKey(),
+      navKey: GlobalKey(),
+      tilesKey: GlobalKey(),
+    );
+
+    await _shoot(
+      tester,
+      Scaffold(
+        backgroundColor: const Color(0xFFF2F2F2),
+        body: Stack(
+          children: [
+            Positioned(
+              top: 76,
+              left: 20,
+              right: 20,
+              child: SizedBox(
+                key: keys.heroKey,
+                child: NextClassCard(
+                  label: 'Next up',
+                  subject: 'Data Structures',
+                  room: 'Room 211',
+                  countdown: const Duration(hours: 2, minutes: 12),
+                  onTap: () {},
+                ),
+              ),
+            ),
+            // The first Today card, parked below the tooltip so it reads as
+            // the rest of the screen rather than disappearing underneath.
+            Positioned(
+              top: 528,
+              left: 20,
+              right: 20,
+              child: Container(
+                key: keys.swipeTargetKey,
+                height: 88,
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.all(Radius.circular(18)),
+                ),
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Operating Systems'),
+                    SizedBox(height: 2),
+                    Text('2:00 PM - 3:30 PM · Room 108'),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 118,
+              right: 24,
+              child: Container(
+                key: keys.fabKey,
+                width: 56,
+                height: 56,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1C1C1C),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.add_rounded, color: Colors.white),
+              ),
+            ),
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 84,
+              child: Container(
+                key: keys.navKey,
+                color: Colors.white,
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [Text('Today'), Text('Week'), Text('Settings')],
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: CoachTourOverlay(keys: keys, onDone: () {}),
+            ),
+          ],
+        ),
+      ),
+      'coach_tour_step1',
+      settle: true,
+    );
+  });
+
   testWidgets('capture first run options', (tester) async {
     await _shoot(
       tester,
@@ -249,80 +342,6 @@ void main() {
         ),
       ),
       'first_run_options',
-    );
-  });
-
-  testWidgets('capture coach tour', (tester) async {
-    final heroKey = GlobalKey();
-    final swipeKey = GlobalKey();
-    final fabKey = GlobalKey();
-    final navKey = GlobalKey();
-
-    await _shoot(
-      tester,
-      Stack(
-        children: [
-          Scaffold(
-            backgroundColor: const Color(0xFFF2F2F2),
-            body: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Container(
-                      key: heroKey,
-                      height: 150,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF151515),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      alignment: Alignment.center,
-                      child: const Text(
-                        'Next class',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      key: swipeKey,
-                      height: 96,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      alignment: Alignment.center,
-                      child: const Text('Swipe a class card'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            floatingActionButton: FloatingActionButton(
-              key: fabKey,
-              onPressed: () {},
-              child: const Icon(Icons.add),
-            ),
-            bottomNavigationBar: Container(
-              key: navKey,
-              height: 64,
-              color: Colors.white,
-              alignment: Alignment.center,
-              child: const Text('Tabs'),
-            ),
-          ),
-          CoachTourOverlay(
-            keys: CoachTargetKeys(
-              heroKey: heroKey,
-              swipeTargetKey: swipeKey,
-              fabKey: fabKey,
-              navKey: navKey,
-            ),
-            onDone: () {},
-            onTargetActive: (_) {},
-          ),
-        ],
-      ),
-      'coach_tour_step1',
     );
   });
 

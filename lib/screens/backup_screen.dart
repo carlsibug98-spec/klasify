@@ -6,9 +6,8 @@ import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
 import '../services/reminder_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/status_banner.dart';
 import '../utils/schedule_backup_codec.dart';
-import '../widgets/app_state_transition.dart';
+import '../widgets/app_notification.dart';
 
 /// Offline JSON backup/restore. Restore validates the entire file and replaces
 /// the schedule atomically only after the user confirms the destructive action.
@@ -19,27 +18,15 @@ class BackupScreen extends StatefulWidget {
   State<BackupScreen> createState() => _BackupScreenState();
 }
 
-enum _BackupStatus { neutral, success, warning, error }
+enum _BackupStatus { success, warning }
 
 class _BackupScreenState extends State<BackupScreen> {
   bool _working = false;
-  String? _status;
-  _BackupStatus _statusKind = _BackupStatus.neutral;
-
-  void _setStatus(String value, _BackupStatus kind) {
-    if (mounted) {
-      setState(() {
-        _status = value;
-        _statusKind = kind;
-      });
-    }
-  }
 
   Future<void> _export() async {
     if (_working) return;
     setState(() {
       _working = true;
-      _status = null;
     });
     try {
       final classes = await DatabaseHelper.instance.getAll();
@@ -66,23 +53,30 @@ class _BackupScreenState extends State<BackupScreen> {
         mimeType: 'application/json',
         bytes: utf8.encode(const JsonEncoder.withIndent('  ').convert(payload)),
       );
-      if (saved == null) {
-        _setStatus(
-          'Export cancelled. Your schedule was not changed.',
-          _BackupStatus.neutral,
-        );
-      } else {
-        _setStatus(
-          'Backup exported (${classes.length} ${classes.length == 1 ? 'class' : 'classes'}).',
-          _BackupStatus.success,
-        );
+      if (mounted) {
+        if (saved == null) {
+          showAppNotification(
+            context,
+            'Export cancelled. Your schedule was not changed.',
+            kind: AppNotificationKind.info,
+          );
+        } else {
+          showAppNotification(
+            context,
+            'Backup exported (${classes.length} ${classes.length == 1 ? 'class' : 'classes'}).',
+            kind: AppNotificationKind.success,
+          );
+        }
       }
     } catch (e, st) {
       debugPrint('Schedule export failed: $e\n$st');
-      _setStatus(
-        'Could not export the backup. Please try again.',
-        _BackupStatus.error,
-      );
+      if (mounted) {
+        showAppNotification(
+          context,
+          'Could not export the backup. Please try again.',
+          kind: AppNotificationKind.error,
+        );
+      }
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -92,7 +86,6 @@ class _BackupScreenState extends State<BackupScreen> {
     if (_working) return;
     setState(() {
       _working = true;
-      _status = null;
     });
     try {
       final picked = await FilePicker.pickFile(
@@ -131,10 +124,13 @@ class _BackupScreenState extends State<BackupScreen> {
         ),
       );
       if (confirmed != true) {
-        _setStatus(
-          'Restore cancelled. Your schedule was not changed.',
-          _BackupStatus.neutral,
-        );
+        if (mounted) {
+          showAppNotification(
+            context,
+            'Restore cancelled. Your schedule was not changed.',
+            kind: AppNotificationKind.info,
+          );
+        }
         return;
       }
       if (!mounted) return;
@@ -150,15 +146,26 @@ class _BackupScreenState extends State<BackupScreen> {
         status += ' Class reminders could not be refreshed.';
         kind = _BackupStatus.warning;
       }
-      _setStatus(status, kind);
+      if (mounted) {
+        showAppNotification(
+          context,
+          status,
+          kind: kind == _BackupStatus.warning
+              ? AppNotificationKind.warning
+              : AppNotificationKind.success,
+        );
+      }
     } catch (e, st) {
       debugPrint('Schedule restore failed: $e\n$st');
-      _setStatus(
-        e is FormatException
-            ? '${e.message} Your schedule was not changed.'
-            : 'Could not restore the backup. Your schedule wasn\'t changed.',
-        _BackupStatus.error,
-      );
+      if (mounted) {
+        showAppNotification(
+          context,
+          e is FormatException
+              ? '${e.message} Your schedule was not changed.'
+              : 'Could not restore the backup. Your schedule wasn\'t changed.',
+          kind: AppNotificationKind.error,
+        );
+      }
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -238,24 +245,6 @@ class _BackupScreenState extends State<BackupScreen> {
                   padding: EdgeInsets.all(24),
                   child: Center(child: CircularProgressIndicator()),
                 ),
-              AppStateTransition(
-                stateKey: ValueKey(_status ?? 'no-backup-status'),
-                child: _status == null
-                    ? const SizedBox.shrink()
-                    : Padding(
-                        padding: const EdgeInsets.only(top: 16),
-                        child: StatusBanner(
-                          message: _status!,
-                          kind: switch (_statusKind) {
-                            _BackupStatus.error => StatusKind.error,
-                            _BackupStatus.success => StatusKind.success,
-                            _BackupStatus.warning => StatusKind.warning,
-                            _BackupStatus.neutral => StatusKind.neutral,
-                          },
-                          onDismiss: () => setState(() => _status = null),
-                        ),
-                      ),
-              ),
             ],
           ),
         ),

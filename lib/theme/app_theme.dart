@@ -12,6 +12,7 @@ class AppTheme {
   static const Duration motionFast = Duration(milliseconds: 120);
   static const Duration motionStandard = Duration(milliseconds: 180);
   static const Duration motionPage = Duration(milliseconds: 220);
+  static const Duration motionToggle = Duration(milliseconds: 160);
   static const Cubic motionEaseOut = Cubic(0.23, 1, 0.32, 1);
   static const Cubic motionEaseInOut = Cubic(0.77, 0, 0.175, 1);
 

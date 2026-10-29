@@ -23,6 +23,12 @@ class SettingsRow extends StatelessWidget {
   /// Uses the compact grouped-row treatment from the Settings reference.
   final bool compact;
 
+  /// Metrics shared with the group container so dividers line up with titles.
+  static const double rowInset = 16;
+  static const double tileSize = 34;
+  static const double tileGap = 12;
+  static const double dividerIndent = rowInset + tileSize + tileGap;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -33,12 +39,23 @@ class SettingsRow extends StatelessWidget {
         child: InkWell(
           onTap: enabled ? onTap : null,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(
+              horizontal: rowInset,
+              vertical: 13,
+            ),
             child: Row(
               children: [
                 if (icon != null) ...[
-                  Icon(icon, size: 20, color: scheme.primary),
-                  const SizedBox(width: 14),
+                  Container(
+                    width: tileSize,
+                    height: tileSize,
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, size: 19, color: scheme.onSurfaceVariant),
+                  ),
+                  const SizedBox(width: tileGap),
                 ],
                 Expanded(
                   child: Column(
@@ -48,7 +65,8 @@ class SettingsRow extends StatelessWidget {
                         title,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontSize: 15,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
+                          color: enabled ? scheme.onSurface : null,
                         ),
                       ),
                       if (subtitle != null) ...[
@@ -71,8 +89,8 @@ class SettingsRow extends StatelessWidget {
                 else if (onTap != null)
                   Icon(
                     Icons.chevron_right_rounded,
-                    size: 18,
-                    color: scheme.onSurfaceVariant,
+                    size: 20,
+                    color: scheme.outline,
                   ),
               ],
             ),

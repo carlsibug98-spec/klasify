@@ -49,6 +49,13 @@ import 'package:paddle_ocr_native/src/paddle_ocr_platform.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  // The benchmark needs the tesseract CLI as its OCR stand-in. It is not an
+  // app dependency and is absent from most developer machines, so skip the
+  // benchmark cleanly instead of reporting nine fixture failures.
+  final benchSkip = _tesseractAvailable()
+      ? false
+      : 'tesseract is not installed; benchmark needs the CLI OCR stand-in';
+
   final fixturesDir = '${Directory.current.path}/test/fixtures';
   final tmp = Directory.systemTemp.createTempSync('bench6');
   final results = <String, Map<String, dynamic>>{};
@@ -91,8 +98,9 @@ void main() {
   final service = ScheduleOcrService();
 
   for (final fixture in fixtures) {
-    final name = fixture.split('/').last;
-    test('scan accuracy: $name', () async {
+    // File paths use the platform separator; truth keys are bare file names.
+    final name = fixture.split(Platform.pathSeparator).last;
+    test('scan accuracy: $name', skip: benchSkip, () async {
       tesseractPlatform.calls = 0;
       final classes = (truth[name]['truth_classes'] as List)
           .cast<Map<String, dynamic>>()
@@ -195,7 +203,7 @@ void main() {
     }, timeout: const Timeout(Duration(minutes: 10)));
   }
 
-  test('summary: micro-averaged accuracy across fixtures', () {
+  test('summary: micro-averaged accuracy across fixtures', skip: benchSkip, () {
     var truthTotal = 0;
     var parsedTotal = 0;
     var matchedTotal = 0;
@@ -447,6 +455,15 @@ String _hhmm(int minutes) =>
 double _r(double value) => (value * 1000).roundToDouble() / 1000;
 
 // ---------------- Tesseract stand-in (bench5 pattern) -----------------------
+
+/// True when the tesseract CLI used by the benchmark stand-in is runnable.
+bool _tesseractAvailable() {
+  try {
+    return Process.runSync('tesseract', ['--version']).exitCode == 0;
+  } on ProcessException {
+    return false;
+  }
+}
 
 class _TesseractOcrPlatform extends PaddleOcrNativePlatform {
   int calls = 0;

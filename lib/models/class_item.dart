@@ -30,6 +30,19 @@ String formatRoom(String room) {
   return RegExp(r'[A-Za-z]{3,}').hasMatch(r) ? r : 'Room $r';
 }
 
+/// "10:00 – 11:30 AM" — an en dash, with the period printed once when both
+/// ends share it. The hero and widget use this shorter form; [ClassItem.timeRange]
+/// keeps the older hyphen/duplicated-period form for the rest of the app.
+String formatTimeRange(int startMinutes, int endMinutes) {
+  final start = formatMinutes(startMinutes);
+  final end = formatMinutes(endMinutes);
+  final startPeriod = start.substring(start.length - 2);
+  if (startPeriod == end.substring(end.length - 2)) {
+    return '${start.substring(0, start.length - 3)} – $end';
+  }
+  return '$start – $end';
+}
+
 class ClassItem {
   final int? id;
   final String subject;

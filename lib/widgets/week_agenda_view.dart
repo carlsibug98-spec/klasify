@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import 'campus_break_divider.dart';
 import 'class_card.dart';
 import 'empty_state_card.dart';
+import 'first_run_options.dart';
 import 'selected_day_header.dart';
 import 'swipe_actions.dart';
 import 'weekday_tile.dart';
@@ -165,35 +166,15 @@ class WeekAgendaView extends StatelessWidget {
                       sliver: SliverToBoxAdapter(
                         child: SlideTransition(
                           position: slide,
-                          child: allClassesEmpty
-                              ? EmptyStateCard(
-                                  icon: Icons.calendar_month_outlined,
-                                  title: 'Build your week',
-                                  message:
-                                      'Add your first class now, or bring in a timetable to review before saving.',
-                                  actions: [
-                                    FilledButton.icon(
-                                      onPressed: () =>
-                                          onAddClassForDay(selectedDay),
-                                      icon: const Icon(Icons.add_rounded),
-                                      label: const Text('Add a class'),
-                                    ),
-                                    OutlinedButton.icon(
-                                      onPressed: () =>
-                                          Navigator.of(
-                                            context,
-                                            rootNavigator: true,
-                                          ).pushNamed<void>(
-                                            AppRoutes.importSchedule,
-                                          ),
-                                      icon: const Icon(
-                                        Icons.upload_file_outlined,
-                                      ),
-                                      label: const Text('Import a timetable'),
-                                    ),
-                                  ],
-                                )
-                              : EmptyStateCard(
+                           child: allClassesEmpty
+                               ? FirstRunOptions(
+                                   onScan: () => Navigator.of(
+                                     context,
+                                     rootNavigator: true,
+                                   ).pushNamed<void>(AppRoutes.importSchedule),
+                                   onAdd: () => onAddClassForDay(selectedDay),
+                                 )
+                               : EmptyStateCard(
                                   icon: Icons.event_available_outlined,
                                   title: 'Nothing scheduled',
                                   message: 'Enjoy your open space.',
@@ -263,8 +244,6 @@ class WeekAgendaView extends StatelessWidget {
                                   onTap: onTap != null
                                       ? () => onTap!(item)
                                       : null,
-                                  onEdit: () => onEdit(item),
-                                  onDelete: () => onLongPress(item),
                                   onLongPress: () => onLongPress(item),
                                 ),
                               ),

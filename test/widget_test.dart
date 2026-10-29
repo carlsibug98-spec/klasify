@@ -5,7 +5,10 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:klasify/database/database_helper.dart';
 import 'package:klasify/main.dart';
+import 'package:klasify/models/class_item.dart';
+import 'package:klasify/screens/main_navigation_screen.dart';
 import 'package:klasify/widgets/bottom_navigation_item.dart';
+import 'package:klasify/widgets/week_agenda_view.dart';
 
 void main() {
   setUpAll(() {
@@ -75,6 +78,9 @@ void main() {
 
     await tester.tap(find.bySemanticsLabel('Settings'));
     await tester.pump(const Duration(milliseconds: 500));
+    // Settings is a reading surface: the add-class action steps aside (the
+    // FAB stays in the tree but is faded out and ignores pointer input).
+    expect(find.byTooltip('Open class actions'), findsOneWidget);
     // The settings row was renamed from "Import a timetable" to match its
     // route and the import screen's app bar ("Import schedule").
     expect(find.text('Import schedule'), findsOneWidget);
@@ -96,5 +102,49 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Today'));
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Klasify'), findsOneWidget);
+    expect(find.byTooltip('Open class actions'), findsOneWidget);
+  });
+
+  testWidgets('a week-day request lands on that day', (
+    WidgetTester tester,
+  ) async {
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      MainNavigationScreen.weekDayRequest.value = null;
+    });
+
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+
+    // Tomorrow, so the Week tab's default (today) selection cannot make this
+    // pass by accident.
+    final target = (DateTime.now().weekday % 7) + 1;
+    await tester.runAsync(() async {
+      await DatabaseHelper.instance.replaceAll([]);
+      await DatabaseHelper.instance.insert(
+        ClassItem(
+          subject: 'Jump Target',
+          room: 'Room 7',
+          professor: 'Dr. Jump',
+          day: target,
+          startMinutes: 600,
+          endMinutes: 660,
+        ),
+      );
+    });
+
+    MainNavigationScreen.weekDayRequest.value = null;
+    await tester.pumpWidget(const ScheduleApp());
+    await tester.pump();
+
+    MainNavigationScreen.weekDayRequest.value = target;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('Weekly schedule'), findsOneWidget);
+    final agenda = tester.widget<WeekAgendaView>(find.byType(WeekAgendaView));
+    expect(agenda.selectedDay, target);
+    expect(MainNavigationScreen.weekDayRequest.value, isNull);
   });
 }

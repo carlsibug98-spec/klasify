@@ -12,7 +12,6 @@ void showAppNotification(
   String message, {
   AppNotificationKind kind = AppNotificationKind.info,
   Duration? duration,
-  bool persistent = false,
   String? actionLabel,
   Future<void> Function()? onAction,
   bool replaceCurrent = false,
@@ -25,7 +24,6 @@ void showAppNotification(
     message,
     kind: kind,
     duration: duration,
-    persistent: persistent,
     actionLabel: actionLabel,
     onAction: onAction,
     replaceCurrent: replaceCurrent,
@@ -39,7 +37,6 @@ void showAppNotificationOnMessenger(
   String message, {
   AppNotificationKind kind = AppNotificationKind.info,
   Duration? duration,
-  bool persistent = false,
   String? actionLabel,
   Future<void> Function()? onAction,
   bool replaceCurrent = false,
@@ -71,23 +68,38 @@ void showAppNotificationOnMessenger(
     AppNotificationKind.warning => const Duration(seconds: 5),
     _ => const Duration(seconds: 3),
   };
-  final effectiveDuration =
-      duration ?? (persistent ? const Duration(days: 1) : defaultDuration);
-  final action = actionLabel != null && onAction != null
-      ? SnackBarAction(
-          label: actionLabel,
-          textColor: kind == AppNotificationKind.info
-              ? AppTheme.toastActionFor(scheme)
-              : foregroundColor,
+  final effectiveDuration = duration ?? defaultDuration;
+  final hasAction = actionLabel != null && onAction != null;
+  // SnackBarAction carries its own 48px tap target, which makes action toasts
+  // taller than the rest. Embedding the action in the content row keeps the
+  // padding and height identical to every other notification.
+  final actionButton = hasAction
+      ? TextButton(
+          style: TextButton.styleFrom(
+            minimumSize: const Size(0, 20),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+            foregroundColor: kind == AppNotificationKind.info
+                ? AppTheme.toastActionFor(scheme)
+                : foregroundColor,
+          ),
           onPressed: () {
             HapticFeedback.lightImpact();
-            // Acting on a toast dismisses it: the message has done its job,
-            // and any follow-up toast (e.g. "Class restored") replaces it.
             messenger.hideCurrentSnackBar(reason: SnackBarClosedReason.action);
             unawaited(onAction());
           },
+          child: Text(
+            actionLabel,
+            style: TextStyle(
+              color: kind == AppNotificationKind.info
+                  ? AppTheme.toastActionFor(scheme)
+                  : foregroundColor,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         )
       : null;
+  final action = null;
   final leading = kind == AppNotificationKind.loading
       ? SizedBox.square(
           dimension: 20,
@@ -111,84 +123,12 @@ void showAppNotificationOnMessenger(
           ),
         ),
       ),
+      if (actionButton != null) ...[
+        const SizedBox(width: 8),
+        actionButton,
+      ],
     ],
   );
-  final content = action == null
-      ? notificationContent
-      : Builder(
-          builder: (context) {
-            // Reduced motion: keep the message and the Undo action (they
-            // carry the information), drop the ticking bar and per-frame
-            // countdown, like every other animation in the app.
-            if (MediaQuery.of(context).disableAnimations) {
-              return notificationContent;
-            }
-            return TweenAnimationBuilder<double>(
-              tween: Tween<double>(
-                begin: effectiveDuration.inMilliseconds.toDouble(),
-                end: 0,
-              ),
-              duration: effectiveDuration,
-              builder: (context, remainingMilliseconds, _) {
-                final durationMilliseconds = effectiveDuration.inMilliseconds
-                    .toDouble();
-                final remainingSeconds = (remainingMilliseconds / 1000)
-                    .ceil()
-                    .clamp(0, 999);
-                final progress = durationMilliseconds <= 0
-                    ? 0.0
-                    : (remainingMilliseconds / durationMilliseconds).clamp(
-                        0.0,
-                        1.0,
-                      );
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    notificationContent,
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '$actionLabel available',
-                            style: TextStyle(
-                              color: foregroundColor.withAlpha(210),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          '${remainingSeconds}s left',
-                          style: TextStyle(
-                            color: foregroundColor.withAlpha(210),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 5),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 2,
-                        backgroundColor: foregroundColor.withAlpha(55),
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          foregroundColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        );
-
   // Replacing an in-flight toast drops it instantly: after the user has
   // acted (e.g. tapped Undo), the confirmation should snap in, not wait
   // behind the previous toast's remaining dwell time.
@@ -197,9 +137,13 @@ void showAppNotificationOnMessenger(
   }
   messenger.showSnackBar(
     SnackBar(
-      content: content,
+      content: notificationContent,
       backgroundColor: backgroundColor,
       behavior: SnackBarBehavior.floating,
+      // Flutter makes action snackbars persist forever by default, so an
+      // Undo toast would never leave the screen. Every notification here is
+      // finite and follows its duration.
+      persist: false,
       duration: effectiveDuration,
       elevation: 4,
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),

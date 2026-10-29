@@ -26,4 +26,15 @@ class CoachTourStore {
       // Non-critical: worst case the tour plays once more.
     }
   }
+
+  /// Settings' Help section replays the one-time tour: clear the flag so
+  /// the shell mounts the guided walkthrough again on request.
+  static Future<void> reset() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_key);
+    } catch (_) {
+      // Non-critical: worst case the tour plays once more.
+    }
+  }
 }

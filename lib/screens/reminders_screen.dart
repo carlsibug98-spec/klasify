@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import '../routes/app_routes.dart';
 import '../services/reminder_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/status_banner.dart';
@@ -209,7 +208,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              _ReminderPanel(
+              _ReminderSettings(
                 scheme: scheme,
                 textTheme: theme.textTheme,
                 enabled: _enabled,
@@ -217,8 +216,6 @@ class _RemindersScreenState extends State<RemindersScreen> {
                 loading: _loading,
                 onToggle: _toggle,
                 onLeadSelected: _setLeadMinutes,
-                onBackup: () =>
-                    Navigator.of(context).pushNamed<void>(AppRoutes.backup),
               ),
               if (_loading)
                 const Padding(
@@ -258,10 +255,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
   }
 }
 
-/// The two-card panel from the design: reminder card with the live toggle
-/// and the 5/10/15/30-minute chips, then the backup card.
-class _ReminderPanel extends StatelessWidget {
-  const _ReminderPanel({
+/// The live reminder settings: the toggle row and the 5/10/15/30-minute
+/// chips, rendered directly on the page with no card or tray behind them.
+class _ReminderSettings extends StatelessWidget {
+  const _ReminderSettings({
     required this.scheme,
     required this.textTheme,
     required this.enabled,
@@ -269,7 +266,6 @@ class _ReminderPanel extends StatelessWidget {
     required this.loading,
     required this.onToggle,
     required this.onLeadSelected,
-    required this.onBackup,
   });
 
   final ColorScheme scheme;
@@ -279,134 +275,66 @@ class _ReminderPanel extends StatelessWidget {
   final bool loading;
   final ValueChanged<bool> onToggle;
   final ValueChanged<int> onLeadSelected;
-  final VoidCallback onBackup;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        children: [
-          _ReminderCard(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.notifications_none_rounded,
-                      size: 24,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.notifications_none_rounded,
+              size: 24,
+              color: scheme.onSurface,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Remind me before class',
+                    style: textTheme.bodyLarge?.copyWith(
                       color: scheme.onSurface,
+                      fontSize: 15,
+                      height: 1.3,
+                      fontWeight: FontWeight.w700,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Remind me before class',
-                            style: textTheme.bodyLarge?.copyWith(
-                              color: scheme.onSurface,
-                              fontSize: 15,
-                              height: 1.3,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            'Weekly, on your class days',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              fontSize: 13,
-                              height: 1.38,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    _ReminderToggle(
-                      value: enabled,
-                      onChanged: loading ? null : onToggle,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    for (final (i, lead) in const [5, 10, 15, 30].indexed)
-                      _LeadChip(
-                        minutes: lead,
-                        isLast: i == 3,
-                        selected: leadMinutes == lead,
-                        scheme: scheme,
-                        textTheme: textTheme,
-                        onTap: () => onLeadSelected(lead),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Material(
-            color: scheme.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTheme.controlRadius),
-              side: BorderSide(color: scheme.outlineVariant),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onBackup,
-              child: Semantics(
-                button: true,
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.upload_outlined,
-                        size: 24,
-                        color: scheme.onSurface,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Back up your schedule',
-                              style: textTheme.bodyLarge?.copyWith(
-                                color: scheme.onSurface,
-                                fontSize: 15,
-                                height: 1.3,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            Text(
-                              'Export a file before switching phones',
-                              style: textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                                fontSize: 13,
-                                height: 1.38,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ),
-                ),
+                  Text(
+                    'Weekly, on your class days',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 13,
+                      height: 1.38,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
-      ),
+            _ReminderToggle(
+              value: enabled,
+              onChanged: loading ? null : onToggle,
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            for (final (i, lead) in const [5, 10, 15, 30].indexed)
+              _LeadChip(
+                minutes: lead,
+                isLast: i == 3,
+                selected: leadMinutes == lead,
+                scheme: scheme,
+                textTheme: textTheme,
+                onTap: () => onLeadSelected(lead),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -428,7 +356,7 @@ class _ReminderToggle extends StatelessWidget {
     final enabled = onChanged != null;
     final duration = AppTheme.motionDuration(
       context,
-      const Duration(milliseconds: 160),
+      AppTheme.motionToggle,
     );
     final trackColor = value ? scheme.primary : scheme.surfaceContainerHighest;
     final knobColor = value ? scheme.onPrimary : scheme.surface;
@@ -545,28 +473,6 @@ class _LeadChip extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Shared card chrome: white fill with the hairline border from the design.
-class _ReminderCard extends StatelessWidget {
-  const _ReminderCard({required this.padding, required this.child});
-
-  final EdgeInsetsGeometry padding;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: scheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.controlRadius),
-        side: BorderSide(color: scheme.outlineVariant),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Padding(padding: padding, child: child),
     );
   }
 }

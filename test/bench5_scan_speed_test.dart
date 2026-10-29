@@ -36,6 +36,13 @@ import 'package:paddle_ocr_native/src/paddle_ocr_platform.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  // The benchmark needs the tesseract CLI as its OCR stand-in. It is not an
+  // app dependency and is absent from most developer machines, so skip the
+  // benchmark cleanly instead of reporting nine fixture failures.
+  final benchSkip = _tesseractAvailable()
+      ? false
+      : 'tesseract is not installed; benchmark needs the CLI OCR stand-in';
+
   final fixturesDir = '${Directory.current.path}/test/fixtures';
   final tmp = Directory.systemTemp.createTempSync('bench5');
   final results = <String, Map<String, dynamic>>{};
@@ -109,8 +116,9 @@ void main() {
   final service = ScheduleOcrService();
 
   for (final fixture in fixtures) {
-    final name = fixture.split('/').last;
-    test('scan pipeline: $name', () async {
+    // File paths use the platform separator; keep the label readable.
+    final name = fixture.split(Platform.pathSeparator).last;
+    test('scan pipeline: $name', skip: benchSkip, () async {
       tesseractPlatform.calls = 0;
       tesseractPlatform.paths.clear();
       final entry = <String, dynamic>{};
@@ -246,7 +254,7 @@ void main() {
     }, timeout: const Timeout(Duration(minutes: 10)));
   }
 
-  test('summary: totals across fixtures', () {
+  test('summary: totals across fixtures', skip: benchSkip, () {
     var calls = 0;
     var seconds = 0.0;
     var gridCalls = 0;
@@ -272,6 +280,15 @@ double _sec(Stopwatch watch) => _round(watch.elapsedMicroseconds / 1e6);
 double _round(double value) => (value * 100).roundToDouble() / 100;
 
 /// Tesseract stand-in for the native PP-OCR engine (bench3/bench4 pattern).
+/// True when the tesseract CLI used by the benchmark stand-in is runnable.
+bool _tesseractAvailable() {
+  try {
+    return Process.runSync('tesseract', ['--version']).exitCode == 0;
+  } on ProcessException {
+    return false;
+  }
+}
+
 class _TesseractOcrPlatform extends PaddleOcrNativePlatform {
   int calls = 0;
   final List<String> paths = [];

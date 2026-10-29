@@ -27,8 +27,6 @@ class ClassCard extends StatelessWidget {
   final ClassItem item;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
-  final VoidCallback? onEdit;
-  final VoidCallback? onDelete;
   final bool showDay;
   final ClassStatus? status;
 
@@ -57,8 +55,6 @@ class ClassCard extends StatelessWidget {
     required this.item,
     this.onTap,
     this.onLongPress,
-    this.onEdit,
-    this.onDelete,
     this.showDay = false,
     this.status,
     this.statusEntry,
@@ -81,7 +77,6 @@ class ClassCard extends StatelessWidget {
     final timeEnded = status == ClassStatus.done;
     final isLive = status == ClassStatus.live && mark == null;
     final isDone = timeEnded || mark == DayStatus.finished;
-    final hasMenu = onEdit != null || onDelete != null;
 
     final timeColor = (isLive || (isFocus && !isDone && mark == null))
         ? live
@@ -145,10 +140,10 @@ class ClassCard extends StatelessWidget {
                             onTap: onTap,
                             onLongPress: onLongPress,
                             child: Padding(
-                              padding: EdgeInsets.fromLTRB(
+                              padding: const EdgeInsets.fromLTRB(
                                 16,
                                 14,
-                                hasMenu ? 4 : 16,
+                                16,
                                 14,
                               ),
                               child: Row(
@@ -249,62 +244,6 @@ class ClassCard extends StatelessWidget {
                                       ],
                                     ),
                                   ),
-                                  if (hasMenu)
-                                    PopupMenuButton<_ClassAction>(
-                                      tooltip: 'More options',
-                                      icon: Icon(
-                                        Icons.more_vert_rounded,
-                                        color: scheme.onSurfaceVariant,
-                                      ),
-                                      onSelected: (action) {
-                                        switch (action) {
-                                          case _ClassAction.edit:
-                                            onEdit?.call();
-                                          case _ClassAction.delete:
-                                            onDelete?.call();
-                                        }
-                                      },
-                                      itemBuilder: (context) => [
-                                        if (onEdit != null)
-                                          const PopupMenuItem(
-                                            value: _ClassAction.edit,
-                                            child: Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.edit_outlined,
-                                                  size: 20,
-                                                ),
-                                                SizedBox(
-                                                  width: AppTheme.itemGap,
-                                                ),
-                                                Text('Edit class'),
-                                              ],
-                                            ),
-                                          ),
-                                        if (onDelete != null)
-                                          PopupMenuItem(
-                                            value: _ClassAction.delete,
-                                            child: Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.delete_outline_rounded,
-                                                  size: 20,
-                                                  color: scheme.error,
-                                                ),
-                                                const SizedBox(
-                                                  width: AppTheme.itemGap,
-                                                ),
-                                                Text(
-                                                  'Delete class',
-                                                  style: TextStyle(
-                                                    color: scheme.error,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                      ],
-                                    ),
                                 ],
                               ),
                             ),
@@ -325,8 +264,6 @@ class ClassCard extends StatelessWidget {
     );
   }
 }
-
-enum _ClassAction { edit, delete }
 
 /// The NOW label: a small pill in the app's live color, with text in the
 /// theme's inverse ink so it reads on both light and dark schemes.

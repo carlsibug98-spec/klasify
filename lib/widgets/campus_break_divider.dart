@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// Visual divider indicating campus study/lunch breaks between non-consecutive classes.
+/// Marker for campus study/lunch breaks between non-consecutive classes.
 ///
-/// Uses the same surface-fill-only chip style as the rest of the app — no outlines.
+/// A single centered surface-fill-only chip — no flanking rules. Uses the same
+/// chip style as the rest of the app, with no outlines.
 class CampusBreakDivider extends StatelessWidget {
   const CampusBreakDivider({super.key, required this.breakMinutes});
 
@@ -27,52 +28,33 @@ class CampusBreakDivider extends StatelessWidget {
         top: 4,
         bottom: 14,
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Divider(
-              height: 1,
-              color: scheme.outlineVariant.withValues(alpha: 0.5),
-              thickness: 1,
-            ),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainer,
+            borderRadius: BorderRadius.circular(AppTheme.chipRadius),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainer,
-                borderRadius: BorderRadius.circular(AppTheme.chipRadius),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.coffee_outlined,
+                size: 13,
+                color: scheme.onSurfaceVariant,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.coffee_outlined,
-                    size: 13,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    '$durationText break',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
+              const SizedBox(width: 5),
+              Text(
+                '$durationText break',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                ),
               ),
-            ),
+            ],
           ),
-          Expanded(
-            child: Divider(
-              height: 1,
-              color: scheme.outlineVariant.withValues(alpha: 0.5),
-              thickness: 1,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

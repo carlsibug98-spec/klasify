@@ -40,6 +40,16 @@ class NextClass {
     }
     return item.dayName.toUpperCase();
   }
+
+  /// The date prefix beside the next-up time: "Today", "Tomorrow", or the
+  /// weekday name. Live classes have no prefix.
+  String dayLabel(DateTime now) {
+    if (isNow) return '';
+    final tomorrowWeekday = (now.weekday % 7) + 1;
+    if (item.day == now.weekday) return 'Today';
+    if (item.day == tomorrowWeekday) return 'Tomorrow';
+    return item.dayName;
+  }
 }
 
 /// Returns the class happening now, or the soonest upcoming one (this week).
