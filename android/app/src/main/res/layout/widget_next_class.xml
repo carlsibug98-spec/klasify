@@ -1,18 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Klasify Upcoming Widget (v52 redesign).
+    Klasify Upcoming home-screen widget, matching the states board.
 
-    States, matching the mockup:
-      1. container_upcoming  — "Upcoming" eyebrow, "{subject} in 8 minutes"
-         headline, room CTA pill, current-month calendar (today inverted),
-         and the remaining classes of today as cards.
-      2. container_inclass   — "In class" chip with live dot, "Ends in",
-         subject + time, room CTA pill and professor.
-      3. container_alldone   — check icon, "All done for today", next-day
-         card (day pill + starts-in + first class).
-      4. container_active    — legacy compact fallback for very short widgets.
-      5. container_empty     — no schedule yet.
-    All colors come from values/ and values-night/ so dark mode is automatic.
+    States:
+      1. container_upcoming — "Next up" pill, room CTA, subject, a STARTS IN
+         caption over the structured countdown, LATER TODAY rows, and (tall
+         widgets only) the month calendar.
+      2. container_inclass  — "In class" pill, room CTA, subject and the big
+         hours/minutes-left countdown.
+      3. container_alldone  — outline check, all-done/free-day copy, and the
+         next-class shelf (day pill, starts-in, subject, time).
+      4. container_active   — compact fallback for short widgets: dot status
+         line plus subject.
+      5. widget_empty_container — logo mark and empty copy.
+    The provider drives every state; colours come from values/ and
+    values-night/ so light and dark mode stay automatic.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
@@ -20,1006 +22,360 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/next_class_widget_background"
-    android:paddingStart="14dp"
-    android:paddingTop="14dp"
-    android:paddingEnd="14dp"
-    android:paddingBottom="14dp">
+    android:paddingStart="18dp"
+    android:paddingTop="16dp"
+    android:paddingEnd="18dp"
+    android:paddingBottom="16dp">
 
-    <!-- 1. UPCOMING (default state) -->
+    <!-- 1. Next up  -->
     <LinearLayout
         android:id="@+id/container_upcoming"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:orientation="vertical">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
+            android:layout_height="34dp"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <!-- Left column: eyebrow, headline, room CTA -->
-            <LinearLayout
+            <TextView
+                android:id="@+id/widget_upcoming_pill"
+                android:layout_width="wrap_content"
+                android:layout_height="28dp"
+                android:background="@drawable/next_class_widget_pill"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center_vertical"
+                android:includeFontPadding="false"
+                android:paddingStart="10dp"
+                android:paddingEnd="12dp"
+                android:text="@string/next_class_widget_label"
+                android:textColor="@color/next_class_widget_pill_text"
+                android:textSize="13sp" />
+
+            <FrameLayout
                 android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="42"
-                android:orientation="vertical">
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <LinearLayout
+                android:id="@+id/widget_upcoming_cta"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:background="@drawable/next_class_widget_cta_pill"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="16dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:contentDescription="@null"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/next_class_widget_navigate_icon"
+                    android:tint="@color/next_class_widget_cta_fg" />
+
+                <FrameLayout
+                    android:layout_width="8dp"
+                    android:layout_height="1dp" />
 
                 <TextView
-                    android:id="@+id/widget_eyebrow"
-                    android:layout_width="match_parent"
+                    android:id="@+id/widget_upcoming_cta_room"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:fontFamily="sans-serif"
-                    android:maxLines="1"
-                    android:text="@string/next_class_widget_upcoming"
-                    android:textColor="@color/next_class_widget_secondary"
-                    android:textSize="11sp" />
-
-                <TextView
-                    android:id="@+id/widget_headline"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="3dp"
                     android:ellipsize="end"
                     android:fontFamily="sans-serif-medium"
-                    android:letterSpacing="-0.02"
-                    android:lineSpacingExtra="-2sp"
-                    android:maxLines="4"
-                    android:textColor="@color/next_class_widget_text"
-                    android:textSize="17sp"
-                    tools:text="Design Class in 8 minutes" />
-
-                <Space
-                    android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
-
-                <LinearLayout
-                    android:id="@+id/widget_cta_pill"
-                    android:layout_width="wrap_content"
-                    android:layout_height="32dp"
-                    android:background="@drawable/next_class_widget_cta_pill"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingStart="11dp"
-                    android:paddingEnd="14dp">
-
-                    <ImageView
-                        android:id="@+id/widget_cta_icon"
-                        android:layout_width="14dp"
-                        android:layout_height="14dp"
-                        android:contentDescription="@null"
-                        android:src="@drawable/next_class_widget_navigate_icon"
-                        android:tint="@color/next_class_widget_cta_fg" />
-
-                    <TextView
-                        android:id="@+id/widget_cta_room"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:ellipsize="end"
-                        android:fontFamily="sans-serif-medium"
-                        android:maxLines="1"
-                        android:textColor="@color/next_class_widget_cta_fg"
-                        android:textSize="12sp"
-                        tools:text="Class 242-B" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- Right column: month label + calendar -->
-            <LinearLayout
-                android:id="@+id/widget_cal_section"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_marginStart="14dp"
-                android:layout_weight="58"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/widget_month_label"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:fontFamily="sans-serif"
+                    android:includeFontPadding="false"
                     android:maxLines="1"
-                    android:textColor="@color/next_class_widget_secondary"
-                    android:textSize="11sp"
-                    tools:text="October" />
-
-                <GridLayout
-                    android:id="@+id/widget_calendar"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="5dp"
-                    android:columnCount="7"
-                    android:rowCount="7"
-                    android:useDefaultMargins="false">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="18dp"
-                android:layout_columnWeight="1"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif-medium"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:text="S"
-                android:textColor="@color/next_class_widget_cal_header"
-                android:textSize="10sp" />
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="18dp"
-                android:layout_columnWeight="1"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif-medium"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:text="M"
-                android:textColor="@color/next_class_widget_cal_header"
-                android:textSize="10sp" />
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="18dp"
-                android:layout_columnWeight="1"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif-medium"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:text="T"
-                android:textColor="@color/next_class_widget_cal_header"
-                android:textSize="10sp" />
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="18dp"
-                android:layout_columnWeight="1"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif-medium"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:text="W"
-                android:textColor="@color/next_class_widget_cal_header"
-                android:textSize="10sp" />
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="18dp"
-                android:layout_columnWeight="1"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif-medium"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:text="T"
-                android:textColor="@color/next_class_widget_cal_header"
-                android:textSize="10sp" />
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="18dp"
-                android:layout_columnWeight="1"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif-medium"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:text="F"
-                android:textColor="@color/next_class_widget_cal_header"
-                android:textSize="10sp" />
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="18dp"
-                android:layout_columnWeight="1"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif-medium"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:text="S"
-                android:textColor="@color/next_class_widget_cal_header"
-                android:textSize="10sp" />
-
-            <TextView
-                android:id="@+id/widget_cal_c0"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="0" />
-            <TextView
-                android:id="@+id/widget_cal_c1"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="1" />
-            <TextView
-                android:id="@+id/widget_cal_c2"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="2" />
-            <TextView
-                android:id="@+id/widget_cal_c3"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="3" />
-            <TextView
-                android:id="@+id/widget_cal_c4"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="4" />
-            <TextView
-                android:id="@+id/widget_cal_c5"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="5" />
-            <TextView
-                android:id="@+id/widget_cal_c6"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="6" />
-            <TextView
-                android:id="@+id/widget_cal_c7"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="7" />
-            <TextView
-                android:id="@+id/widget_cal_c8"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="8" />
-            <TextView
-                android:id="@+id/widget_cal_c9"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="9" />
-            <TextView
-                android:id="@+id/widget_cal_c10"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="10" />
-            <TextView
-                android:id="@+id/widget_cal_c11"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="11" />
-            <TextView
-                android:id="@+id/widget_cal_c12"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="12" />
-            <TextView
-                android:id="@+id/widget_cal_c13"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="13" />
-            <TextView
-                android:id="@+id/widget_cal_c14"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="14" />
-            <TextView
-                android:id="@+id/widget_cal_c15"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="15" />
-            <TextView
-                android:id="@+id/widget_cal_c16"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="16" />
-            <TextView
-                android:id="@+id/widget_cal_c17"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="17" />
-            <TextView
-                android:id="@+id/widget_cal_c18"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="18" />
-            <TextView
-                android:id="@+id/widget_cal_c19"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="19" />
-            <TextView
-                android:id="@+id/widget_cal_c20"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="20" />
-            <TextView
-                android:id="@+id/widget_cal_c21"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="21" />
-            <TextView
-                android:id="@+id/widget_cal_c22"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="22" />
-            <TextView
-                android:id="@+id/widget_cal_c23"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="23" />
-            <TextView
-                android:id="@+id/widget_cal_c24"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="24" />
-            <TextView
-                android:id="@+id/widget_cal_c25"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="25" />
-            <TextView
-                android:id="@+id/widget_cal_c26"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="26" />
-            <TextView
-                android:id="@+id/widget_cal_c27"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="27" />
-            <TextView
-                android:id="@+id/widget_cal_c28"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="28" />
-            <TextView
-                android:id="@+id/widget_cal_c29"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="29" />
-            <TextView
-                android:id="@+id/widget_cal_c30"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="30" />
-            <TextView
-                android:id="@+id/widget_cal_c31"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="31" />
-            <TextView
-                android:id="@+id/widget_cal_c32"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="32" />
-            <TextView
-                android:id="@+id/widget_cal_c33"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="33" />
-            <TextView
-                android:id="@+id/widget_cal_c34"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="34" />
-            <TextView
-                android:id="@+id/widget_cal_c35"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="35" />
-            <TextView
-                android:id="@+id/widget_cal_c36"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="36" />
-            <TextView
-                android:id="@+id/widget_cal_c37"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="37" />
-            <TextView
-                android:id="@+id/widget_cal_c38"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="38" />
-            <TextView
-                android:id="@+id/widget_cal_c39"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="39" />
-            <TextView
-                android:id="@+id/widget_cal_c40"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="40" />
-            <TextView
-                android:id="@+id/widget_cal_c41"
-                android:layout_width="0dp"
-                android:layout_height="21dp"
-                android:layout_columnWeight="1"
-                android:background="@null"
-                android:ellipsize="none"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="@color/next_class_widget_cal_weekday"
-                android:textSize="10sp"
-                tools:text="41" />
-                </GridLayout>
+                    android:maxWidth="110dp"
+                    android:textColor="@color/next_class_widget_cta_fg"
+                    android:textSize="15sp"
+                    tools:text="Lab 2" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Remaining classes today -->
-        <LinearLayout
-            android:id="@+id/widget_cards_section"
+        <TextView
+            android:id="@+id/widget_upcoming_subject"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_marginTop="12dp"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:includeFontPadding="false"
+            android:letterSpacing="-0.01"
+            android:maxLines="1"
+            android:textColor="@color/next_class_widget_text"
+            android:textSize="20sp"
+            tools:text="Physics Lab" />
 
-            <LinearLayout
-                android:id="@+id/widget_card_1"
-                android:layout_width="match_parent"
+        <TextView
+            android:id="@+id/widget_upcoming_starts_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:fontFamily="sans-serif-medium"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.1"
+            android:text="@string/next_class_widget_starts_in_label"
+            android:textColor="@color/next_class_widget_muted"
+            android:textSize="11sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="3dp"
+            android:gravity="bottom"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/widget_upcoming_value_1"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="@drawable/next_class_widget_class_card"
-                android:orientation="vertical"
-                android:paddingStart="13dp"
-                android:paddingTop="9dp"
-                android:paddingEnd="13dp"
-                android:paddingBottom="9dp">
+                android:fontFamily="sans-serif"
+                android:fontFeatureSettings="tnum"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.03"
+                android:textColor="@color/next_class_widget_text"
+                android:textSize="44sp"
+                android:textStyle="bold"
+                tools:text="1" />
 
-                <TextView
-                    android:id="@+id/widget_card_1_subject"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:fontFamily="sans-serif-medium"
-                    android:maxLines="1"
-                    android:textColor="@color/next_class_widget_text"
-                    android:textSize="13sp"
-                    tools:text="Design Class" />
-
-                <TextView
-                    android:id="@+id/widget_card_1_room"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:fontFamily="sans-serif"
-                    android:maxLines="1"
-                    android:textColor="@color/next_class_widget_secondary"
-                    android:textSize="11sp"
-                    tools:text="Class 242-B" />
-
-                <TextView
-                    android:id="@+id/widget_card_1_time"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:ellipsize="end"
-                    android:fontFamily="sans-serif-medium"
-                    android:fontFeatureSettings="tnum"
-                    android:maxLines="1"
-                    android:textColor="@color/next_class_widget_text"
-                    android:textSize="13sp"
-                    tools:text="16:00 - 18:00" />
-            </LinearLayout>
-
-            <Space
-                android:layout_width="match_parent"
-                android:layout_height="5dp" />
-
-            <LinearLayout
-                android:id="@+id/widget_card_2"
-                android:layout_width="match_parent"
+            <TextView
+                android:id="@+id/widget_upcoming_unit_1"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="@drawable/next_class_widget_class_card"
-                android:orientation="vertical"
-                android:paddingStart="13dp"
-                android:paddingTop="9dp"
-                android:paddingEnd="13dp"
-                android:paddingBottom="9dp">
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="10dp"
+                android:fontFamily="sans-serif-medium"
+                android:includeFontPadding="false"
+                android:paddingBottom="6dp"
+                android:textColor="@color/next_class_widget_unit"
+                android:textSize="15sp"
+                tools:text="h" />
 
-                <TextView
-                    android:id="@+id/widget_card_2_subject"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:fontFamily="sans-serif-medium"
-                    android:maxLines="1"
-                    android:textColor="@color/next_class_widget_text"
-                    android:textSize="13sp"
-                    tools:text="Design Class" />
+            <TextView
+                android:id="@+id/widget_upcoming_value_2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif"
+                android:fontFeatureSettings="tnum"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.03"
+                android:textColor="@color/next_class_widget_text"
+                android:textSize="44sp"
+                android:textStyle="bold"
+                tools:text="25" />
 
-                <TextView
-                    android:id="@+id/widget_card_2_room"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:fontFamily="sans-serif"
-                    android:maxLines="1"
-                    android:textColor="@color/next_class_widget_secondary"
-                    android:textSize="11sp"
-                    tools:text="Class 242-B" />
-
-                <TextView
-                    android:id="@+id/widget_card_2_time"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:ellipsize="end"
-                    android:fontFamily="sans-serif-medium"
-                    android:fontFeatureSettings="tnum"
-                    android:maxLines="1"
-                    android:textColor="@color/next_class_widget_text"
-                    android:textSize="13sp"
-                    tools:text="16:00 - 18:00" />
-            </LinearLayout>
+            <TextView
+                android:id="@+id/widget_upcoming_unit_2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:fontFamily="sans-serif-medium"
+                android:includeFontPadding="false"
+                android:paddingBottom="6dp"
+                android:textColor="@color/next_class_widget_unit"
+                android:textSize="15sp"
+                tools:text="min" />
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/widget_upcoming_later_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="4dp"
+            android:fontFamily="sans-serif-medium"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.1"
+            android:text="@string/next_class_widget_later_today"
+            android:textColor="@color/next_class_widget_muted"
+            android:textSize="11sp" />
+
+        <FrameLayout
+            android:id="@+id/widget_later_divider_1"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/next_class_widget_divider" />
+
+        <LinearLayout
+            android:id="@+id/widget_later_row_1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp">
+
+            <TextView
+                android:id="@+id/widget_later_time_1"
+                android:layout_width="78dp"
+                android:layout_height="wrap_content"
+                android:fontFeatureSettings="tnum"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/next_class_widget_later_time"
+                android:textSize="15sp"
+                tools:text="3:00 PM" />
+
+            <TextView
+                android:id="@+id/widget_later_subject_1"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/next_class_widget_text"
+                android:textSize="15sp"
+                tools:text="Data Structures" />
+
+            <TextView
+                android:id="@+id/widget_later_room_1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:maxWidth="110dp"
+                android:textColor="@color/next_class_widget_room"
+                android:textSize="12sp"
+                tools:text="Class 242-B" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/widget_later_divider_2"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/next_class_widget_divider" />
+
+        <LinearLayout
+            android:id="@+id/widget_later_row_2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp">
+
+            <TextView
+                android:id="@+id/widget_later_time_2"
+                android:layout_width="78dp"
+                android:layout_height="wrap_content"
+                android:fontFeatureSettings="tnum"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/next_class_widget_later_time"
+                android:textSize="15sp"
+                tools:text="4:30 PM" />
+
+            <TextView
+                android:id="@+id/widget_later_subject_2"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/next_class_widget_text"
+                android:textSize="15sp"
+                tools:text="English Lit" />
+
+            <TextView
+                android:id="@+id/widget_later_room_2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:maxWidth="110dp"
+                android:textColor="@color/next_class_widget_room"
+                android:textSize="12sp"
+                tools:text="Class 118" />
+        </LinearLayout>
+
+        <include
+            android:id="@+id/widget_cal_section"
+            layout="@layout/widget_next_class_calendar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp" />
     </LinearLayout>
 
-    <!-- 2. IN CLASS (live state) -->
+    <!-- 2. In class  -->
     <LinearLayout
         android:id="@+id/container_inclass"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_vertical"
+        android:layout_height="match_parent"
         android:orientation="vertical"
         android:visibility="gone">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="34dp"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/widget_inclass_pill"
                 android:layout_width="wrap_content"
-                android:layout_height="24dp"
+                android:layout_height="28dp"
                 android:background="@drawable/next_class_widget_pill"
+                android:drawableStart="@drawable/next_class_widget_live_halo"
+                android:drawablePadding="8dp"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center_vertical"
+                android:includeFontPadding="false"
+                android:paddingStart="10dp"
+                android:paddingEnd="12dp"
+                android:text="@string/next_class_widget_in_class"
+                android:textColor="@color/next_class_widget_pill_text"
+                android:textSize="13sp" />
+
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <LinearLayout
+                android:id="@+id/widget_inclass_cta"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:background="@drawable/next_class_widget_cta_pill"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingStart="9dp"
-                android:paddingEnd="11dp">
+                android:paddingStart="12dp"
+                android:paddingEnd="16dp">
 
                 <ImageView
-                    android:layout_width="6dp"
-                    android:layout_height="6dp"
-                    android:background="@drawable/next_class_widget_live_dot"
-                    android:contentDescription="@null" />
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:contentDescription="@null"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/next_class_widget_navigate_icon"
+                    android:tint="@color/next_class_widget_cta_fg" />
+
+                <FrameLayout
+                    android:layout_width="8dp"
+                    android:layout_height="1dp" />
 
                 <TextView
-                    android:id="@+id/widget_inclass_chip"
+                    android:id="@+id/widget_inclass_cta_room"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:fontFamily="sans-serif"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-medium"
                     android:includeFontPadding="false"
                     android:maxLines="1"
-                    android:text="@string/next_class_widget_in_class"
-                    android:textColor="@color/next_class_widget_text"
-                    android:textSize="11sp" />
+                    android:maxWidth="110dp"
+                    android:textColor="@color/next_class_widget_cta_fg"
+                    android:textSize="15sp"
+                    tools:text="304" />
             </LinearLayout>
-
-            <TextView
-                android:id="@+id/widget_inclass_ends"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:fontFamily="sans-serif"
-                android:gravity="end"
-                android:singleLine="true"
-                android:textAlignment="viewEnd"
-                android:textColor="@color/next_class_widget_text"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                tools:text="Ends in 1h 12m" />
         </LinearLayout>
 
         <TextView
@@ -1029,104 +385,100 @@
             android:layout_marginTop="12dp"
             android:ellipsize="end"
             android:fontFamily="sans-serif-medium"
-            android:letterSpacing="-0.02"
-            android:maxLines="2"
-            android:textColor="@color/next_class_widget_text"
-            android:textSize="17sp"
-            tools:text="Design Class" />
-
-        <TextView
-            android:id="@+id/widget_inclass_time"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:ellipsize="end"
-            android:fontFamily="sans-serif-medium"
-            android:fontFeatureSettings="tnum"
+            android:includeFontPadding="false"
+            android:letterSpacing="-0.01"
             android:maxLines="1"
             android:textColor="@color/next_class_widget_text"
-            android:textSize="13sp"
-            tools:text="16:00 - 18:00" />
+            android:textSize="20sp"
+            tools:text="Advanced Mathematics" />
+
+        <TextView
+            android:id="@+id/widget_inclass_ends_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:fontFamily="sans-serif-medium"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.1"
+            android:text="@string/next_class_widget_ends_in_label"
+            android:textColor="@color/next_class_widget_muted"
+            android:textSize="11sp" />
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:gravity="center_vertical"
+            android:layout_height="52dp"
+            android:layout_marginTop="3dp"
+            android:gravity="bottom"
             android:orientation="horizontal">
 
-            <LinearLayout
-                android:id="@+id/widget_inclass_cta"
-                android:layout_width="wrap_content"
-                android:layout_height="32dp"
-                android:background="@drawable/next_class_widget_cta_pill"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="11dp"
-                android:paddingEnd="14dp">
-
-                <ImageView
-                    android:layout_width="14dp"
-                    android:layout_height="14dp"
-                    android:contentDescription="@null"
-                    android:src="@drawable/next_class_widget_navigate_icon"
-                    android:tint="@color/next_class_widget_cta_fg" />
-
-                <TextView
-                    android:id="@+id/widget_inclass_cta_room"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:ellipsize="end"
-                    android:fontFamily="sans-serif-medium"
-                    android:maxLines="1"
-                    android:textColor="@color/next_class_widget_cta_fg"
-                    android:textSize="12sp"
-                    tools:text="Class 242-B" />
-            </LinearLayout>
-
-            <Space
-                android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
-
-            <LinearLayout
-                android:id="@+id/widget_inclass_prof_row"
+            <TextView
+                android:id="@+id/widget_inclass_value_1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:fontFamily="sans-serif"
+                android:fontFeatureSettings="tnum"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.03"
+                android:textColor="@color/next_class_widget_text"
+                android:textSize="44sp"
+                android:textStyle="bold"
+                tools:text="1" />
 
-                <ImageView
-                    android:layout_width="13dp"
-                    android:layout_height="13dp"
-                    android:contentDescription="@null"
-                    android:src="@drawable/next_class_widget_professor_icon"
-                    android:tint="@color/next_class_widget_secondary" />
+            <TextView
+                android:id="@+id/widget_inclass_unit_1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="10dp"
+                android:fontFamily="sans-serif-medium"
+                android:includeFontPadding="false"
+                android:paddingBottom="6dp"
+                android:textColor="@color/next_class_widget_unit"
+                android:textSize="15sp"
+                tools:text="h" />
 
-                <TextView
-                    android:id="@+id/widget_inclass_professor"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="5dp"
-                    android:ellipsize="end"
-                    android:fontFamily="sans-serif"
-                    android:maxLines="1"
-                    android:textColor="@color/next_class_widget_secondary"
-                    android:textSize="11sp"
-                    tools:text="R. Tiongco" />
-            </LinearLayout>
+            <TextView
+                android:id="@+id/widget_inclass_value_2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif"
+                android:fontFeatureSettings="tnum"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.03"
+                android:textColor="@color/next_class_widget_text"
+                android:textSize="44sp"
+                android:textStyle="bold"
+                tools:text="30" />
+
+            <TextView
+                android:id="@+id/widget_inclass_unit_2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:fontFamily="sans-serif-medium"
+                android:includeFontPadding="false"
+                android:paddingBottom="6dp"
+                android:textColor="@color/next_class_widget_unit"
+                android:textSize="15sp"
+                tools:text="min left" />
         </LinearLayout>
     </LinearLayout>
 
-    <!-- 3. ALL DONE / FREE DAY -->
+    <!-- 3. All done  -->
     <LinearLayout
         android:id="@+id/container_alldone"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_vertical"
+        android:layout_height="match_parent"
         android:orientation="vertical"
         android:visibility="gone">
+
+        <!-- Absorbs spare height so a short card (no shelf) centres the
+             message instead of leaving a dead band under it. Collapses to
+             zero as soon as the header + shelf need the room. -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -1135,18 +487,17 @@
             android:orientation="horizontal">
 
             <ImageView
-                android:id="@+id/widget_alldone_icon"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
                 android:contentDescription="@null"
+                android:importantForAccessibility="no"
                 android:src="@drawable/next_class_widget_check_icon"
                 android:tint="@color/next_class_widget_text" />
 
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
+                android:layout_marginStart="14dp"
                 android:orientation="vertical">
 
                 <TextView
@@ -1154,23 +505,26 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
-                    android:fontFamily="sans-serif"
-                    android:maxLines="1"
+                    android:fontFamily="sans-serif-medium"
+                    android:includeFontPadding="false"
+                    android:letterSpacing="-0.01"
+                    android:maxLines="2"
                     android:text="@string/next_class_widget_all_done_title"
                     android:textColor="@color/next_class_widget_text"
-                    android:textSize="15sp"
-                    android:textStyle="bold" />
+                    android:textSize="19sp"
+                    tools:text="All done for today" />
 
                 <TextView
                     android:id="@+id/widget_alldone_subtitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
                     android:ellipsize="end"
-                    android:fontFamily="sans-serif"
-                    android:maxLines="1"
-                    android:textColor="@color/next_class_widget_secondary"
-                    android:textSize="11sp"
-                    tools:text="Enjoy the rest of your Saturday." />
+                    android:includeFontPadding="false"
+                    android:maxLines="2"
+                    android:textColor="@color/next_class_widget_meta"
+                    android:textSize="13sp"
+                    tools:text="Enjoy the rest of your Tuesday." />
             </LinearLayout>
         </LinearLayout>
 
@@ -1178,13 +532,13 @@
             android:id="@+id/widget_alldone_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="11dp"
-            android:background="@drawable/next_class_widget_class_card"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/next_class_widget_shelf_background"
             android:orientation="vertical"
-            android:paddingStart="13dp"
-            android:paddingTop="9dp"
-            android:paddingEnd="13dp"
-            android:paddingBottom="9dp">
+            android:paddingStart="18dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="18dp"
+            android:paddingBottom="10dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -1195,90 +549,93 @@
                 <TextView
                     android:id="@+id/widget_alldone_day_pill"
                     android:layout_width="wrap_content"
-                    android:layout_height="16dp"
+                    android:layout_height="22dp"
                     android:background="@drawable/next_class_widget_day_pill"
-                    android:ellipsize="end"
-                    android:fontFamily="sans-serif"
+                    android:fontFamily="sans-serif-medium"
                     android:gravity="center"
-                    android:letterSpacing="0.04"
-                    android:maxLines="1"
-                    android:paddingStart="7dp"
-                    android:paddingEnd="7dp"
-                    android:text="MONDAY"
+                    android:includeFontPadding="false"
+                    android:letterSpacing="0.08"
+                    android:paddingStart="9dp"
+                    android:paddingEnd="9dp"
                     android:textColor="@color/next_class_widget_day_pill_text"
-                    android:textSize="9sp"
-                    android:textStyle="bold" />
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    tools:text="TOMORROW" />
+
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
 
                 <TextView
                     android:id="@+id/widget_alldone_starts"
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:layout_weight="1"
-                    android:ellipsize="end"
-                    android:fontFamily="sans-serif-medium"
-                    android:gravity="end"
-                    android:singleLine="true"
-                    android:textAlignment="viewEnd"
+                    android:fontFeatureSettings="tnum"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
                     android:textColor="@color/next_class_widget_secondary"
-                    android:textSize="11sp"
-                    tools:text="Starts in 1d 11h" />
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    tools:text="Starts in 16h 30m" />
             </LinearLayout>
+
+            <TextView
+                android:id="@+id/widget_alldone_subject"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.01"
+                android:maxLines="1"
+                android:textColor="@color/next_class_widget_text"
+                android:textSize="16sp"
+                tools:text="Chemistry" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="7dp"
-                android:baselineAligned="false"
+                android:layout_marginTop="4dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/widget_alldone_subject"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:ellipsize="end"
-                    android:fontFamily="sans-serif-medium"
-                    android:maxLines="1"
-                    android:textColor="@color/next_class_widget_text"
-                    android:textSize="13sp"
-                    tools:text="Design Class" />
+                <ImageView
+                    android:layout_width="15dp"
+                    android:layout_height="15dp"
+                    android:contentDescription="@null"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/next_class_widget_clock_icon"
+                    android:tint="@color/next_class_widget_meta_icon" />
 
                 <TextView
                     android:id="@+id/widget_alldone_time"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
                     android:ellipsize="end"
-                    android:fontFamily="sans-serif"
                     android:fontFeatureSettings="tnum"
+                    android:includeFontPadding="false"
                     android:maxLines="1"
-                    android:textColor="@color/next_class_widget_secondary"
-                    android:textSize="12sp"
-                    tools:text="08:00 - 10:00" />
+                    android:textColor="@color/next_class_widget_meta"
+                    android:textSize="13sp"
+                    tools:text="8:30 – 10:00 AM" />
             </LinearLayout>
-
-            <TextView
-                android:id="@+id/widget_alldone_room"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:ellipsize="end"
-                android:fontFamily="sans-serif"
-                android:maxLines="1"
-                android:textColor="@color/next_class_widget_secondary"
-                android:textSize="11sp"
-                tools:text="Class 242-B" />
         </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
     </LinearLayout>
 
-    <!-- 4. LEGACY COMPACT FALLBACK (very short widgets) -->
+    <!-- 4. Compact fallback  -->
     <LinearLayout
         android:id="@+id/container_active"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center_vertical"
+        android:layout_height="wrap_content"
         android:orientation="vertical"
         android:visibility="gone">
 
@@ -1288,97 +645,93 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/widget_label"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/next_class_widget_pill"
-                android:ellipsize="end"
-                android:fontFamily="sans-serif-medium"
-                android:maxLines="1"
-                android:paddingStart="10dp"
-                android:paddingTop="3dp"
-                android:paddingEnd="10dp"
-                android:paddingBottom="3dp"
-                android:text="@string/next_class_widget_label"
-                android:textColor="@color/next_class_widget_text"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                tools:text="Next up" />
+            <ImageView
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:contentDescription="@null"
+                android:importantForAccessibility="no"
+                android:src="@drawable/next_class_widget_live_halo" />
 
             <TextView
-                android:id="@+id/widget_when"
+                android:id="@+id/widget_label"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:layout_weight="1"
                 android:ellipsize="end"
-                android:fontFamily="sans-serif"
-                android:gravity="end"
-                android:singleLine="true"
-                android:textAlignment="viewEnd"
-                android:textColor="@color/next_class_widget_text"
+                android:fontFamily="sans-serif-medium"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/next_class_widget_compact_text"
                 android:textSize="13sp"
-                android:textStyle="bold"
-                tools:text="Starts in 45m" />
+                tools:text="In class · ends in 24m" />
         </LinearLayout>
 
         <TextView
             android:id="@+id/widget_subject"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:ellipsize="end"
-            android:fontFamily="sans-serif"
-            android:letterSpacing="-0.01"
-            android:maxLines="2"
-            android:textColor="@color/next_class_widget_text"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            tools:text="Data Structures" />
-
-        <TextView
-            android:id="@+id/widget_time"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="4dp"
             android:ellipsize="end"
             android:fontFamily="sans-serif-medium"
-            android:fontFeatureSettings="tnum"
+            android:includeFontPadding="false"
+            android:letterSpacing="-0.01"
             android:maxLines="1"
-            android:textColor="@color/next_class_widget_time"
-            android:textSize="15sp"
-            tools:text="07:00 - 08:30" />
+            android:textColor="@color/next_class_widget_text"
+            android:textSize="18sp"
+            tools:text="Advanced Mathematics" />
     </LinearLayout>
 
-    <!-- 5. EMPTY SCHEDULE -->
+    <!-- 5. Empty  -->
     <LinearLayout
         android:id="@+id/widget_empty_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
         android:gravity="center_vertical"
-        android:orientation="vertical"
+        android:orientation="horizontal"
         android:visibility="gone">
 
-        <TextView
-            android:id="@+id/widget_empty_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="sans-serif"
-            android:text="@string/next_class_widget_empty_title"
-            android:textColor="@color/next_class_widget_text"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+        <ImageView
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/next_class_widget_logo_tile"
+            android:contentDescription="@null"
+            android:importantForAccessibility="no"
+            android:padding="8dp"
+            android:src="@drawable/next_class_widget_logo" />
 
-        <TextView
-            android:id="@+id/widget_empty_message"
-            android:layout_width="match_parent"
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
-            android:fontFamily="sans-serif"
-            android:text="@string/next_class_widget_empty_message"
-            android:textColor="@color/next_class_widget_secondary"
-            android:textSize="11sp" />
+            android:layout_marginStart="16dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_empty_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="@string/next_class_widget_empty_title"
+                android:textColor="@color/next_class_widget_text"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_empty_message"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="2"
+                android:text="@string/next_class_widget_empty_message"
+                android:textColor="@color/next_class_widget_muted"
+                android:textSize="13sp" />
+        </LinearLayout>
     </LinearLayout>
-
 </FrameLayout>

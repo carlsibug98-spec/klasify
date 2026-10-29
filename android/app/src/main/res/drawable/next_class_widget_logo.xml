@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Three-bar Klasify mark for the widget empty state. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="40dp"
+    android:height="40dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M45,30h36a7,7 0,0 1,7 7a7,7 0,0 1,-7 7H45a7,7 0,0 1,-7 -7a7,7 0,0 1,7 -7z" />
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M45,53h54a7,7 0,0 1,7 7a7,7 0,0 1,-7 7H45a7,7 0,0 1,-7 -7a7,7 0,0 1,7 -7z" />
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M45,76h22a7,7 0,0 1,7 7a7,7 0,0 1,-7 7H45a7,7 0,0 1,-7 -7a7,7 0,0 1,7 -7z" />
+    <path
+        android:fillColor="#FFFF8A5C"
+        android:pathData="M16,37a7,7 0,1 0,14 0a7,7 0,1 0,-14 0z" />
+</vector>

@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    Klasify Homescreen Widget — Celebration Shelf Background
-    Filled subtle surface with 16dp corners and NO OUTLINE / BORDER,
-    matching AppTheme.controlRadius (16dp).
--->
+<!-- Next-class shelf: 18dp radius on the raised shelf surface, 1dp outline. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <solid android:color="@color/next_class_widget_shelf_bg" />
-    <corners android:radius="16dp" />
+    <corners android:radius="18dp" />
+    <stroke
+        android:width="1dp"
+        android:color="@color/next_class_widget_shelf_outline" />
 </shape>

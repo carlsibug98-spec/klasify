@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    Klasify Homescreen Widget — Outer Card Background
-    Upcoming widget redesign: 28px mockup radius at 0.8 scale = 22dp.
--->
+<!-- Klasify widget outer card: 26dp radius with a 1dp themed outline. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <solid android:color="@color/next_class_widget_surface" />
-    <corners android:radius="22dp" />
+    <corners android:radius="26dp" />
+    <stroke
+        android:width="1dp"
+        android:color="@color/next_class_widget_outline" />
 </shape>

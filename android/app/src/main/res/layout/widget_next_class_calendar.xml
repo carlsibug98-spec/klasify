@@ -1,0 +1,738 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Month calendar kept for tall widget layouts; hidden at 4x3. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/widget_month_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-medium"
+        android:includeFontPadding="false"
+        android:letterSpacing="0.08"
+        android:textColor="@color/next_class_widget_muted"
+        android:textSize="11sp"
+        tools:text="October" />
+
+    <GridLayout
+        android:id="@+id/widget_calendar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:columnCount="7"
+        android:rowCount="7"
+        android:useDefaultMargins="false">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="18dp"
+            android:layout_columnWeight="1"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:text="S"
+            android:textColor="@color/next_class_widget_cal_header"
+            android:textSize="10sp" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="18dp"
+            android:layout_columnWeight="1"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:text="M"
+            android:textColor="@color/next_class_widget_cal_header"
+            android:textSize="10sp" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="18dp"
+            android:layout_columnWeight="1"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:text="T"
+            android:textColor="@color/next_class_widget_cal_header"
+            android:textSize="10sp" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="18dp"
+            android:layout_columnWeight="1"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:text="W"
+            android:textColor="@color/next_class_widget_cal_header"
+            android:textSize="10sp" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="18dp"
+            android:layout_columnWeight="1"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:text="T"
+            android:textColor="@color/next_class_widget_cal_header"
+            android:textSize="10sp" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="18dp"
+            android:layout_columnWeight="1"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:text="F"
+            android:textColor="@color/next_class_widget_cal_header"
+            android:textSize="10sp" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="18dp"
+            android:layout_columnWeight="1"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:text="S"
+            android:textColor="@color/next_class_widget_cal_header"
+            android:textSize="10sp" />
+
+        <TextView
+            android:id="@+id/widget_cal_c0"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c1"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c2"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c3"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c4"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c5"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c6"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c7"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c8"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c9"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c10"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c11"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c12"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c13"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c14"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c15"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c16"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c17"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c18"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c19"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c20"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c21"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c22"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c23"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c24"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c25"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c26"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c27"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c28"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c29"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c30"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c31"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c32"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c33"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c34"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c35"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c36"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c37"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c38"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c39"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c40"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+
+        <TextView
+            android:id="@+id/widget_cal_c41"
+            android:layout_width="0dp"
+            android:layout_height="21dp"
+            android:layout_columnWeight="1"
+            android:background="@null"
+            android:fontFamily="sans-serif"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/next_class_widget_cal_weekday"
+            android:textSize="10sp"
+            tools:text="1" />
+    </GridLayout>
+</LinearLayout>
+
