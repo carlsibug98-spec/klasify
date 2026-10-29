@@ -36,7 +36,7 @@ android {
     defaultConfig {
         // Choose a permanent, globally unique ID before publishing; changing it later
         // makes Android treat an update as a different app.
-        applicationId = "com.klasify.app"
+        applicationId = "io.github.carlsibug98_spec.klasify"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // paddle_ocr_native ships its ONNX Runtime only for Android API 26+.
