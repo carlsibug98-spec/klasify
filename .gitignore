@@ -39,3 +39,15 @@ build/
 .vibe/
 .windsurf/
 .zencoder/
+
+# Local IDE, scratch, and crash output
+.idea/
+*.iml
+.mock/
+.preview/
+.scratch/
+*.log
+hs_err_pid*.log
+replay_pid*.log
+__pycache__/
+*.pyc
