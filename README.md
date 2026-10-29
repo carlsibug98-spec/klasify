@@ -108,7 +108,7 @@ keyAlias=upload
 storeFile=app/upload-keystore.jks
 ```
 
-Keep both that file and the keystore out of source control. Without a release key, Gradle produces an unsigned APK that cannot be installed or published. Before publishing, replace `com.example.class_schedule` in `android/app/build.gradle.kts` with the permanent application ID you own; do not change it after the first public release.
+Keep both that file and the keystore out of source control. Without a release key, Gradle produces an unsigned APK that cannot be installed or published. The application ID is `io.github.carlsibug98_spec.klasify`, set in `android/app/build.gradle.kts`. Confirm it before the first public release, because it cannot be changed after that.
 
 ### If Gradle reports an NDK installation error
 The NDK version is controlled by the Flutter SDK's `flutter.ndkVersion` setting in `android/app/build.gradle.kts`. In Android Studio SDK Manager → SDK Tools, enable **Show Package Details** under **NDK (Side by side)** and install the exact version Flutter requests. If the package is not listed, update Android SDK Command-line Tools and retry. Do not randomly change the NDK version to a newer one; use a version supported by the installed Flutter/Android Gradle Plugin.

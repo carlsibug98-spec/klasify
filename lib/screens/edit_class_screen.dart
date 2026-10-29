@@ -257,6 +257,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
   }
 
   Future<bool> _defaultDelete(ClassItem item) async {
+    _remindersUpdated = true;
     final id = item.id;
     if (id == null) return false;
     final deleted = await DatabaseHelper.instance.delete(id);

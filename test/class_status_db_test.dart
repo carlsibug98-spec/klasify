@@ -106,6 +106,39 @@ void main() {
     expect((await db.getClassStatuses()).containsKey(id), isFalse);
   });
 
+  test('a weekday change drops marks that start on or after the cutoff', () async {
+    final db = DatabaseHelper.instance;
+    final id = await newClass();
+    await db.setClassStatus(
+      mark(id, DayStatus.finished, '2026-10-01', '2026-10-01'),
+    );
+    await db.setClassStatus(
+      mark(id, DayStatus.cancelled, '2026-11-02', '2026-11-02'),
+    );
+
+    final removed = await db.deleteStatusesFrom(id, '2026-10-29');
+
+    expect(removed, 1);
+    expect(ranges((await db.getClassStatuses())[id]!), [
+      ('2026-10-01', '2026-10-01', DayStatus.finished),
+    ]);
+  });
+
+  test('a mark that starts before the cutoff and runs past it is kept', () async {
+    final db = DatabaseHelper.instance;
+    final id = await newClass();
+    await db.setClassStatus(
+      mark(id, DayStatus.notAttending, '2026-10-20', '2026-11-05'),
+    );
+
+    final removed = await db.deleteStatusesFrom(id, '2026-10-29');
+
+    expect(removed, 0);
+    expect(ranges((await db.getClassStatuses())[id]!), [
+      ('2026-10-20', '2026-11-05', DayStatus.notAttending),
+    ]);
+  });
+
   test('deleting a class and undoing it restores its marks', () async {
     final db = DatabaseHelper.instance;
     final id = await newClass();
