@@ -58,12 +58,14 @@ Future<void> showDayStatusSheet(
       final entry = current;
       if (entry == null) return;
       await db.clearClassStatus(entry, day: dateKey(date));
-      await _syncReminders();
+      final synced = await _syncReminders();
       _notify(
         messenger,
         scheme,
-        'Status cleared for ${shortDateLabel(date)}',
-        AppNotificationKind.info,
+        synced
+            ? 'Status cleared for ${shortDateLabel(date)}'
+            : 'Status cleared, but reminders could not be updated.',
+        synced ? AppNotificationKind.info : AppNotificationKind.warning,
       );
       return;
     }
@@ -77,13 +79,15 @@ Future<void> showDayStatusSheet(
       endDate: _endFor(choice.span, date),
     );
     await db.setClassStatus(entry);
-    await _syncReminders();
+    final synced = await _syncReminders();
+    final summary =
+        '${item.subject}: ${status.label} · '
+        '${statusDurationLabel(entry, DateTime.now())}';
     _notify(
       messenger,
       scheme,
-      '${item.subject}: ${status.label} · '
-      '${statusDurationLabel(entry, DateTime.now())}',
-      AppNotificationKind.success,
+      synced ? summary : '$summary. Reminders could not be updated.',
+      synced ? AppNotificationKind.success : AppNotificationKind.warning,
     );
   } catch (error, stackTrace) {
     debugPrint('Class status save failed: $error\n$stackTrace');
@@ -98,12 +102,15 @@ Future<void> showDayStatusSheet(
   }
 }
 
-/// Marks change which reminders should exist, so reminders are rebuilt after each change.
-Future<void> _syncReminders() async {
+/// Marks change which reminders should exist, so reminders are rebuilt after
+/// each change. Returns false if reminders could not be updated.
+Future<bool> _syncReminders() async {
   try {
     await ReminderService.instance.sync();
+    return true;
   } catch (error, stackTrace) {
-    debugPrint('Reminder sync after status change failed: $error\n$stackTrace');
+    debugPrint('Reminder update after status change failed: $error\n$stackTrace');
+    return false;
   }
 }
 

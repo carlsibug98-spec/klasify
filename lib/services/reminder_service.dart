@@ -189,6 +189,7 @@ class ReminderService extends ChangeNotifier {
     final now = tz.TZDateTime.now(tz.local);
     final today = DateTime(now.year, now.month, now.day);
     final leadMinutes = await this.leadMinutes;
+    try {
     for (final c in classes) {
       final reminderMinutes = c.startMinutes >= leadMinutes
           ? c.startMinutes - leadMinutes
@@ -259,10 +260,25 @@ class ReminderService extends ChangeNotifier {
         );
       }
     }
-
-    for (final id in staleReminderIds(previousIds, scheduledIds)) {
-      await _plugin.cancel(id: id);
+    } finally {
+      // Runs even if scheduling failed, so a skipped or deleted class never
+      // keeps an old reminder.
+      await _pruneStale(previousIds, scheduledIds);
     }
+  }
+
+  /// Cancels every reminder the new schedule no longer uses. Each cancel is
+  /// attempted even if an earlier one fails; the first failure is rethrown.
+  Future<void> _pruneStale(List<int> previousIds, Set<int> scheduledIds) async {
+    Object? firstError;
+    for (final id in staleReminderIds(previousIds, scheduledIds)) {
+      try {
+        await _plugin.cancel(id: id);
+      } catch (error) {
+        firstError ??= error;
+      }
+    }
+    if (firstError != null) throw firstError;
   }
 
   Future<void> _scheduleAt({
