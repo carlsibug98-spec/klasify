@@ -1,3 +1,4 @@
+import 'cor_schedule_parser.dart';
 import 'sectioned_schedule_parser.dart';
 import 'schedule_line_preparation.dart';
 import 'timetable_parser.dart';
@@ -28,8 +29,7 @@ class ParseChain {
     String used,
   })
   parse(String text) {
-    final prepared = prepareScheduleLines(text).join('\n');
-    final sectioned = SectionedScheduleParser.parse(prepared);
+    final sectioned = sectionedRows(text);
     if (sectioned.isNotEmpty) {
       return (
         sectioned: sectioned,
@@ -46,16 +46,25 @@ class ParseChain {
 
   /// Sectioned rows only, with the shared line preparation applied. Used by
   /// callers that want the layout-aware parser without the list fallback.
-  static List<SectionedRow> parseSectioned(String text) =>
-      SectionedScheduleParser.parse(prepareScheduleLines(text).join('\n'));
+  static List<SectionedRow> parseSectioned(String text) => sectionedRows(text);
+
+  /// Layout-aware rows for [text]. A Certificate of Registration is read by
+  /// its own row parser first; every other layout (and a COR the row parser
+  /// cannot read) goes through the shared line preparation and the sectioned
+  /// parser, as before.
+  static List<SectionedRow> sectionedRows(String text) {
+    if (CorScheduleParser.looksLikeCor(text)) {
+      final cor = CorScheduleParser.parse(text);
+      if (cor.isNotEmpty) return cor;
+    }
+    return SectionedScheduleParser.parse(prepareScheduleLines(text).join('\n'));
+  }
 
   /// Scores a candidate OCR text for selection. The score rewards useful,
   /// distinct rows and penalises duplicated lines, so a confident but
   /// duplicated scan loses to a noisier one that parses more classes.
   static double score(String text, double meanConfidence) {
-    final sectioned = SectionedScheduleParser.parse(
-      prepareScheduleLines(text).join('\n'),
-    );
+    final sectioned = sectionedRows(text);
     final list = TimetableParser.parse(text);
     final bestRowCount = sectioned.length > list.length
         ? sectioned.length

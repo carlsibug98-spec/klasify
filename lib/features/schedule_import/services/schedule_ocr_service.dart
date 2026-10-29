@@ -15,7 +15,7 @@ import '../utils/pdf_timetable_scan_result.dart';
 import '../utils/pdf_timetable_text.dart';
 import '../utils/parse_chain.dart';
 import '../utils/schedule_text_parser.dart';
-import '../utils/sectioned_schedule_parser.dart';
+import '../utils/skew_profile_estimator.dart';
 import '../utils/timetable_format.dart';
 import '../utils/timetable_parser.dart';
 import 'ocr_image_preprocessor.dart';
@@ -42,7 +42,8 @@ class ScheduleOcrService {
   Future<void>? _pdfTextInitialization;
 
   Future<void> _initializeOcr() {
-    return _ocrInitialization ??= _ocr.init(
+    return _ocrInitialization ??= _ocr
+        .init(
       // Small printed course labels and room codes need finer detection.
       config: const PaddleOcrConfig(
         detThresh: 0.25,
@@ -54,7 +55,8 @@ class ScheduleOcrService {
         recScoreThresh: 0.0,
       ),
       engine: const EngineConfig(numThreads: 4),
-    ).catchError((Object error) {
+    )
+        .catchError((Object error) {
       // Forget a failed setup, so the next scan tries again.
       _ocrInitialization = null;
       throw error;
@@ -181,12 +183,11 @@ class ScheduleOcrService {
         final confidence = result.results.isEmpty
             ? 0.0
             : result.results
-                      .map(
-                        (region) =>
-                            region.confidence.clamp(0.0, 1.0).toDouble(),
-                      )
-                      .fold<double>(0.0, (sum, value) => sum + value) /
-                  result.results.length;
+                    .map(
+                      (region) => region.confidence.clamp(0.0, 1.0).toDouble(),
+                    )
+                    .fold<double>(0.0, (sum, value) => sum + value) /
+                result.results.length;
         final candidate = _OcrTextCandidate(text, confidence, label);
         candidates.add(candidate);
         return candidate;
@@ -195,9 +196,8 @@ class ScheduleOcrService {
         debugPrint('$label OCR pass failed: $error');
         return null;
       } finally {
-        candidateProgress = (candidateProgress + .09)
-            .clamp(.46, .82)
-            .toDouble();
+        candidateProgress =
+            (candidateProgress + .09).clamp(.46, .82).toDouble();
         onProgress(candidateProgress, '$label scan complete');
       }
     }
@@ -216,15 +216,45 @@ class ScheduleOcrService {
       // cascade, so hard photos keep exactly today's recall.
       bool strongEnough() => _strongScan(candidate);
 
+      // Laplacian variance of the last prepared grayscale. Below the
+      // threshold the photo is out of focus or interpolation-soft (a COR
+      // photographed at arm's length), and an unsharp-masked variant reads
+      // the table the soft original cannot. Calibrated on the COR benchmark
+      // fixtures: crisp pages measure 1300+, soft ones under 700.
+      const softnessThreshold = 800.0;
+      var preparedSoftness = double.infinity;
+      PreparedOcrImage? enhancedImage;
+
       if (!strongEnough()) {
         onProgress(candidateProgress, 'Preparing an enhanced image');
         final enhanced = await _preprocessor.prepare(path);
-        if (enhanced != null) temporaryFiles.add(enhanced.file);
+        enhancedImage = enhanced;
+        if (enhanced != null) {
+          temporaryFiles.add(enhanced.file);
+          preparedSoftness = enhanced.softness;
+        }
         if (cancelled()) return '';
         if (enhanced != null) {
           candidate = await addCandidate(
             enhanced.file.path,
             'Contrast enhanced',
+          );
+        }
+        if (cancelled()) return '';
+      }
+
+      if (!strongEnough() && preparedSoftness < softnessThreshold) {
+        // Sharpening before the threshold passes: on a soft page the
+        // adaptive-threshold pass only has smeared strokes to threshold, so
+        // recovering glyph edges first helps every later candidate too.
+        onProgress(candidateProgress, 'Preparing a sharpened image');
+        final sharpened = await _preprocessor.prepare(path, sharpen: true);
+        if (sharpened != null) temporaryFiles.add(sharpened.file);
+        if (cancelled()) return '';
+        if (sharpened != null) {
+          candidate = await addCandidate(
+            sharpened.file.path,
+            'Sharpen rescue',
           );
         }
         if (cancelled()) return '';
@@ -265,15 +295,70 @@ class ScheduleOcrService {
         if (cancelled()) return '';
       }
 
+      // High-res rescue: cheap cameras hand back 1000-2000 px captures whose
+      // thin glyphs dissolve at the standard upscale target. One more decode
+      // at a higher pixel budget reads rows the standard passes cannot - the
+      // COR benchmark's 1500 px sample goes 7/10 -> 9/10 at the 2160 target.
+      if (!strongEnough() &&
+          enhancedImage != null &&
+          enhancedImage.sourceLongestSide < 2160) {
+        onProgress(candidateProgress, 'Preparing a high-resolution image');
+        final hires = await _preprocessor.prepare(
+          path,
+          upscaleTarget: 2160,
+        );
+        if (hires != null) temporaryFiles.add(hires.file);
+        if (cancelled()) return '';
+        if (hires != null) {
+          candidate = await addCandidate(hires.file.path, 'High-res rescue');
+        }
+        if (cancelled()) return '';
+      }
+
+      // Deskew rescue: a photographed page tilted more than ~2 degrees keeps
+      // its schedule cells from banding into rows (the quarter-turn gate
+      // below only covers 90-degree mistakes). The gradient projection
+      // profile estimate from the enhanced pass costs no extra decode; when
+      // it is confident, try the correction plus a +-0.75 degree bracket -
+      // the profile peak and the recognizer's preferred angle can differ by
+      // a hair, and ParseChain picks whichever candidate actually parses.
+      final skewDegrees = enhancedImage?.skewDegrees ?? 0;
+      final skewProminence = enhancedImage?.skewProminence ?? 0;
+      if (!strongEnough() &&
+          ProfileSkewEstimate(
+            degrees: skewDegrees,
+            prominence: skewProminence,
+          ).shouldRescue) {
+        for (final degrees in const [-1.0, 0.0, 1.0]) {
+          if (cancelled()) return '';
+          final angle = skewDegrees + 0.75 * degrees;
+          onProgress(candidateProgress, 'Trying a deskewed scan');
+          final deskewed = await _preprocessor.prepare(
+            path,
+            upscaleTarget: 2160,
+            rotateDegrees: angle,
+          );
+          if (deskewed != null) temporaryFiles.add(deskewed.file);
+          if (cancelled()) return '';
+          if (deskewed == null) continue;
+          candidate = await addCandidate(
+            deskewed.file.path,
+            'Deskew ${angle.toStringAsFixed(2)}',
+          );
+          if (strongEnough()) break;
+        }
+        if (cancelled()) return '';
+      }
+
       // Rotation is expensive and normally unnecessary. Try it only when the
       // initial independent candidates fail to yield a usable parsed row.
       final initialBestRows = candidates.isEmpty
           ? 0
           : candidates
-                .map(
-                  (candidate) => TimetableParser.parse(candidate.text).length,
-                )
-                .reduce((a, b) => a > b ? a : b);
+              .map(
+                (candidate) => TimetableParser.parse(candidate.text).length,
+              )
+              .reduce((a, b) => a > b ? a : b);
       if (initialBestRows == 0) {
         for (final turns in const [1, 3, 2]) {
           if (cancelled()) return '';
@@ -310,7 +395,7 @@ class ScheduleOcrService {
       final normalizedText = normalizeOcrTokens(best.text);
       final estimate = TimetableFormatClassifier.classify(normalizedText);
       final selectedRows = TimetableParser.parse(normalizedText).length;
-      final sectionedPreview = SectionedScheduleParser.parse(normalizedText);
+      final sectionedPreview = ParseChain.sectionedRows(normalizedText);
       debugPrint(
         'Selected ${best.label} OCR candidate: '
         '$selectedRows free-text rows, ${sectionedPreview.length} sectioned rows, '
@@ -348,9 +433,8 @@ class ScheduleOcrService {
   bool _strongScan(_OcrTextCandidate? candidate) {
     if (candidate == null || candidate.meanConfidence < .85) return false;
     final chain = ParseChain.parse(candidate.text);
-    final rows = chain.sectioned.isNotEmpty
-        ? chain.sectioned.length
-        : chain.list.length;
+    final rows =
+        chain.sectioned.isNotEmpty ? chain.sectioned.length : chain.list.length;
     return rows >= 2;
   }
 
@@ -403,8 +487,8 @@ class ScheduleOcrService {
           i > _pdfBasePageWindow
               ? 'Reading PDF page $i (checking whether it holds classes)'
               : plannedPages < totalPages
-              ? 'Reading PDF page $i of $plannedPages (first $plannedPages of $totalPages)'
-              : 'Reading PDF page $i of $plannedPages',
+                  ? 'Reading PDF page $i of $plannedPages (first $plannedPages of $totalPages)'
+                  : 'Reading PDF page $i of $plannedPages',
         );
         final page = doc.pages[i - 1];
         if (cancelled()) break;
@@ -467,9 +551,8 @@ class ScheduleOcrService {
                   imageFile.path,
                   isCancelled: cancelled,
                   onProgress: (progress, detail) {
-                    final pageFraction = ((progress - .44) / .4)
-                        .clamp(0.0, 1.0)
-                        .toDouble();
+                    final pageFraction =
+                        ((progress - .44) / .4).clamp(0.0, 1.0).toDouble();
                     onProgress(
                       .1 +
                           .72 *
@@ -481,8 +564,7 @@ class ScheduleOcrService {
                 )
               : '';
           if (cancelled()) break;
-          final hasWeekdayHeaders =
-              RegExp(
+          final hasWeekdayHeaders = RegExp(
                 r'\b(?:MON(?:DAY)?|TUE(?:SDAY)?|WED(?:NESDAY)?|THU(?:RSDAY)?|FRI(?:DAY)?)\b',
                 caseSensitive: false,
               ).allMatches(fallbackText).length >=
@@ -495,7 +577,7 @@ class ScheduleOcrService {
           if (pageRows.isEmpty &&
               !hasWeekdayHeaders &&
               TimetableParser.parse(fallbackText).isEmpty &&
-              SectionedScheduleParser.parse(fallbackText).isEmpty) {
+              ParseChain.sectionedRows(fallbackText).isEmpty) {
             pageRows = _parseTextLayerTimetable(pdfTextFragments);
           }
           pageResults.add(
@@ -507,11 +589,10 @@ class ScheduleOcrService {
             ),
           );
           if (i > _pdfBasePageWindow) {
-            final productive =
-                pageRows.isNotEmpty ||
+            final productive = pageRows.isNotEmpty ||
                 hasWeekdayHeaders ||
                 TimetableParser.parse(fallbackText).isNotEmpty ||
-                SectionedScheduleParser.parse(fallbackText).isNotEmpty;
+                ParseChain.sectionedRows(fallbackText).isNotEmpty;
             idleRun = productive ? 0 : idleRun + 1;
           }
           onProgress(
@@ -745,10 +826,9 @@ class ScheduleOcrService {
       final lineIndex = lines.indexWhere((line) {
         final center =
             line.map((item) => item.centerY).reduce((a, b) => a + b) /
-            line.length;
-        final height = line
-            .map((item) => item.height)
-            .reduce((a, b) => a < b ? a : b);
+                line.length;
+        final height =
+            line.map((item) => item.height).reduce((a, b) => a < b ? a : b);
         return (fragment.centerY - center).abs() <=
             math.max(1.5, math.min(height, fragment.height) * .45);
       });
@@ -767,7 +847,7 @@ class ScheduleOcrService {
         right: line.map((fragment) => fragment.right).reduce(math.max),
         centerY:
             line.map((fragment) => fragment.centerY).reduce((a, b) => a + b) /
-            line.length,
+                line.length,
       );
     }).toList();
   }
@@ -778,20 +858,19 @@ class ScheduleOcrService {
   /// Single-letter MTWRF headers are trusted only when at least three of
   /// them appear together, so a stray "M" elsewhere cannot become a column.
   ({Map<int, double> centers, Set<_PdfTextFragment> matched})
-  _pdfDayHeaderCenters(List<_PdfTextFragment> fragments) {
+      _pdfDayHeaderCenters(List<_PdfTextFragment> fragments) {
     final matches = <({int day, _PdfTextFragment fragment})>[];
     for (final fragment in fragments) {
       final day = PdfTimetableText.dayOfHeaderCell(fragment.text);
       if (day == null) continue;
       matches.add((day: day, fragment: fragment));
     }
-    final letterMatches = matches
-        .where((match) => match.fragment.text.trim().length <= 2)
-        .length;
+    final letterMatches =
+        matches.where((match) => match.fragment.text.trim().length <= 2).length;
     final usable = letterMatches > 0 && letterMatches < 3
         ? matches
-              .where((match) => match.fragment.text.trim().length > 2)
-              .toList()
+            .where((match) => match.fragment.text.trim().length > 2)
+            .toList()
         : matches;
     final sums = <int, double>{};
     final counts = <int, int>{};
@@ -814,8 +893,7 @@ class ScheduleOcrService {
     final sortedDays = dayCenters.keys.toList()
       ..sort((a, b) => dayCenters[a]!.compareTo(dayCenters[b]!));
     final firstGap = dayCenters[sortedDays[1]]! - dayCenters[sortedDays.first]!;
-    final lastGap =
-        dayCenters[sortedDays.last]! -
+    final lastGap = dayCenters[sortedDays.last]! -
         dayCenters[sortedDays[sortedDays.length - 2]]!;
     final dayBounds = <int, List<double>>{};
     for (var i = 0; i < sortedDays.length; i++) {
@@ -964,8 +1042,7 @@ class ScheduleOcrService {
       for (var i = 1; i < cellFragments.length; i++) {
         final fragment = cellFragments[i];
         final previous = cellFragments[i - 1];
-        final gap =
-            (fragment.centerY - previous.centerY).abs() -
+        final gap = (fragment.centerY - previous.centerY).abs() -
             (fragment.height + previous.height) / 2;
         if (gap <= clusterGapThreshold) {
           clusters.last.add(fragment);
@@ -1093,8 +1170,7 @@ class ScheduleOcrService {
         bandHeight = region.boundingBox.height;
       } else {
         bandCenter = (bandCenter * band.length + center) / (band.length + 1);
-        bandHeight =
-            (bandHeight * band.length + region.boundingBox.height) /
+        bandHeight = (bandHeight * band.length + region.boundingBox.height) /
             (band.length + 1);
       }
       band.add(region);

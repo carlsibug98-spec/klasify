@@ -63,6 +63,9 @@ The app uses a black-and-white palette: white and grey surfaces, black for text 
 ### Important OCR limitations
 The importer supports common 12-hour and 24-hour time ranges and uses OCR text-block bounding boxes to reconstruct approximate horizontal rows. This improves common timetable grids but does not guarantee perfect column-to-weekday mapping for every school layout. Always review all detected rows. A room is not inferred from generic subject wording such as “Computer Lab Programming”; room values that are not recognized are marked Room to confirm and must be corrected before saving. Manual class cancellation is explicitly reported. The app does not silently save uncertain results; manually add missed rows or edit detected rows before importing. No image or PDF is uploaded to a server.
 
+### Student COR import
+A Certificate of Registration is read by its own row parser (`CorScheduleParser`): one subject per row with its `hh:mm AM - hh:mm PM / Day` cell, room, and faculty. Photographed CORs get the same cascade as any import, plus a sharpen rescue pass that fires when the page measures soft (out-of-focus or low-res captures measure via a Laplacian variance gate, so sharp pages never pay the extra pass). Rows whose printed code column did not survive the photo are still emitted from their description and flagged for review; rooms normalize (`lab2` → `Lab 2`), and `tba`/`Online` cells are ignored. The six-sample COR accuracy benchmark and its results live in `BENCHMARK_ROUND7_COR.md` (`flutter test test/bench7_cor_accuracy_test.dart`).
+
 ## Requirements
 - Flutter SDK installed and available on PATH
 - Android Studio with Android SDK and Android command-line tools

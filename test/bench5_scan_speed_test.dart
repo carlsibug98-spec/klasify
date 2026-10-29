@@ -111,6 +111,18 @@ void main() {
         .map((file) => file.path)
         .toList()
       ..sort(),
+    // Round-7 student COR samples: a clean registry, labs/online columns,
+    // a skewed phone photo, an out-of-focus shot, a low-res capture and a
+    // dim noisy shot. The soft ones exercise the sharpen rescue pass, so
+    // the call counts show exactly what the rescue costs.
+    ...const [
+      'cor_registry_clean.png',
+      'cor_labs_online.png',
+      'cor_phone_skewed.jpg',
+      'cor_phone_blurred.png',
+      'cor_lowres.png',
+      'cor_dim_noise.png',
+    ].map((name) => '$fixturesDir/cor/$name'),
   ];
 
   final service = ScheduleOcrService();

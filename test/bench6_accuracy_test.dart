@@ -23,7 +23,9 @@ import 'package:paddle_ocr_native/src/paddle_ocr_platform.dart';
 /// truth, so a speed win can never hide a recognition regression.
 ///
 /// Ground truth: `test/fixtures/bench4_truth.json` -> `truth_classes`
-/// (subject / day / start / end per class, 65 classes across 8 photos).
+/// (subject / day / start / end per class, 65 classes across 8 photos) plus
+/// the round-7 student COR set `test/fixtures/cor_truth.json` (57 classes
+/// across 6 samples, which also carry room and faculty labels).
 /// The three `timetable_grid_*.png` fixtures are EXCLUDED from scoring:
 /// they are deliberately text-free grid photos (verified visually and by
 /// bench5: zero rows in every run), so they have no accuracy meaning.
@@ -40,6 +42,7 @@ import 'package:paddle_ocr_native/src/paddle_ocr_platform.dart';
 ///   subject_sim   mean normalized-Levenshtein similarity over matches
 ///   subject_cer   mean char error rate (lev / truth length) over matches
 ///   day_ok/start_ok/end_ok  fraction of matches with the field exactly right
+///   room_ok/professor_ok    COR-only field checks (null for non-COR photos)
 ///   false_positives  parsed rows matched to no truth class
 ///   missed           truth classes matched to no parsed row
 ///
@@ -82,18 +85,36 @@ void main() {
     tmp.deleteSync(recursive: true);
   });
 
-  final truth =
+  final bench4Truth =
       jsonDecode(File('$fixturesDir/bench4_truth.json').readAsStringSync())
           as Map<String, dynamic>;
+  final corTruth =
+      jsonDecode(File('$fixturesDir/cor_truth.json').readAsStringSync())
+          as Map<String, dynamic>;
+  final truth = <String, Map<String, dynamic>>{
+    ...bench4Truth.cast<String, Map<String, dynamic>>(),
+    ...corTruth.cast<String, Map<String, dynamic>>(),
+  };
 
-  final fixtures =
-      Directory('$fixturesDir/bench4')
-          .listSync()
-          .whereType<File>()
-          .where((file) => file.path.endsWith('.png'))
-          .map((file) => file.path)
-          .toList()
-        ..sort();
+  final fixtures = [
+    ...Directory('$fixturesDir/bench4')
+        .listSync()
+        .whereType<File>()
+        .where((file) => file.path.endsWith('.png'))
+        .map((file) => file.path)
+        .toList()
+      ..sort(),
+    // Round-7 student COR samples: 6 different photos, 57 ground-truth
+    // classes, room and faculty labels included.
+    ...const [
+      'cor_registry_clean.png',
+      'cor_labs_online.png',
+      'cor_phone_skewed.jpg',
+      'cor_phone_blurred.png',
+      'cor_lowres.png',
+      'cor_dim_noise.png',
+    ].map((name) => '$fixturesDir/cor/$name'),
+  ];
 
   final service = ScheduleOcrService();
 
@@ -110,6 +131,8 @@ void main() {
               day: _dayIndex(c['day'] as String),
               start: _minutes(c['start'] as String),
               end: _minutes(c['end'] as String),
+              room: c['room'] as String?,
+              professor: c['professor'] as String?,
             ),
           )
           .toList();
@@ -148,6 +171,9 @@ void main() {
       var dayOk = 0;
       var startOk = 0;
       var endOk = 0;
+      var roomOk = 0;
+      var profOk = 0;
+      var roomScored = 0;
       for (final m in matches) {
         final t = classes[m.truthIndex];
         final r = rows[m.rowIndex];
@@ -161,6 +187,16 @@ void main() {
         if (t.day == r.day) dayOk++;
         if (t.start == r.startMinutes) startOk++;
         if (t.end == r.endMinutes) endOk++;
+        if (t.room != null) {
+          roomScored++;
+          if (_norm(t.room!) == _norm(r.room) && _norm(t.room!).isNotEmpty) {
+            roomOk++;
+          }
+        }
+        if (t.professor != null &&
+            _similarity(t.professor!, r.professor) >= .85) {
+          profOk++;
+        }
       }
       final n = matches.length;
       final recall = classes.isEmpty ? 1.0 : n / classes.length;
@@ -183,6 +219,8 @@ void main() {
         'day_ok': n == 0 ? null : _r(dayOk / n),
         'start_ok': n == 0 ? null : _r(startOk / n),
         'end_ok': n == 0 ? null : _r(endOk / n),
+        'room_ok': roomScored == 0 ? null : _r(roomOk / roomScored),
+        'professor_ok': roomScored == 0 ? null : _r(profOk / roomScored),
         'false_positives': rows.length - n,
         'missed': classes.length - n,
         'recognize_calls': calls,
@@ -193,6 +231,8 @@ void main() {
               'day': r.day,
               'start': _hhmm(r.startMinutes),
               'end': _hhmm(r.endMinutes),
+              'room': r.room,
+              'professor': r.professor,
             },
         ],
         'matched_pairs': [
@@ -264,7 +304,8 @@ List<_Row> _finalRows(
   if (gridRows.isNotEmpty && !gridSuspicious) {
     return [
       for (final r in gridRows)
-        _Row(r.subject, r.day, r.startMinutes, r.endMinutes),
+        _Row(r.subject, r.day, r.startMinutes, r.endMinutes, r.room,
+            r.professor),
     ];
   }
   if (gridRows.isNotEmpty) {
@@ -273,7 +314,8 @@ List<_Row> _finalRows(
     if (text.isEmpty) {
       return [
         for (final r in gridRows)
-          _Row(r.subject, r.day, r.startMinutes, r.endMinutes),
+          _Row(r.subject, r.day, r.startMinutes, r.endMinutes, r.room,
+              r.professor),
       ];
     }
     final confidences = gridRows
@@ -291,7 +333,8 @@ List<_Row> _finalRows(
     if (textScore <= gridScore) {
       return [
         for (final r in gridRows)
-          _Row(r.subject, r.day, r.startMinutes, r.endMinutes),
+          _Row(r.subject, r.day, r.startMinutes, r.endMinutes, r.room,
+              r.professor),
       ];
     }
   }
@@ -306,7 +349,8 @@ List<_Row> _finalRows(
   if (sectioned.isNotEmpty) {
     return [
       for (final r in sectioned)
-        _Row(r.subject, r.day, r.startMinutes, r.endMinutes),
+        _Row(r.subject, r.day, r.startMinutes, r.endMinutes, r.room,
+            r.professor),
     ];
   }
   final listRows = TimetableParser.parse(text);
@@ -315,7 +359,7 @@ List<_Row> _finalRows(
       : chain.list;
   return [
     for (final r in chosen)
-      _Row(r.subject, r.day, r.startMinutes, r.endMinutes),
+      _Row(r.subject, r.day, r.startMinutes, r.endMinutes, r.room, r.professor),
   ];
 }
 
@@ -327,21 +371,37 @@ class _TruthClass {
     required this.day,
     required this.start,
     required this.end,
+    this.room,
+    this.professor,
   });
 
   final String subject;
   final int day;
   final int start;
   final int end;
+
+  /// COR fixtures also label the room and faculty cells; bench4 photos do
+  /// not, so both are null there and the field checks report null.
+  final String? room;
+  final String? professor;
 }
 
 class _Row {
-  const _Row(this.subject, this.day, this.startMinutes, this.endMinutes);
+  const _Row(
+    this.subject,
+    this.day,
+    this.startMinutes,
+    this.endMinutes,
+    this.room,
+    this.professor,
+  );
 
   final String subject;
   final int day;
   final int startMinutes;
   final int endMinutes;
+  final String room;
+  final String professor;
 }
 
 class _Match {

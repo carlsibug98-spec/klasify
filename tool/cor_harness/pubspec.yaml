@@ -1,0 +1,6 @@
+name: cor_harness
+description: Standalone verification harness for the Klasify COR benchmarks.
+publish_to: none
+
+environment:
+  sdk: ^3.0.0

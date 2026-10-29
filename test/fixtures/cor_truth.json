@@ -1,0 +1,89 @@
+{
+ "cor_registry_clean.png": {
+  "style": "cor_registry_continuation",
+  "truth_classes": [
+   {"subject": "Data Structures and Algorithms", "day": "Mon", "start": "08:00", "end": "09:30", "room": "Rm 301", "professor": "Prof. Ana Reyes"},
+   {"subject": "Data Structures and Algorithms", "day": "Wed", "start": "10:00", "end": "11:30", "room": "Rm 301", "professor": "Prof. Ana Reyes"},
+   {"subject": "Database Systems", "day": "Tue", "start": "13:00", "end": "14:30", "room": "Rm 204", "professor": "Prof. Ben Cole"},
+   {"subject": "Database Systems Laboratory", "day": "Tue", "start": "14:30", "end": "16:30", "room": "Lab 2", "professor": "Prof. Ben Cole"},
+   {"subject": "Purposive Communication", "day": "Thu", "start": "07:00", "end": "08:30", "room": "Rm 105", "professor": "Prof. Cara Lim"},
+   {"subject": "Quantitative Methods", "day": "Fri", "start": "09:00", "end": "10:30", "room": "Rm 110", "professor": "Prof. Dan Ortiz"},
+   {"subject": "PATHFit 3 - Dance and Sports", "day": "Thu", "start": "16:00", "end": "17:00", "room": "Gym", "professor": "Coach E. Park"}
+  ]
+ },
+ "cor_labs_online.png": {
+  "style": "cor_labs_online_columns",
+  "truth_classes": [
+   {"subject": "Purposive Communication", "day": "Mon", "start": "07:00", "end": "08:30", "room": "Rm 105", "professor": "Prof. Cara Lim"},
+   {"subject": "Readings in Philippine History", "day": "Tue", "start": "09:00", "end": "10:30", "room": "Rm 106", "professor": "Prof. Hugo Vale"},
+   {"subject": "PATHFit 3 - Dance, Sports, and Adventure", "day": "Thu", "start": "16:00", "end": "17:00", "room": "Gym", "professor": "Coach E. Park"},
+   {"subject": "Data Structures and Algorithm", "day": "Mon", "start": "08:00", "end": "09:30", "room": "Rm 301", "professor": "Prof. Ana Reyes"},
+   {"subject": "Data Structures Laboratory", "day": "Wed", "start": "10:00", "end": "11:30", "room": "MacLab", "professor": "Prof. Ana Reyes"},
+   {"subject": "Database Systems Laboratory", "day": "Tue", "start": "14:30", "end": "16:30", "room": "Lab 2", "professor": "Prof. Ben Cole"},
+   {"subject": "Mobile Application", "day": "Tue", "start": "13:00", "end": "14:30", "room": "Rm 301", "professor": "Prof. Ana Reyes"},
+   {"subject": "Free Elective 1 (Internet of Things)", "day": "Fri", "start": "14:30", "end": "16:00", "room": "Rm 204", "professor": "Prof. Ben Cole"},
+   {"subject": "Quantitative Methods", "day": "Fri", "start": "09:00", "end": "10:30", "room": "Rm 110", "professor": "Prof. Dan Ortiz"},
+   {"subject": "Information Management", "day": "Thu", "start": "13:00", "end": "14:30", "room": "Rm 302", "professor": "Prof. Ana Reyes"}
+  ]
+ },
+ "cor_phone_skewed.jpg": {
+  "style": "cor_phone_photo_skewed",
+  "truth_classes": [
+   {"subject": "Purposive Communication", "day": "Mon", "start": "07:00", "end": "08:30", "room": "Rm 105", "professor": "Prof. Cara Lim"},
+   {"subject": "Readings in Philippine History", "day": "Tue", "start": "09:00", "end": "10:30", "room": "Rm 106", "professor": "Prof. Hugo Vale"},
+   {"subject": "PATHFit 3 - Dance, Sports, and Adventure", "day": "Thu", "start": "16:00", "end": "17:00", "room": "Gym", "professor": "Coach E. Park"},
+   {"subject": "Data Structures and Algorithm", "day": "Mon", "start": "08:00", "end": "09:30", "room": "Rm 301", "professor": "Prof. Ana Reyes"},
+   {"subject": "Data Structures Laboratory", "day": "Wed", "start": "10:00", "end": "11:30", "room": "MacLab", "professor": "Prof. Ana Reyes"},
+   {"subject": "Database Systems Laboratory", "day": "Tue", "start": "14:30", "end": "16:30", "room": "Lab 2", "professor": "Prof. Ben Cole"},
+   {"subject": "Mobile Application", "day": "Tue", "start": "13:00", "end": "14:30", "room": "Rm 301", "professor": "Prof. Ana Reyes"},
+   {"subject": "Free Elective 1 (Internet of Things)", "day": "Fri", "start": "14:30", "end": "16:00", "room": "Rm 204", "professor": "Prof. Ben Cole"},
+   {"subject": "Quantitative Methods", "day": "Fri", "start": "09:00", "end": "10:30", "room": "Rm 110", "professor": "Prof. Dan Ortiz"},
+   {"subject": "Information Management", "day": "Thu", "start": "13:00", "end": "14:30", "room": "Rm 302", "professor": "Prof. Ana Reyes"}
+  ]
+ },
+ "cor_phone_blurred.png": {
+  "style": "cor_phone_photo_blurred",
+  "truth_classes": [
+   {"subject": "Purposive Communication", "day": "Mon", "start": "07:00", "end": "08:30", "room": "Rm 105", "professor": "Prof. Cara Lim"},
+   {"subject": "Readings in Philippine History", "day": "Tue", "start": "09:00", "end": "10:30", "room": "Rm 106", "professor": "Prof. Hugo Vale"},
+   {"subject": "PATHFit 3 - Dance, Sports, and Adventure", "day": "Thu", "start": "16:00", "end": "17:00", "room": "Gym", "professor": "Coach E. Park"},
+   {"subject": "Data Structures and Algorithm", "day": "Mon", "start": "08:00", "end": "09:30", "room": "Rm 301", "professor": "Prof. Ana Reyes"},
+   {"subject": "Data Structures Laboratory", "day": "Wed", "start": "10:00", "end": "11:30", "room": "MacLab", "professor": "Prof. Ana Reyes"},
+   {"subject": "Database Systems Laboratory", "day": "Tue", "start": "14:30", "end": "16:30", "room": "Lab 2", "professor": "Prof. Ben Cole"},
+   {"subject": "Mobile Application", "day": "Tue", "start": "13:00", "end": "14:30", "room": "Rm 301", "professor": "Prof. Ana Reyes"},
+   {"subject": "Free Elective 1 (Internet of Things)", "day": "Fri", "start": "14:30", "end": "16:00", "room": "Rm 204", "professor": "Prof. Ben Cole"},
+   {"subject": "Quantitative Methods", "day": "Fri", "start": "09:00", "end": "10:30", "room": "Rm 110", "professor": "Prof. Dan Ortiz"},
+   {"subject": "Information Management", "day": "Thu", "start": "13:00", "end": "14:30", "room": "Rm 302", "professor": "Prof. Ana Reyes"}
+  ]
+ },
+ "cor_lowres.png": {
+  "style": "cor_lowres_camera",
+  "truth_classes": [
+   {"subject": "Purposive Communication", "day": "Mon", "start": "07:00", "end": "08:30", "room": "Rm 105", "professor": "Prof. Cara Lim"},
+   {"subject": "Readings in Philippine History", "day": "Tue", "start": "09:00", "end": "10:30", "room": "Rm 106", "professor": "Prof. Hugo Vale"},
+   {"subject": "PATHFit 3 - Dance, Sports, and Adventure", "day": "Thu", "start": "16:00", "end": "17:00", "room": "Gym", "professor": "Coach E. Park"},
+   {"subject": "Data Structures and Algorithm", "day": "Mon", "start": "08:00", "end": "09:30", "room": "Rm 301", "professor": "Prof. Ana Reyes"},
+   {"subject": "Data Structures Laboratory", "day": "Wed", "start": "10:00", "end": "11:30", "room": "MacLab", "professor": "Prof. Ana Reyes"},
+   {"subject": "Database Systems Laboratory", "day": "Tue", "start": "14:30", "end": "16:30", "room": "Lab 2", "professor": "Prof. Ben Cole"},
+   {"subject": "Mobile Application", "day": "Tue", "start": "13:00", "end": "14:30", "room": "Rm 301", "professor": "Prof. Ana Reyes"},
+   {"subject": "Free Elective 1 (Internet of Things)", "day": "Fri", "start": "14:30", "end": "16:00", "room": "Rm 204", "professor": "Prof. Ben Cole"},
+   {"subject": "Quantitative Methods", "day": "Fri", "start": "09:00", "end": "10:30", "room": "Rm 110", "professor": "Prof. Dan Ortiz"},
+   {"subject": "Information Management", "day": "Thu", "start": "13:00", "end": "14:30", "room": "Rm 302", "professor": "Prof. Ana Reyes"}
+  ]
+ },
+ "cor_dim_noise.png": {
+  "style": "cor_dim_iso_noise",
+  "truth_classes": [
+   {"subject": "Purposive Communication", "day": "Mon", "start": "07:00", "end": "08:30", "room": "Rm 105", "professor": "Prof. Cara Lim"},
+   {"subject": "Readings in Philippine History", "day": "Tue", "start": "09:00", "end": "10:30", "room": "Rm 106", "professor": "Prof. Hugo Vale"},
+   {"subject": "PATHFit 3 - Dance, Sports, and Adventure", "day": "Thu", "start": "16:00", "end": "17:00", "room": "Gym", "professor": "Coach E. Park"},
+   {"subject": "Data Structures and Algorithm", "day": "Mon", "start": "08:00", "end": "09:30", "room": "Rm 301", "professor": "Prof. Ana Reyes"},
+   {"subject": "Data Structures Laboratory", "day": "Wed", "start": "10:00", "end": "11:30", "room": "MacLab", "professor": "Prof. Ana Reyes"},
+   {"subject": "Database Systems Laboratory", "day": "Tue", "start": "14:30", "end": "16:30", "room": "Lab 2", "professor": "Prof. Ben Cole"},
+   {"subject": "Mobile Application", "day": "Tue", "start": "13:00", "end": "14:30", "room": "Rm 301", "professor": "Prof. Ana Reyes"},
+   {"subject": "Free Elective 1 (Internet of Things)", "day": "Fri", "start": "14:30", "end": "16:00", "room": "Rm 204", "professor": "Prof. Ben Cole"},
+   {"subject": "Quantitative Methods", "day": "Fri", "start": "09:00", "end": "10:30", "room": "Rm 110", "professor": "Prof. Dan Ortiz"},
+   {"subject": "Information Management", "day": "Thu", "start": "13:00", "end": "14:30", "room": "Rm 302", "professor": "Prof. Ana Reyes"}
+  ]
+ }
+}
