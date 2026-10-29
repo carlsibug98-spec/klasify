@@ -1,3 +1,6 @@
+// Local diagnostic script: printing is its purpose.
+// ignore_for_file: avoid_print
+
 import 'dart:convert';
 import 'dart:io';
 
