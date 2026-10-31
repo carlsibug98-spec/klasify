@@ -21,6 +21,12 @@ ClassStatus classStatusAt(ClassItem item, int nowMinutes) {
 
 /// One class: a filled card with the time, subject and details.
 ///
+/// The card carries the approved option-C edge (depth study mockup): a 1px
+/// hairline plus a two-layer ambient shadow in light mode, and a raised fill
+/// with the same hairline in dark mode — see
+/// [AppTheme.cardBorderSideOf]/[AppTheme.cardShadowsOf]/[AppTheme.cardFillColorOf].
+/// The hero stays the only floating surface; these shadows are ambient only.
+///
 /// Pass [status] only when the list is for today. A class the user has marked
 /// is never shown as live, because the mark says it is not happening for them.
 class ClassCard extends StatelessWidget {
@@ -88,9 +94,7 @@ class ClassCard extends StatelessWidget {
       color: scheme.onSurfaceVariant,
       fontWeight: FontWeight.w500,
     );
-    final cardFill = isNext
-        ? scheme.surfaceContainerHighest
-        : scheme.surfaceContainer;
+    final cardFill = AppTheme.cardFillColorOf(scheme, isNext: isNext);
 
     final markLabel = mark == null || statusEntry == null
         ? null
@@ -128,123 +132,136 @@ class ClassCard extends StatelessWidget {
                           AppTheme.motionStandard,
                         ),
                         curve: AppTheme.motionEaseOut,
-                        child: Material(
-                          color: cardFill,
-                          shape: RoundedRectangleBorder(
+                        // Option C edge: the ambient shadow wraps the Material
+                        // (it paints behind the card and must not be clipped);
+                        // the hairline rides on the Material's own shape so it
+                        // follows the same rounded rect.
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(
                               AppTheme.cardRadius,
                             ),
+                            boxShadow: AppTheme.cardShadowsOf(scheme),
                           ),
-                          clipBehavior: Clip.antiAlias,
-                          child: InkWell(
-                            onTap: onTap,
-                            onLongPress: onLongPress,
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                16,
-                                14,
-                                16,
-                                14,
+                          child: Material(
+                            color: cardFill,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.cardRadius,
                               ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        // Time, NOW tag and status pill share one
-                                        // line. The pill shows only the status name
-                                        // so it fits beside the time; the duration
-                                        // ("until Sun", "until cleared") lives in
-                                        // the mark sheet and the semantics label.
-                                        // The Wrap stays as a fallback for very
-                                        // narrow cards and large text scales.
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 6,
-                                          crossAxisAlignment:
-                                              WrapCrossAlignment.center,
-                                          children: [
-                                            Text(
-                                              item.timeRange,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: textTheme.labelLarge
-                                                  ?.copyWith(
-                                                    color: timeColor,
-                                                    fontWeight: FontWeight.w700,
-                                                    fontFeatures: const [
-                                                      FontFeature.tabularFigures(),
-                                                    ],
-                                                  ),
-                                            ),
-                                            if (isLive)
-                                              _NowTag(
-                                                color: live,
-                                                pulse: LivePulse(
-                                                  size: 7,
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.95),
-                                                ),
-                                              ),
-                                            if (isNext &&
-                                                !isLive &&
-                                                !isDone &&
-                                                mark == null)
-                                              const _NextUpTag(),
-                                            if (mark != null)
-                                              _StatusPill(
-                                                status: mark,
-                                                label: mark.label,
-                                              ),
-                                            if (showDay)
+                              side: AppTheme.cardBorderSideOf(scheme),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              onTap: onTap,
+                              onLongPress: onLongPress,
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  14,
+                                  16,
+                                  14,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          // Time, NOW tag and status pill share one
+                                          // line. The pill shows only the status name
+                                          // so it fits beside the time; the duration
+                                          // ("until Sun", "until cleared") lives in
+                                          // the mark sheet and the semantics label.
+                                          // The Wrap stays as a fallback for very
+                                          // narrow cards and large text scales.
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 6,
+                                            crossAxisAlignment:
+                                                WrapCrossAlignment.center,
+                                            children: [
                                               Text(
-                                                item.dayName.substring(0, 3),
-                                                style: textTheme.labelMedium
+                                                item.timeRange,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: textTheme.labelLarge
                                                     ?.copyWith(
-                                                      color: scheme
-                                                          .onSurfaceVariant,
+                                                      color: timeColor,
+                                                      fontWeight: FontWeight.w700,
+                                                      fontFeatures: const [
+                                                        FontFeature.tabularFigures(),
+                                                      ],
                                                     ),
                                               ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          item.subject,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: textTheme.titleMedium
-                                              ?.copyWith(
-                                                color: subjectColor,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Wrap(
-                                          spacing: 12,
-                                          runSpacing: 6,
-                                          crossAxisAlignment:
-                                              WrapCrossAlignment.center,
-                                          children: [
-                                            _ClassMeta(
-                                              icon: Icons.location_on_outlined,
-                                              label: room,
-                                              style: detailStyle,
-                                            ),
-                                            if (hasProfessor)
+                                              if (isLive)
+                                                _NowTag(
+                                                  color: live,
+                                                  pulse: LivePulse(
+                                                    size: 7,
+                                                    color: Colors.white
+                                                        .withValues(alpha: 0.95),
+                                                  ),
+                                                ),
+                                              if (isNext &&
+                                                  !isLive &&
+                                                  !isDone &&
+                                                  mark == null)
+                                                const _NextUpTag(),
+                                              if (mark != null)
+                                                _StatusPill(
+                                                  status: mark,
+                                                  label: mark.label,
+                                                ),
+                                              if (showDay)
+                                                Text(
+                                                  item.dayName.substring(0, 3),
+                                                  style: textTheme.labelMedium
+                                                      ?.copyWith(
+                                                        color: scheme
+                                                            .onSurfaceVariant,
+                                                      ),
+                                                ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            item.subject,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: textTheme.titleMedium
+                                                ?.copyWith(
+                                                  color: subjectColor,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Wrap(
+                                            spacing: 12,
+                                            runSpacing: 6,
+                                            crossAxisAlignment:
+                                                WrapCrossAlignment.center,
+                                            children: [
                                               _ClassMeta(
-                                                icon: Icons
-                                                    .person_outline_rounded,
-                                                label: item.professor.trim(),
+                                                icon: Icons.location_on_outlined,
+                                                label: room,
                                                 style: detailStyle,
                                               ),
-                                          ],
-                                        ),
-                                      ],
+                                              if (hasProfessor)
+                                                _ClassMeta(
+                                                  icon: Icons
+                                                      .person_outline_rounded,
+                                                  label: item.professor.trim(),
+                                                  style: detailStyle,
+                                                ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),

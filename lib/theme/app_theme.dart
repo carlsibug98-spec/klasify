@@ -54,6 +54,54 @@ class AppTheme {
     24,
   );
 
+  // ---- Card edge (option C): hairline + tight ambient shadow ----
+  // Content cards get a 1px hairline so their edge survives the low-contrast
+  // fills, plus a two-layer ambient shadow in light mode. Dark mode lifts
+  // with luminance instead: a black shadow on the pure-black scaffold renders
+  // nothing, so the resting card fill rises one step (see cardFillColorOf).
+  // Values are the approved depth study (download/klasify-card-depth-mockup).
+  static const Color _cardHairlineLight = Color(0x12000000); // black @ 7%
+  static const Color _cardHairlineDark = Color(0x12FFFFFF); // white @ 7%
+
+  /// Hairline for content cards (class cards and the shared Card theme).
+  static BorderSide cardBorderSideOf(ColorScheme scheme) => BorderSide(
+    color: scheme.brightness == Brightness.dark
+        ? _cardHairlineDark
+        : _cardHairlineLight,
+  );
+
+  /// Two-layer ambient shadow for content cards; empty in dark mode where
+  /// the shadow would render nothing on the black scaffold.
+  static List<BoxShadow> cardShadowsOf(ColorScheme scheme) =>
+      scheme.brightness == Brightness.dark
+      ? const []
+      : const [
+          BoxShadow(
+            color: Color(0x0F000000), // black @ 6%
+            offset: Offset(0, 1),
+            blurRadius: 2,
+          ),
+          BoxShadow(
+            color: Color(0x14000000), // black @ 8%
+            offset: Offset(0, 4),
+            blurRadius: 12,
+          ),
+        ];
+
+  /// Content-card fill. Light keeps the scheme containers; dark raises the
+  /// resting card from #151515 to #181818 so the hairline has body. The
+  /// "next up" card stays one step higher in both modes.
+  static Color cardFillColorOf(ColorScheme scheme, {bool isNext = false}) {
+    if (scheme.brightness == Brightness.dark) {
+      return isNext
+          ? scheme.surfaceContainerHighest
+          : const Color(0xFF181818);
+    }
+    return isNext
+        ? scheme.surfaceContainerHighest
+        : scheme.surfaceContainer;
+  }
+
   // ---- Status colours ----
   static const Color success = Color(0xFF1F6B4A);
   static const Color onSuccess = Color(0xFFFFFFFF);
@@ -280,13 +328,17 @@ class AppTheme {
         toolbarHeight: 64,
       ),
       cardTheme: CardThemeData(
-        color: scheme.surfaceContainer,
+        color: cardFillColorOf(scheme),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(cardRadius),
-          side: BorderSide.none,
+          side: BorderSide(
+            color: scheme.brightness == Brightness.dark
+                ? _cardHairlineDark
+                : _cardHairlineLight,
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
