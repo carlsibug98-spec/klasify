@@ -1,0 +1,682 @@
+{
+ "cor_gen_steep.jpg": {
+  "style": "genA_cor",
+  "truth_classes": [
+   {
+    "subject": "General Psychology",
+    "day": "Mon",
+    "start": "08:00",
+    "end": "09:30",
+    "room": "Rm 201",
+    "professor": "Prof. Liza Santos"
+   },
+   {
+    "subject": "Psychology Laboratory",
+    "day": "Wed",
+    "start": "10:00",
+    "end": "11:30",
+    "room": "SciLab 2",
+    "professor": "Prof. Liza Santos"
+   },
+   {
+    "subject": "Networking Fundamentals",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:30",
+    "room": "ComLab 3",
+    "professor": "Prof. Marco Villena"
+   },
+   {
+    "subject": "Filipino I: Wika at Panitikan",
+    "day": "Tue",
+    "start": "13:00",
+    "end": "14:30",
+    "room": "Rm 105",
+    "professor": "Prof. Nena Galvez"
+   },
+   {
+    "subject": "Plane and Spherical Trigonometry",
+    "day": "Thu",
+    "start": "14:00",
+    "end": "15:30",
+    "room": "Rm 310",
+    "professor": "Dr. Ria Domingo"
+   },
+   {
+    "subject": "Team Sports: Volleyball",
+    "day": "Fri",
+    "start": "16:00",
+    "end": "17:30",
+    "room": "Gym",
+    "professor": "Coach Ted Salas"
+   },
+   {
+    "subject": "Developmental Psychology",
+    "day": "Thu",
+    "start": "11:00",
+    "end": "12:30",
+    "room": "Rm 202",
+    "professor": "Dr. Ria Domingo"
+   },
+   {
+    "subject": "Web Systems and Technologies",
+    "day": "Wed",
+    "start": "15:00",
+    "end": "16:30",
+    "room": "tba",
+    "professor": "Prof. Marco Villena"
+   },
+   {
+    "subject": "Civic Welfare Training Service",
+    "day": "Sat",
+    "start": "07:00",
+    "end": "10:00",
+    "room": "AVR 1",
+    "professor": "Prof. Aya Bernabe"
+   },
+   {
+    "subject": "Abnormal Psychology",
+    "day": "Fri",
+    "start": "13:30",
+    "end": "15:00",
+    "room": "Rm 306",
+    "professor": "Prof. Nena Galvez"
+   }
+  ]
+ },
+ "cor_gen_shadow.png": {
+  "style": "genA_cor",
+  "truth_classes": [
+   {
+    "subject": "General Psychology",
+    "day": "Mon",
+    "start": "08:00",
+    "end": "09:30",
+    "room": "Rm 201",
+    "professor": "Prof. Liza Santos"
+   },
+   {
+    "subject": "Psychology Laboratory",
+    "day": "Wed",
+    "start": "10:00",
+    "end": "11:30",
+    "room": "SciLab 2",
+    "professor": "Prof. Liza Santos"
+   },
+   {
+    "subject": "Networking Fundamentals",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:30",
+    "room": "ComLab 3",
+    "professor": "Prof. Marco Villena"
+   },
+   {
+    "subject": "Filipino I: Wika at Panitikan",
+    "day": "Tue",
+    "start": "13:00",
+    "end": "14:30",
+    "room": "Rm 105",
+    "professor": "Prof. Nena Galvez"
+   },
+   {
+    "subject": "Plane and Spherical Trigonometry",
+    "day": "Thu",
+    "start": "14:00",
+    "end": "15:30",
+    "room": "Rm 310",
+    "professor": "Dr. Ria Domingo"
+   },
+   {
+    "subject": "Team Sports: Volleyball",
+    "day": "Fri",
+    "start": "16:00",
+    "end": "17:30",
+    "room": "Gym",
+    "professor": "Coach Ted Salas"
+   },
+   {
+    "subject": "Developmental Psychology",
+    "day": "Thu",
+    "start": "11:00",
+    "end": "12:30",
+    "room": "Rm 202",
+    "professor": "Dr. Ria Domingo"
+   },
+   {
+    "subject": "Web Systems and Technologies",
+    "day": "Wed",
+    "start": "15:00",
+    "end": "16:30",
+    "room": "tba",
+    "professor": "Prof. Marco Villena"
+   },
+   {
+    "subject": "Civic Welfare Training Service",
+    "day": "Sat",
+    "start": "07:00",
+    "end": "10:00",
+    "room": "AVR 1",
+    "professor": "Prof. Aya Bernabe"
+   },
+   {
+    "subject": "Abnormal Psychology",
+    "day": "Fri",
+    "start": "13:30",
+    "end": "15:00",
+    "room": "Rm 306",
+    "professor": "Prof. Nena Galvez"
+   }
+  ]
+ },
+ "cor_gen_glare.png": {
+  "style": "genA_cor",
+  "truth_classes": [
+   {
+    "subject": "General Psychology",
+    "day": "Mon",
+    "start": "08:00",
+    "end": "09:30",
+    "room": "Rm 201",
+    "professor": "Prof. Liza Santos"
+   },
+   {
+    "subject": "Psychology Laboratory",
+    "day": "Wed",
+    "start": "10:00",
+    "end": "11:30",
+    "room": "SciLab 2",
+    "professor": "Prof. Liza Santos"
+   },
+   {
+    "subject": "Networking Fundamentals",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:30",
+    "room": "ComLab 3",
+    "professor": "Prof. Marco Villena"
+   },
+   {
+    "subject": "Filipino I: Wika at Panitikan",
+    "day": "Tue",
+    "start": "13:00",
+    "end": "14:30",
+    "room": "Rm 105",
+    "professor": "Prof. Nena Galvez"
+   },
+   {
+    "subject": "Plane and Spherical Trigonometry",
+    "day": "Thu",
+    "start": "14:00",
+    "end": "15:30",
+    "room": "Rm 310",
+    "professor": "Dr. Ria Domingo"
+   },
+   {
+    "subject": "Team Sports: Volleyball",
+    "day": "Fri",
+    "start": "16:00",
+    "end": "17:30",
+    "room": "Gym",
+    "professor": "Coach Ted Salas"
+   },
+   {
+    "subject": "Developmental Psychology",
+    "day": "Thu",
+    "start": "11:00",
+    "end": "12:30",
+    "room": "Rm 202",
+    "professor": "Dr. Ria Domingo"
+   },
+   {
+    "subject": "Web Systems and Technologies",
+    "day": "Wed",
+    "start": "15:00",
+    "end": "16:30",
+    "room": "tba",
+    "professor": "Prof. Marco Villena"
+   },
+   {
+    "subject": "Civic Welfare Training Service",
+    "day": "Sat",
+    "start": "07:00",
+    "end": "10:00",
+    "room": "AVR 1",
+    "professor": "Prof. Aya Bernabe"
+   },
+   {
+    "subject": "Abnormal Psychology",
+    "day": "Fri",
+    "start": "13:30",
+    "end": "15:00",
+    "room": "Rm 306",
+    "professor": "Prof. Nena Galvez"
+   }
+  ]
+ },
+ "cor_gen_photocopy.png": {
+  "style": "genA_cor",
+  "truth_classes": [
+   {
+    "subject": "General Psychology",
+    "day": "Mon",
+    "start": "08:00",
+    "end": "09:30",
+    "room": "Rm 201",
+    "professor": "Prof. Liza Santos"
+   },
+   {
+    "subject": "Psychology Laboratory",
+    "day": "Wed",
+    "start": "10:00",
+    "end": "11:30",
+    "room": "SciLab 2",
+    "professor": "Prof. Liza Santos"
+   },
+   {
+    "subject": "Networking Fundamentals",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:30",
+    "room": "ComLab 3",
+    "professor": "Prof. Marco Villena"
+   },
+   {
+    "subject": "Filipino I: Wika at Panitikan",
+    "day": "Tue",
+    "start": "13:00",
+    "end": "14:30",
+    "room": "Rm 105",
+    "professor": "Prof. Nena Galvez"
+   },
+   {
+    "subject": "Plane and Spherical Trigonometry",
+    "day": "Thu",
+    "start": "14:00",
+    "end": "15:30",
+    "room": "Rm 310",
+    "professor": "Dr. Ria Domingo"
+   },
+   {
+    "subject": "Team Sports: Volleyball",
+    "day": "Fri",
+    "start": "16:00",
+    "end": "17:30",
+    "room": "Gym",
+    "professor": "Coach Ted Salas"
+   },
+   {
+    "subject": "Developmental Psychology",
+    "day": "Thu",
+    "start": "11:00",
+    "end": "12:30",
+    "room": "Rm 202",
+    "professor": "Dr. Ria Domingo"
+   },
+   {
+    "subject": "Web Systems and Technologies",
+    "day": "Wed",
+    "start": "15:00",
+    "end": "16:30",
+    "room": "tba",
+    "professor": "Prof. Marco Villena"
+   },
+   {
+    "subject": "Civic Welfare Training Service",
+    "day": "Sat",
+    "start": "07:00",
+    "end": "10:00",
+    "room": "AVR 1",
+    "professor": "Prof. Aya Bernabe"
+   },
+   {
+    "subject": "Abnormal Psychology",
+    "day": "Fri",
+    "start": "13:30",
+    "end": "15:00",
+    "room": "Rm 306",
+    "professor": "Prof. Nena Galvez"
+   }
+  ]
+ },
+ "cor_gen_jpeg.jpg": {
+  "style": "genA_cor",
+  "truth_classes": [
+   {
+    "subject": "General Psychology",
+    "day": "Mon",
+    "start": "08:00",
+    "end": "09:30",
+    "room": "Rm 201",
+    "professor": "Prof. Liza Santos"
+   },
+   {
+    "subject": "Psychology Laboratory",
+    "day": "Wed",
+    "start": "10:00",
+    "end": "11:30",
+    "room": "SciLab 2",
+    "professor": "Prof. Liza Santos"
+   },
+   {
+    "subject": "Networking Fundamentals",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:30",
+    "room": "ComLab 3",
+    "professor": "Prof. Marco Villena"
+   },
+   {
+    "subject": "Filipino I: Wika at Panitikan",
+    "day": "Tue",
+    "start": "13:00",
+    "end": "14:30",
+    "room": "Rm 105",
+    "professor": "Prof. Nena Galvez"
+   },
+   {
+    "subject": "Plane and Spherical Trigonometry",
+    "day": "Thu",
+    "start": "14:00",
+    "end": "15:30",
+    "room": "Rm 310",
+    "professor": "Dr. Ria Domingo"
+   },
+   {
+    "subject": "Team Sports: Volleyball",
+    "day": "Fri",
+    "start": "16:00",
+    "end": "17:30",
+    "room": "Gym",
+    "professor": "Coach Ted Salas"
+   },
+   {
+    "subject": "Developmental Psychology",
+    "day": "Thu",
+    "start": "11:00",
+    "end": "12:30",
+    "room": "Rm 202",
+    "professor": "Dr. Ria Domingo"
+   },
+   {
+    "subject": "Web Systems and Technologies",
+    "day": "Wed",
+    "start": "15:00",
+    "end": "16:30",
+    "room": "tba",
+    "professor": "Prof. Marco Villena"
+   },
+   {
+    "subject": "Civic Welfare Training Service",
+    "day": "Sat",
+    "start": "07:00",
+    "end": "10:00",
+    "room": "AVR 1",
+    "professor": "Prof. Aya Bernabe"
+   },
+   {
+    "subject": "Abnormal Psychology",
+    "day": "Fri",
+    "start": "13:30",
+    "end": "15:00",
+    "room": "Rm 306",
+    "professor": "Prof. Nena Galvez"
+   }
+  ]
+ },
+ "cor_gen_thumb.jpg": {
+  "style": "genA_cor",
+  "truth_classes": [
+   {
+    "subject": "General Psychology",
+    "day": "Mon",
+    "start": "08:00",
+    "end": "09:30",
+    "room": "Rm 201",
+    "professor": "Prof. Liza Santos"
+   },
+   {
+    "subject": "Psychology Laboratory",
+    "day": "Wed",
+    "start": "10:00",
+    "end": "11:30",
+    "room": "SciLab 2",
+    "professor": "Prof. Liza Santos"
+   },
+   {
+    "subject": "Networking Fundamentals",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:30",
+    "room": "ComLab 3",
+    "professor": "Prof. Marco Villena"
+   },
+   {
+    "subject": "Filipino I: Wika at Panitikan",
+    "day": "Tue",
+    "start": "13:00",
+    "end": "14:30",
+    "room": "Rm 105",
+    "professor": "Prof. Nena Galvez"
+   },
+   {
+    "subject": "Plane and Spherical Trigonometry",
+    "day": "Thu",
+    "start": "14:00",
+    "end": "15:30",
+    "room": "Rm 310",
+    "professor": "Dr. Ria Domingo"
+   },
+   {
+    "subject": "Team Sports: Volleyball",
+    "day": "Fri",
+    "start": "16:00",
+    "end": "17:30",
+    "room": "Gym",
+    "professor": "Coach Ted Salas"
+   },
+   {
+    "subject": "Developmental Psychology",
+    "day": "Thu",
+    "start": "11:00",
+    "end": "12:30",
+    "room": "Rm 202",
+    "professor": "Dr. Ria Domingo"
+   },
+   {
+    "subject": "Web Systems and Technologies",
+    "day": "Wed",
+    "start": "15:00",
+    "end": "16:30",
+    "room": "tba",
+    "professor": "Prof. Marco Villena"
+   },
+   {
+    "subject": "Civic Welfare Training Service",
+    "day": "Sat",
+    "start": "07:00",
+    "end": "10:00",
+    "room": "AVR 1",
+    "professor": "Prof. Aya Bernabe"
+   },
+   {
+    "subject": "Abnormal Psychology",
+    "day": "Fri",
+    "start": "13:30",
+    "end": "15:00",
+    "room": "Rm 306",
+    "professor": "Prof. Nena Galvez"
+   }
+  ]
+ },
+ "cor_gen_warped.jpg": {
+  "style": "genB_cor",
+  "truth_classes": [
+   {
+    "subject": "Intermediate Accounting I",
+    "day": "Mon",
+    "start": "07:00",
+    "end": "08:30",
+    "room": "Rm 401",
+    "professor": "Prof. Carla Yu"
+   },
+   {
+    "subject": "Cost Accounting and Control",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:30",
+    "room": "Rm 402",
+    "professor": "Prof. Ramon Ilagan"
+   },
+   {
+    "subject": "Cost Accounting and Control",
+    "day": "Thu",
+    "start": "09:00",
+    "end": "10:30",
+    "room": "Rm 402",
+    "professor": "Prof. Ramon Ilagan"
+   },
+   {
+    "subject": "Accounting Systems Laboratory",
+    "day": "Wed",
+    "start": "13:00",
+    "end": "15:00",
+    "room": "ComLab 1",
+    "professor": "Prof. Joy Alcantara"
+   },
+   {
+    "subject": "Obligations and Contracts",
+    "day": "Tue",
+    "start": "10:00",
+    "end": "12:00",
+    "room": "Rm 205",
+    "professor": "Atty. Pete Ramirez"
+   },
+   {
+    "subject": "Income Taxation",
+    "day": "Fri",
+    "start": "08:00",
+    "end": "10:00",
+    "room": "Rm 404",
+    "professor": "Prof. Mila Torres"
+   },
+   {
+    "subject": "Business Statistics",
+    "day": "Thu",
+    "start": "13:00",
+    "end": "14:30",
+    "room": "Rm 306",
+    "professor": "Dr. Ben Uy"
+   },
+   {
+    "subject": "Art Appreciation",
+    "day": "Mon",
+    "start": "14:00",
+    "end": "15:30",
+    "room": "Rm 112",
+    "professor": "Prof. Kara Mendoza"
+   },
+   {
+    "subject": "Individual and Dual Sports",
+    "day": "Fri",
+    "start": "15:00",
+    "end": "17:00",
+    "room": "Gym",
+    "professor": "Coach Raul Ponce"
+   },
+   {
+    "subject": "Accounting Elective: Forensics",
+    "day": "Sat",
+    "start": "09:00",
+    "end": "12:00",
+    "room": "Rm 408",
+    "professor": "tba"
+   }
+  ]
+ },
+ "cor_gen_serif_clean.png": {
+  "style": "genB_cor",
+  "truth_classes": [
+   {
+    "subject": "Intermediate Accounting I",
+    "day": "Mon",
+    "start": "07:00",
+    "end": "08:30",
+    "room": "Rm 401",
+    "professor": "Prof. Carla Yu"
+   },
+   {
+    "subject": "Cost Accounting and Control",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:30",
+    "room": "Rm 402",
+    "professor": "Prof. Ramon Ilagan"
+   },
+   {
+    "subject": "Cost Accounting and Control",
+    "day": "Thu",
+    "start": "09:00",
+    "end": "10:30",
+    "room": "Rm 402",
+    "professor": "Prof. Ramon Ilagan"
+   },
+   {
+    "subject": "Accounting Systems Laboratory",
+    "day": "Wed",
+    "start": "13:00",
+    "end": "15:00",
+    "room": "ComLab 1",
+    "professor": "Prof. Joy Alcantara"
+   },
+   {
+    "subject": "Obligations and Contracts",
+    "day": "Tue",
+    "start": "10:00",
+    "end": "12:00",
+    "room": "Rm 205",
+    "professor": "Atty. Pete Ramirez"
+   },
+   {
+    "subject": "Income Taxation",
+    "day": "Fri",
+    "start": "08:00",
+    "end": "10:00",
+    "room": "Rm 404",
+    "professor": "Prof. Mila Torres"
+   },
+   {
+    "subject": "Business Statistics",
+    "day": "Thu",
+    "start": "13:00",
+    "end": "14:30",
+    "room": "Rm 306",
+    "professor": "Dr. Ben Uy"
+   },
+   {
+    "subject": "Art Appreciation",
+    "day": "Mon",
+    "start": "14:00",
+    "end": "15:30",
+    "room": "Rm 112",
+    "professor": "Prof. Kara Mendoza"
+   },
+   {
+    "subject": "Individual and Dual Sports",
+    "day": "Fri",
+    "start": "15:00",
+    "end": "17:00",
+    "room": "Gym",
+    "professor": "Coach Raul Ponce"
+   },
+   {
+    "subject": "Accounting Elective: Forensics",
+    "day": "Sat",
+    "start": "09:00",
+    "end": "12:00",
+    "room": "Rm 408",
+    "professor": "tba"
+   }
+  ]
+ }
+}

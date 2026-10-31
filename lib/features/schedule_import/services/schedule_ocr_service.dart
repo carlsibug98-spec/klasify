@@ -171,8 +171,9 @@ class ScheduleOcrService {
     var candidateProgress = .46;
     Future<_OcrTextCandidate?> addCandidate(
       String imagePath,
-      String label,
-    ) async {
+      String label, {
+      bool ignoreDrift = false,
+    }) async {
       if (cancelled()) return null;
       onProgress(candidateProgress, '$label text recognition');
       try {
@@ -180,6 +181,8 @@ class ScheduleOcrService {
         if (cancelled()) return null;
         final text = _joinOcrRegions(result.results);
         if (text.trim().isEmpty) return null;
+        final driftFired =
+            ignoreDrift ? false : _regionColumnDrift(result.results).fired;
         final confidence = result.results.isEmpty
             ? 0.0
             : result.results
@@ -188,7 +191,12 @@ class ScheduleOcrService {
                     )
                     .fold<double>(0.0, (sum, value) => sum + value) /
                 result.results.length;
-        final candidate = _OcrTextCandidate(text, confidence, label);
+        final candidate = _OcrTextCandidate(
+          text,
+          confidence,
+          label,
+          driftFired: driftFired,
+        );
         candidates.add(candidate);
         return candidate;
       } catch (error) {
@@ -213,8 +221,13 @@ class ScheduleOcrService {
       // every photo multiplied the scan time by the pass count for no gain.
       // The bar is deliberately high (>= 2 rows through the shared parser
       // chain AND mean confidence >= 0.85): anything weaker keeps the full
-      // cascade, so hard photos keep exactly today's recall.
-      bool strongEnough() => _strongScan(candidate);
+      // cascade, so hard photos keep exactly today's recall. Since round
+      // 12 a page whose word boxes show left-vs-right column drift also
+      // keeps the cascade running even when the bar is met - the rows
+      // parse, but a curl is bending the right-hand columns out of their
+      // bands and the dewarp rescue below can still recover their fields.
+      bool strongEnough() =>
+          _strongScan(candidate) && !(candidate?.driftFired ?? false);
 
       // Laplacian variance of the last prepared grayscale. Below the
       // threshold the photo is out of focus or interpolation-soft (a COR
@@ -280,6 +293,61 @@ class ScheduleOcrService {
       }
 
       if (!strongEnough()) {
+        // A hard cast shadow keeps the glyphs but kills the ink-to-paper
+        // contrast on the shaded side; no threshold or sharpen pass
+        // recovers it. Dividing the page by its large-scale background
+        // flattens the illumination gradient - the round-11 generalization
+        // audit measured 1/10 -> 10/10 rows on a half-shadowed COR with
+        // this pass, and it only ever runs on pages the earlier passes
+        // could not read.
+        onProgress(candidateProgress, 'Flattening the lighting');
+        final flattened = await _preprocessor.prepare(
+          path,
+          flattenIllumination: true,
+        );
+        if (flattened != null) temporaryFiles.add(flattened.file);
+        if (cancelled()) return '';
+        if (flattened != null) {
+          candidate = await addCandidate(
+            flattened.file.path,
+            'Lighting flattened',
+          );
+        }
+        if (cancelled()) return '';
+      }
+
+      // Dewarp rescue (round 12): a page photographed with a curl bends one
+      // table row so its right-hand columns sit lower than its left-hand
+      // ones - the rows still parse, but the room and faculty fields
+      // fragment or vanish (the round-11 warped fixture measured room
+      // 3/10, prof 7/10 this way). The isolate estimator only fires when
+      // the page's own horizontal rules say the curl is real - a smooth
+      // linear drift with a sub-pixel-magnitude residual - so flat pages
+      // skip the pass entirely. Runs with the flatten recipe because the
+      // round-12 measurement recovered the room column only with both.
+      if (!strongEnough() && candidates.any((c) => c.driftFired)) {
+        onProgress(candidateProgress, 'Straightening a curled page');
+        final dewarped = await _preprocessor.prepare(
+          path,
+          dewarp: true,
+          flattenIllumination: true,
+        );
+        if (dewarped != null) temporaryFiles.add(dewarped.file);
+        if (cancelled()) return '';
+        if (dewarped != null) {
+          // ignoreDrift: the dewarp pass is the last geometry fix in the
+          // cascade - its own drift reading only reflects residual noise,
+          // so a strong reading here stops the cascade like any other.
+          candidate = await addCandidate(
+            dewarped.file.path,
+            'Dewarp rescue',
+            ignoreDrift: true,
+          );
+        }
+        if (cancelled()) return '';
+      }
+
+      if (!strongEnough()) {
         final inverted = await _preprocessor.prepare(
           path,
           invertDarkBackground: true,
@@ -299,6 +367,10 @@ class ScheduleOcrService {
       // thin glyphs dissolve at the standard upscale target. One more decode
       // at a higher pixel budget reads rows the standard passes cannot - the
       // COR benchmark's 1500 px sample goes 7/10 -> 9/10 at the 2160 target.
+      // The crisp recipe (production Lanczos upscale + gentle unsharp) is
+      // what lets that pass also read the narrow Room column: the round-10
+      // sweep took the small-capture fixture from room 1/10 to 10/10 with
+      // all ten rows still parsed.
       if (!strongEnough() &&
           enhancedImage != null &&
           enhancedImage.sourceLongestSide < 2160) {
@@ -306,6 +378,7 @@ class ScheduleOcrService {
         final hires = await _preprocessor.prepare(
           path,
           upscaleTarget: 2160,
+          crisp: true,
         );
         if (hires != null) temporaryFiles.add(hires.file);
         if (cancelled()) return '';
@@ -319,9 +392,12 @@ class ScheduleOcrService {
       // its schedule cells from banding into rows (the quarter-turn gate
       // below only covers 90-degree mistakes). The gradient projection
       // profile estimate from the enhanced pass costs no extra decode; when
-      // it is confident, try the correction plus a +-0.75 degree bracket -
-      // the profile peak and the recognizer's preferred angle can differ by
-      // a hair, and ParseChain picks whichever candidate actually parses.
+      // it is confident, try the correction plus a fine bracket around it -
+      // the profile peak and the recognizer's preferred angle differ by a
+      // quarter degree on real photos (the round-9 sweep found a 4.75-degree
+      // page reads its garbled time cell at 4.50, while the old +-0.75
+      // bracket missed it), and ParseChain picks whichever candidate
+      // actually parses.
       final skewDegrees = enhancedImage?.skewDegrees ?? 0;
       final skewProminence = enhancedImage?.skewProminence ?? 0;
       if (!strongEnough() &&
@@ -329,14 +405,15 @@ class ScheduleOcrService {
             degrees: skewDegrees,
             prominence: skewProminence,
           ).shouldRescue) {
-        for (final degrees in const [-1.0, 0.0, 1.0]) {
+        for (final offset in const [0.0, 0.25, -0.25, 0.5, -0.5]) {
           if (cancelled()) return '';
-          final angle = skewDegrees + 0.75 * degrees;
+          final angle = skewDegrees + offset;
           onProgress(candidateProgress, 'Trying a deskewed scan');
           final deskewed = await _preprocessor.prepare(
             path,
             upscaleTarget: 2160,
             rotateDegrees: angle,
+            rotateBeforeEnhance: true,
           );
           if (deskewed != null) temporaryFiles.add(deskewed.file);
           if (cancelled()) return '';
@@ -1146,6 +1223,19 @@ class ScheduleOcrService {
     var bandCenter = 0.0;
     var bandHeight = 0.0;
     var band = <OcrResult>[];
+    // Round 12 (curved-row banding): a page photographed with a curl bends
+    // one table row so its right-hand columns sit lower than its left-hand
+    // ones. Against the flat running mean those words fragment off - the
+    // round-11 warped-page fixture lost room/professor cells exactly this
+    // way (room 3/10, prof 7/10 while every row still matched). While a
+    // band holds two or more words, fit a least-squares tilt through the
+    // accepted word centers and also accept a word that sits within
+    // tolerance of that projection. The reference is never lowered below
+    // the flat mean, so straight pages take exactly the legacy path.
+    var bandSumX = 0.0;
+    var bandSumY = 0.0;
+    var bandSumXX = 0.0;
+    var bandSumXY = 0.0;
     void flushBand() {
       if (band.isEmpty) return;
       band.sort((a, b) => a.boundingBox.left.compareTo(b.boundingBox.left));
@@ -1153,39 +1243,163 @@ class ScheduleOcrService {
       band = <OcrResult>[];
       bandCenter = 0;
       bandHeight = 0;
+      bandSumX = 0;
+      bandSumY = 0;
+      bandSumXX = 0;
+      bandSumXY = 0;
     }
 
     for (final region in sorted) {
-      final center = region.boundingBox.center.dy;
+      final box = region.boundingBox;
+      final center = box.center.dy;
+      var reference = bandCenter;
+      if (band.length >= 2) {
+        final n = band.length.toDouble();
+        final denominator = n * bandSumXX - bandSumX * bandSumX;
+        if (denominator > 1e-9) {
+          // Cap the fitted tilt: a real page curl stays gentle, and an
+          // unclamped stray pair of words could slant the projection into
+          // the next row and merge two rows into one line.
+          final slope =
+              ((n * bandSumXY - bandSumX * bandSumY) / denominator)
+                  .clamp(-.35, .35)
+                  .toDouble();
+          final meanX = bandSumX / n;
+          final predicted = bandCenter + slope * (box.center.dx - meanX);
+          if (predicted > reference) reference = predicted;
+        }
+      }
       if (band.isNotEmpty &&
-          center - bandCenter >
+          center - reference >
               math.max(
                 5.0,
-                math.min(region.boundingBox.height, bandHeight) * .6,
+                math.min(box.height, bandHeight) * .6,
               )) {
         flushBand();
       }
       if (band.isEmpty) {
         bandCenter = center;
-        bandHeight = region.boundingBox.height;
+        bandHeight = box.height;
       } else {
         bandCenter = (bandCenter * band.length + center) / (band.length + 1);
-        bandHeight = (bandHeight * band.length + region.boundingBox.height) /
-            (band.length + 1);
+        bandHeight =
+            (bandHeight * band.length + box.height) / (band.length + 1);
       }
       band.add(region);
+      bandSumX += box.center.dx;
+      bandSumY += center;
+      bandSumXX += box.center.dx * box.center.dx;
+      bandSumXY += box.center.dx * center;
     }
     flushBand();
     return lines.join('\n');
   }
+
+  /// Left-vs-right column drift of the recognized word boxes (round 12).
+  /// On a page photographed with a curl the right-hand columns sit lower
+  /// than the left-hand ones; cross-correlating the two halves' vertical
+  /// center profiles exposes that offset without a second decode. Mirrored
+  /// verbatim by the benchmark harness (tool/cor_harness/lib/standin.dart).
+  _RegionDrift _regionColumnDrift(List<OcrResult> regions) {
+    if (regions.length < 12) return const _RegionDrift(0, false);
+    var width = 0.0;
+    var maxBottom = 0.0;
+    var heightSum = 0.0;
+    for (final region in regions) {
+      final box = region.boundingBox;
+      if (box.right > width) width = box.right;
+      if (box.bottom > maxBottom) maxBottom = box.bottom;
+      heightSum += box.height;
+    }
+    final medianHeight = heightSum / regions.length;
+    final bin = math.max(8.0, medianHeight / 2);
+    final bins = (maxBottom / bin).ceil() + 1;
+    final left = List<double>.filled(bins, 0);
+    final right = List<double>.filled(bins, 0);
+    var leftCount = 0;
+    var rightCount = 0;
+    for (final region in regions) {
+      final box = region.boundingBox;
+      final index = (box.center.dy / bin).floor();
+      if (index < 0 || index >= bins) continue;
+      if (box.center.dx <= width * .45) {
+        left[index] += 1;
+        leftCount++;
+      } else if (box.center.dx >= width * .55) {
+        right[index] += 1;
+        rightCount++;
+      }
+    }
+    if (leftCount < 6 || rightCount < 6) {
+      return const _RegionDrift(0, false);
+    }
+    _smoothProfile(left);
+    _smoothProfile(right);
+    final maxShift = (bins * .12).round().clamp(2, 400).toInt();
+    var bestShift = 0;
+    var bestScore = -1.0;
+    var total = 0.0;
+    var samples = 0;
+    for (var shift = -maxShift; shift <= maxShift; shift++) {
+      var score = 0.0;
+      for (var i = 0; i < bins; i++) {
+        final j = i + shift;
+        if (j < 0 || j >= bins) continue;
+        score += left[i] * right[j];
+      }
+      total += score;
+      samples++;
+      if (score > bestScore) {
+        bestScore = score;
+        bestShift = shift;
+      }
+    }
+    final prominence =
+        samples == 0 || total <= 0 ? 0.0 : bestScore / (total / samples);
+    final drift = bestShift * bin;
+    final fired = prominence >= 1.5 &&
+        drift.abs() >= math.max(9.0, medianHeight * .5);
+    return _RegionDrift(drift, fired);
+  }
+
+  /// In-place 1-2-1 smoothing of a vertical profile.
+  void _smoothProfile(List<double> profile) {
+    var previous = profile[0];
+    for (var i = 0; i < profile.length; i++) {
+      final current = profile[i];
+      final next = i + 1 < profile.length ? profile[i + 1] : current;
+      profile[i] = (previous + 2 * current + next) / 4;
+      previous = current;
+    }
+  }
 }
 
 class _OcrTextCandidate {
-  const _OcrTextCandidate(this.text, this.meanConfidence, this.label);
+  const _OcrTextCandidate(
+    this.text,
+    this.meanConfidence,
+    this.label, {
+    this.driftFired = false,
+  });
 
   final String text;
   final double meanConfidence;
   final String label;
+
+  /// True when this pass's word boxes show left-vs-right column drift
+  /// (a curled page). The scan cascade refuses to stop on such a pass so
+  /// the dewarp rescue gets a chance at the auxiliary fields.
+  final bool driftFired;
+}
+
+/// Result of [_regionColumnDrift]: the estimated vertical offset of the
+/// right-hand columns relative to the left-hand ones (positive = lower),
+/// and whether it crosses the curl gate.
+class _RegionDrift {
+  const _RegionDrift(this.drift, this.fired);
+
+  final double drift;
+  final bool fired;
 }
 
 class _PdfTextFragment {

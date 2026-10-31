@@ -134,7 +134,9 @@ List<OcrRegion> tesseractRegions(String imagePath) {
 
 /// Verbatim mirror of `ScheduleOcrService._joinOcrRegions` (banding by
 /// vertical center with ` | ` separators), so the harness text is byte-for-
-/// byte what the service would hand the parser chain.
+/// byte what the service would hand the parser chain. Since round 12 the
+/// band reference also follows a least-squares tilt through the accepted
+/// word centers, so a curled page's right-hand columns stay in their row.
 String joinOcrRegions(List<OcrRegion> regions) {
   final sorted = regions.toList()
     ..sort((a, b) {
@@ -145,6 +147,10 @@ String joinOcrRegions(List<OcrRegion> regions) {
   var bandCenter = 0.0;
   var bandHeight = 0.0;
   var band = <OcrRegion>[];
+  var bandSumX = 0.0;
+  var bandSumY = 0.0;
+  var bandSumXX = 0.0;
+  var bandSumXY = 0.0;
   void flushBand() {
     if (band.isEmpty) return;
     band.sort((a, b) => a.left.compareTo(b.left));
@@ -152,12 +158,30 @@ String joinOcrRegions(List<OcrRegion> regions) {
     band = <OcrRegion>[];
     bandCenter = 0;
     bandHeight = 0;
+    bandSumX = 0;
+    bandSumY = 0;
+    bandSumXX = 0;
+    bandSumXY = 0;
   }
 
   for (final region in sorted) {
     final center = region.centerY;
+    var reference = bandCenter;
+    if (band.length >= 2) {
+      final n = band.length.toDouble();
+      final denominator = n * bandSumXX - bandSumX * bandSumX;
+      if (denominator > 1e-9) {
+        final slope =
+            ((n * bandSumXY - bandSumX * bandSumY) / denominator)
+                .clamp(-.35, .35)
+                .toDouble();
+        final meanX = bandSumX / n;
+        final predicted = bandCenter + slope * (region.centerX - meanX);
+        if (predicted > reference) reference = predicted;
+      }
+    }
     if (band.isNotEmpty &&
-        center - bandCenter >
+        center - reference >
             math.max(5.0, math.min(region.height, bandHeight) * .6)) {
       flushBand();
     }
@@ -170,7 +194,91 @@ String joinOcrRegions(List<OcrRegion> regions) {
           (bandHeight * band.length + region.height) / (band.length + 1);
     }
     band.add(region);
+    bandSumX += region.centerX;
+    bandSumY += center;
+    bandSumXX += region.centerX * region.centerX;
+    bandSumXY += region.centerX * center;
   }
   flushBand();
   return lines.join('\n');
+}
+
+class RegionDrift {
+  const RegionDrift(this.drift, this.fired);
+
+  final double drift;
+  final bool fired;
+}
+
+/// Verbatim mirror of `ScheduleOcrService._regionColumnDrift` (round 12):
+/// left-vs-right column drift of the word boxes, so the harness can emulate
+/// the production stop gate - a drifted page keeps the cascade running so
+/// the dewarp rescue gets a chance at the auxiliary fields.
+RegionDrift regionColumnDrift(List<OcrRegion> regions) {
+  if (regions.length < 12) return const RegionDrift(0, false);
+  var width = 0.0;
+  var maxBottom = 0.0;
+  var heightSum = 0.0;
+  for (final region in regions) {
+    if (region.right > width) width = region.right;
+    if (region.bottom > maxBottom) maxBottom = region.bottom;
+    heightSum += region.height;
+  }
+  final medianHeight = heightSum / regions.length;
+  final bin = math.max(8.0, medianHeight / 2);
+  final bins = (maxBottom / bin).ceil() + 1;
+  final left = List<double>.filled(bins, 0);
+  final right = List<double>.filled(bins, 0);
+  var leftCount = 0;
+  var rightCount = 0;
+  for (final region in regions) {
+    final index = (region.centerY / bin).floor();
+    if (index < 0 || index >= bins) continue;
+    if (region.centerX <= width * .45) {
+      left[index] += 1;
+      leftCount++;
+    } else if (region.centerX >= width * .55) {
+      right[index] += 1;
+      rightCount++;
+    }
+  }
+  if (leftCount < 6 || rightCount < 6) return const RegionDrift(0, false);
+  smoothProfile(left);
+  smoothProfile(right);
+  final maxShift = (bins * .12).round().clamp(2, 400).toInt();
+  var bestShift = 0;
+  var bestScore = -1.0;
+  var total = 0.0;
+  var samples = 0;
+  for (var shift = -maxShift; shift <= maxShift; shift++) {
+    var score = 0.0;
+    for (var i = 0; i < bins; i++) {
+      final j = i + shift;
+      if (j < 0 || j >= bins) continue;
+      score += left[i] * right[j];
+    }
+    total += score;
+    samples++;
+    if (score > bestScore) {
+      bestScore = score;
+      bestShift = shift;
+    }
+  }
+  final prominence =
+      samples == 0 || total <= 0 ? 0.0 : bestScore / (total / samples);
+  final drift = bestShift * bin;
+  final fired =
+      prominence >= 1.5 && drift.abs() >= math.max(9.0, medianHeight * .5);
+  return RegionDrift(drift, fired);
+}
+
+/// Verbatim mirror of `ScheduleOcrService._smoothProfile`.
+void smoothProfile(List<double> profile) {
+  var previous = profile[0];
+  for (var i = 0; i < profile.length; i++) {
+    final current = profile[i];
+    final next = i + 1 < profile.length ? profile[i + 1] : current;
+    profile[i] = (previous + 2 * current + next) / 4;
+    previous = current;
+  }
 }

@@ -8,6 +8,11 @@ import 'sectioned_schedule_parser.dart';
 ///
 ///   IT 104 Data Structures and Algorithm 3 BSIT-2A 08:00 AM - 09:30 AM / Mon Rm 301 Prof. Ana Reyes
 ///
+/// A second, equally common COR printing puts the day first in 24-hour
+/// time (`Mon 07:00-08:30`), with or without meridiems; such cells are
+/// canonicalized into the shape above before the row is read. Compound
+/// meeting days (TTh, MWF, MW, TThS) expand into one class per day.
+///
 /// Rules:
 ///  * the code is the first token group (IT 104, IT 104L, GE C03, PE 03,
 ///    IT Elec2, IT FE1); the description runs until the units digit;
@@ -26,9 +31,25 @@ class CorScheduleParser {
 
   /// The schedule cell. Tolerant of the slips OCR makes on photographed
   /// forms: a space after the colon (`09: 30`), a dropped colon (`05 00 PM`),
-  /// a dot for the colon, and missing spaces around the slash (`PM/Fri`).
+  /// a dot for the colon, missing spaces around the slash (`PM/Fri`), and a
+  /// guillemet or dot glyph read for the dash between the two times
+  /// (`09:00 AM « 10:30 AM / Fri` — soft/low-res captures turn the thin
+  /// printed dash into « » ‹ › · or ~).
   static final RegExp _slot = RegExp(
-    r'(\d{1,2})\s?[:.]?\s?(\d{2})\s*(AM|PM)\s*[-–—]\s*(\d{1,2})\s?[:.]?\s?(\d{2})\s*(AM|PM)\s*/\s*([A-Za-z]{3,9})',
+    r'(\d{1,2})\s?[:.]?\s?(\d{2})\s*(AM|PM)\s*[-–—«»‹›·~]\s*(\d{1,2})\s?[:.]?\s?(\d{2})\s*(AM|PM)\s*/\s*([A-Za-z]{3,9})',
+    caseSensitive: false,
+  );
+
+  /// Day-first schedule cells, the other common COR printing:
+  /// `Mon 07:00-08:30`, `TTh 09:00-10:30`, `Mon 9:00 AM - 10:30 AM`.
+  /// Both times may carry meridiems; without them the hours read as
+  /// 24-hour, which is how these forms print them. The canonicalizer
+  /// rewrites the cell into the [_slot] shape so the row path below stays
+  /// single-sourced.
+  static final RegExp _slotDayFirst = RegExp(
+    r'\b([A-Za-z]{2,9})\s+(\d{1,2})\s?[:.]?\s?(\d{2})'
+    r'(?:\s*([AP])\.?\s?M\.?)?\s*[-–—«»‹›·~]\s*'
+    r'(\d{1,2})\s?[:.]?\s?(\d{2})(?:\s*([AP])\.?\s?M\.?)?\b',
     caseSensitive: false,
   );
 
@@ -57,7 +78,8 @@ class CorScheduleParser {
     caseSensitive: false,
   );
   static final RegExp _roomCell = RegExp(
-    r'\b(?:(?:Rm|Room)\.?\s*[\w-]+|Mac\s?Lab|Lab(?:oratory)?\s?\d*|Gym)\b',
+    r'\b(?:(?:Rm|Room)\.?\s*[\w-]+|Mac\s?Lab|(?:Comp?|Sci)\s?[Ll]ab\s?\d*|'
+    r'Lab(?:oratory)?\s?\d*|AVR\s?\d*|Gym)\b',
     caseSensitive: false,
   );
 
@@ -111,7 +133,11 @@ class CorScheduleParser {
     var insideTable = false;
 
     for (final line in lines) {
-      final slot = _slot.firstMatch(line);
+      // Day-first cells (`Mon 07:00-08:30`) are rewritten into the canonical
+      // `hh:mm AM - hh:mm PM / Day` shape first, so every row below is read
+      // by one code path.
+      final canonical = _canonicalizeDayFirstSlots(line);
+      final slot = _slot.firstMatch(canonical);
 
       if (slot == null) {
         if (!insideTable) continue;
@@ -128,14 +154,14 @@ class CorScheduleParser {
       }
       insideTable = true;
 
-      final day = _dayNumber(slot.group(7)!);
-      if (day == null) continue;
+      final days = _rowDays(slot.group(7)!);
+      if (days == null) continue;
       final start = _minutes(slot.group(1)!, slot.group(2)!, slot.group(3)!);
       final end = _minutes(slot.group(4)!, slot.group(5)!, slot.group(6)!);
       if (end <= start) continue;
 
-      final before = line.substring(0, slot.start).trim();
-      final after = line.substring(slot.end).trim();
+      final before = canonical.substring(0, slot.start).trim();
+      final after = canonical.substring(slot.end).trim();
 
       final parsedHead = _parseHead(before);
       final ownSubject = parsedHead == null ? _subjectBody(before) : null;
@@ -173,20 +199,89 @@ class CorScheduleParser {
       }
 
       final cells = _splitRoomAndFaculty(after);
-      rows.add(
-        SectionedRow(
-          subject: subject,
-          day: day,
-          startMinutes: start,
-          endMinutes: end,
-          room: cells.room,
-          professor: cells.professor,
-          ocrConfidence: confidence,
-          assumptions: assumptions,
-        ),
-      );
+      for (final day in days) {
+        rows.add(
+          SectionedRow(
+            subject: subject,
+            day: day,
+            startMinutes: start,
+            endMinutes: end,
+            room: cells.room,
+            professor: cells.professor,
+            ocrConfidence: confidence,
+            assumptions: assumptions,
+          ),
+        );
+      }
     }
     return rows;
+  }
+
+  /// The meeting days a schedule cell's day token stands for. A plain day
+  /// name (with the usual one-character OCR slips) yields that day; a
+  /// compound token (TTh, MWF, MW, TThS) yields one meeting day per letter
+  /// group, so `TTh 09:00-10:30` becomes a Tuesday and a Thursday class.
+  static List<int>? _rowDays(String word) {
+    final key = word.toLowerCase().trim();
+    const compounds = <String, List<int>>{
+      'tth': [2, 4],
+      'tuth': [2, 4],
+      'mw': [1, 3],
+      'mwf': [1, 3, 5],
+      'mwth': [1, 3, 4],
+      'tths': [2, 4, 6],
+      'mth': [1, 4],
+      'tf': [1, 5],
+    };
+    final compound = compounds[key];
+    if (compound != null) return compound;
+    final single = _dayNumber(word);
+    return single == null ? null : [single];
+  }
+
+  /// Rewrites day-first schedule cells into the canonical
+  /// `hh:mm AM - hh:mm PM / Day` shape. Without printed meridiems the hours
+  /// read as 24-hour; an end time at or before the start time wraps into the
+  /// afternoon (a rail cell like `Mon 11:00-1:00`). Tokens that do not name
+  /// a day are left untouched, so ordinary prose never reaches the
+  /// canonicalizer's rewrite.
+  static String _canonicalizeDayFirstSlots(String line) {
+    return line.replaceAllMapped(_slotDayFirst, (match) {
+      final days = _rowDays(match.group(1)!);
+      if (days == null) return match.group(0)!;
+      final startHour = int.parse(match.group(2)!);
+      final startMinute = int.parse(match.group(3)!);
+      final endHour = int.parse(match.group(5)!);
+      final endMinute = int.parse(match.group(6)!);
+      if (startHour > 23 || endHour > 23) return match.group(0)!;
+      if (startMinute > 59 || endMinute > 59) return match.group(0)!;
+      final startMeridiem = match.group(4);
+      final endMeridiem = match.group(7);
+      var start = startHour * 60 + startMinute;
+      var end = endHour * 60 + endMinute;
+      if (startMeridiem != null) {
+        start = _minutes(match.group(2)!, match.group(3)!, startMeridiem);
+      }
+      if (endMeridiem != null) {
+        end = _minutes(match.group(5)!, match.group(6)!, endMeridiem);
+      }
+      if (end <= start) {
+        if (end + 720 > 1439) return match.group(0)!;
+        end += 720;
+      }
+      return '${_canonicalClock(start)} - ${_canonicalClock(end)} '
+          '/ ${match.group(1)!}';
+    });
+  }
+
+  /// `19*60 + 30` -> `7:30 PM`, the shape [_slot] expects.
+  static String _canonicalClock(int minutes) {
+    var hour = minutes ~/ 60;
+    final minute = minutes % 60;
+    final meridiem = hour < 12 ? 'AM' : 'PM';
+    hour = hour % 12;
+    if (hour == 0) hour = 12;
+    return '$hour:${minute.toString().padLeft(2, '0')} $meridiem';
   }
 
   /// The subject phrase in a head or body line that carries no code: the
@@ -303,13 +398,28 @@ class CorScheduleParser {
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     final roomMatch = _roomCell.firstMatch(cleaned);
-    final room = roomMatch == null ? '' : _formatRoom(roomMatch.group(0)!);
-    final rest = roomMatch == null
+    var room = roomMatch == null ? '' : _formatRoom(roomMatch.group(0)!);
+    var rest = roomMatch == null
         ? cleaned
         : cleaned.replaceRange(roomMatch.start, roomMatch.end, '').trim();
     final faculty = _facultyStart.firstMatch(rest);
-    final professor = faculty == null ? rest : rest.substring(faculty.start);
-    return (room: room, professor: professor.trim());
+    var professor = faculty == null ? rest : rest.substring(faculty.start);
+    professor = professor.trim();
+    // The band joiner can glue a room token onto the faculty name
+    // (`Prof. Ana Reyes AVR1` when the Room column leaks into the Faculty
+    // band). A room token at the END of the professor field belongs to the
+    // room cell.
+    if (professor.isNotEmpty) {
+      final trailing = RegExp(_roomCell.pattern + r'\s*$')
+          .firstMatch(professor);
+      if (trailing != null && roomMatch != null) {
+        final moved = _formatRoom(
+            professor.substring(trailing.start).trim());
+        professor = professor.substring(0, trailing.start).trim();
+        room = '$room ${moved}'.trim();
+      }
+    }
+    return (room: room, professor: professor);
   }
 
   /// Canonical room labels: OCR merges the space in `Lab 2` (`lab2`) and

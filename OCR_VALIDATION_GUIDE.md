@@ -44,3 +44,4 @@ After installing the APK, enable airplane mode and import an image and a PDF sto
 - OCR confidence is a signal, not proof of correctness.
 - Timetable layouts vary; review all detected rows before saving.
 - A larger recognition model should only be integrated after the current model is benchmarked against representative real timetables. Model size alone does not guarantee better timetable accuracy.
+- Curled or bent pages: the round-12 dewarp rescue straightens a page whose own horizontal rules show a smooth curl, and the cascade refuses to stop early on a page whose word boxes show left-vs-right column drift. Severely warped pages (folded, torn, or strong perspective) can still lose right-hand-column fields — review room/faculty cells on such photos carefully.

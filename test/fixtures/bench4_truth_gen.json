@@ -1,0 +1,404 @@
+{
+ "r11_whiteboard.png": {
+  "style": "r11_generalization",
+  "truth_classes": [
+   {
+    "subject": "Bio 201",
+    "day": "Mon",
+    "start": "09:00",
+    "end": "10:30"
+   },
+   {
+    "subject": "Chem 110",
+    "day": "Mon",
+    "start": "13:30",
+    "end": "15:00"
+   },
+   {
+    "subject": "Chem 110",
+    "day": "Tue",
+    "start": "11:00",
+    "end": "12:30"
+   },
+   {
+    "subject": "Bio 201 Lab",
+    "day": "Tue",
+    "start": "14:00",
+    "end": "15:30"
+   },
+   {
+    "subject": "Physics 15",
+    "day": "Wed",
+    "start": "09:30",
+    "end": "11:00"
+   },
+   {
+    "subject": "Math 204",
+    "day": "Wed",
+    "start": "11:30",
+    "end": "13:00"
+   },
+   {
+    "subject": "Stat 102",
+    "day": "Thu",
+    "start": "13:00",
+    "end": "14:30"
+   },
+   {
+    "subject": "Stat 102",
+    "day": "Thu",
+    "start": "09:00",
+    "end": "10:30"
+   },
+   {
+    "subject": "Bio 201",
+    "day": "Fri",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "Physics 15",
+    "day": "Fri",
+    "start": "13:00",
+    "end": "14:30"
+   }
+  ]
+ },
+ "r11_notes_list.png": {
+  "style": "r11_generalization",
+  "truth_classes": [
+   {
+    "subject": "Organic Chemistry I",
+    "day": "Mon",
+    "start": "08:30",
+    "end": "10:00"
+   },
+   {
+    "subject": "Organic Chemistry Lab",
+    "day": "Mon",
+    "start": "13:00",
+    "end": "14:30"
+   },
+   {
+    "subject": "Chinese Conversation",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:30"
+   },
+   {
+    "subject": "Linear Algebra",
+    "day": "Tue",
+    "start": "15:30",
+    "end": "17:00"
+   },
+   {
+    "subject": "Organic Chemistry I",
+    "day": "Wed",
+    "start": "08:30",
+    "end": "10:00"
+   },
+   {
+    "subject": "World History",
+    "day": "Wed",
+    "start": "11:00",
+    "end": "12:30"
+   },
+   {
+    "subject": "Chinese Conversation",
+    "day": "Thu",
+    "start": "09:00",
+    "end": "10:30"
+   },
+   {
+    "subject": "Linear Algebra",
+    "day": "Thu",
+    "start": "14:00",
+    "end": "15:30"
+   },
+   {
+    "subject": "Seminar: Ethics",
+    "day": "Fri",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "Studio Practice",
+    "day": "Fri",
+    "start": "13:00",
+    "end": "16:00"
+   }
+  ]
+ },
+ "r11_chat_multi.png": {
+  "style": "r11_generalization",
+  "truth_classes": [
+   {
+    "subject": "Statistics 101",
+    "day": "Mon",
+    "start": "08:00",
+    "end": "09:30"
+   },
+   {
+    "subject": "Data Ethics",
+    "day": "Tue",
+    "start": "09:00",
+    "end": "10:30"
+   },
+   {
+    "subject": "Data Ethics",
+    "day": "Wed",
+    "start": "09:00",
+    "end": "10:30"
+   },
+   {
+    "subject": "Algorithms",
+    "day": "Thu",
+    "start": "13:00",
+    "end": "14:30"
+   },
+   {
+    "subject": "Algorithms Lab",
+    "day": "Fri",
+    "start": "15:00",
+    "end": "16:30"
+   }
+  ]
+ },
+ "r11_email_table.png": {
+  "style": "r11_generalization",
+  "truth_classes": [
+   {
+    "subject": "Marketing Basics",
+    "day": "Mon",
+    "start": "10:00",
+    "end": "12:00"
+   },
+   {
+    "subject": "Food Processing",
+    "day": "Tue",
+    "start": "13:00",
+    "end": "14:30"
+   },
+   {
+    "subject": "Retail Management",
+    "day": "Wed",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "Marketing Basics",
+    "day": "Thu",
+    "start": "14:00",
+    "end": "15:30"
+   },
+   {
+    "subject": "Business Math",
+    "day": "Fri",
+    "start": "09:00",
+    "end": "10:30"
+   }
+  ]
+ },
+ "r11_grid_angled.jpg": {
+  "style": "r11_generalization",
+  "truth_classes": [
+   {
+    "subject": "Math",
+    "day": "Monday",
+    "start": "07:30",
+    "end": "08:30"
+   },
+   {
+    "subject": "English",
+    "day": "Tuesday",
+    "start": "07:30",
+    "end": "08:30"
+   },
+   {
+    "subject": "Math",
+    "day": "Wednesday",
+    "start": "07:30",
+    "end": "08:30"
+   },
+   {
+    "subject": "Science",
+    "day": "Thursday",
+    "start": "07:30",
+    "end": "08:30"
+   },
+   {
+    "subject": "Math",
+    "day": "Friday",
+    "start": "07:30",
+    "end": "08:30"
+   },
+   {
+    "subject": "Science",
+    "day": "Monday",
+    "start": "08:30",
+    "end": "09:30"
+   },
+   {
+    "subject": "Math",
+    "day": "Tuesday",
+    "start": "08:30",
+    "end": "09:30"
+   },
+   {
+    "subject": "English",
+    "day": "Wednesday",
+    "start": "08:30",
+    "end": "09:30"
+   },
+   {
+    "subject": "Math",
+    "day": "Thursday",
+    "start": "08:30",
+    "end": "09:30"
+   },
+   {
+    "subject": "English",
+    "day": "Friday",
+    "start": "08:30",
+    "end": "09:30"
+   },
+   {
+    "subject": "Filipino",
+    "day": "Monday",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "Aral Pan",
+    "day": "Tuesday",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "Filipino",
+    "day": "Wednesday",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "Aral Pan",
+    "day": "Thursday",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "Filipino",
+    "day": "Friday",
+    "start": "10:00",
+    "end": "11:30"
+   },
+   {
+    "subject": "TLE",
+    "day": "Monday",
+    "start": "12:30",
+    "end": "13:30"
+   },
+   {
+    "subject": "Values Ed",
+    "day": "Tuesday",
+    "start": "12:30",
+    "end": "13:30"
+   },
+   {
+    "subject": "TLE",
+    "day": "Wednesday",
+    "start": "12:30",
+    "end": "13:30"
+   },
+   {
+    "subject": "Values Ed",
+    "day": "Thursday",
+    "start": "12:30",
+    "end": "13:30"
+   },
+   {
+    "subject": "TLE",
+    "day": "Friday",
+    "start": "12:30",
+    "end": "13:30"
+   },
+   {
+    "subject": "MAPEH",
+    "day": "Monday",
+    "start": "13:30",
+    "end": "14:30"
+   },
+   {
+    "subject": "Music",
+    "day": "Tuesday",
+    "start": "13:30",
+    "end": "14:30"
+   },
+   {
+    "subject": "MAPEH",
+    "day": "Wednesday",
+    "start": "13:30",
+    "end": "14:30"
+   },
+   {
+    "subject": "Music",
+    "day": "Thursday",
+    "start": "13:30",
+    "end": "14:30"
+   },
+   {
+    "subject": "MAPEH",
+    "day": "Friday",
+    "start": "13:30",
+    "end": "14:30"
+   }
+  ]
+ },
+ "r11_planner_ampm.png": {
+  "style": "r11_generalization",
+  "truth_classes": [
+   {
+    "subject": "Drawing 101",
+    "day": "Mon",
+    "start": "09:00",
+    "end": "10:30"
+   },
+   {
+    "subject": "Art History",
+    "day": "Mon",
+    "start": "13:00",
+    "end": "14:30"
+   },
+   {
+    "subject": "Sculpture",
+    "day": "Tue",
+    "start": "10:30",
+    "end": "12:00"
+   },
+   {
+    "subject": "Drawing 101",
+    "day": "Wed",
+    "start": "09:00",
+    "end": "10:30"
+   },
+   {
+    "subject": "Printmaking",
+    "day": "Wed",
+    "start": "14:00",
+    "end": "15:30"
+   },
+   {
+    "subject": "Sculpture",
+    "day": "Thu",
+    "start": "10:30",
+    "end": "12:00"
+   },
+   {
+    "subject": "Printmaking",
+    "day": "Fri",
+    "start": "09:00",
+    "end": "10:30"
+   }
+  ]
+ }
+}
