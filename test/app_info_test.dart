@@ -54,8 +54,9 @@ void main() {
     );
     await tester.pump();
 
-    // The group header and its single row, with the version as the subtitle.
-    expect(find.text('About'), findsOneWidget);
+    // The group header (tracked caps since the segmented settings redesign)
+    // and its single row, with the version as the subtitle.
+    expect(find.text('ABOUT'), findsOneWidget);
     expect(find.text('About Klasify'), findsOneWidget);
     expect(find.text(AppInfo.versionLabel), findsOneWidget);
     // The privacy footer states the tagline once on the page. It sits below

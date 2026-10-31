@@ -91,9 +91,19 @@ void main() {
   final corTruth =
       jsonDecode(File('$fixturesDir/cor_truth.json').readAsStringSync())
           as Map<String, dynamic>;
+  // The round-11 generalization fixtures ship their truth in the *_gen
+  // files; merge them so every fixture in bench4/ has ground truth.
+  final bench4TruthGen =
+      jsonDecode(File('$fixturesDir/bench4_truth_gen.json').readAsStringSync())
+          as Map<String, dynamic>;
+  final corTruthGen =
+      jsonDecode(File('$fixturesDir/cor_truth_gen.json').readAsStringSync())
+          as Map<String, dynamic>;
   final truth = <String, Map<String, dynamic>>{
     ...bench4Truth.cast<String, Map<String, dynamic>>(),
+    ...bench4TruthGen.cast<String, Map<String, dynamic>>(),
     ...corTruth.cast<String, Map<String, dynamic>>(),
+    ...corTruthGen.cast<String, Map<String, dynamic>>(),
   };
 
   final fixtures = [
@@ -123,7 +133,7 @@ void main() {
     final name = fixture.split(Platform.pathSeparator).last;
     test('scan accuracy: $name', skip: benchSkip, () async {
       tesseractPlatform.calls = 0;
-      final classes = (truth[name]['truth_classes'] as List)
+      final classes = (truth[name]!['truth_classes'] as List)
           .cast<Map<String, dynamic>>()
           .map(
             (c) => _TruthClass(
@@ -206,7 +216,7 @@ void main() {
           : 2 * recall * precision / (recall + precision);
 
       results[name] = {
-        'style': truth[name]['style'],
+        'style': truth[name]!['style'],
         'truth_classes': classes.length,
         'parsed_rows': rows.length,
         'matched': n,

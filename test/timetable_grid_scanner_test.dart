@@ -16,6 +16,13 @@ class _NoPreprocessing extends OcrImagePreprocessor {
     bool adaptiveThreshold = false,
     bool invertDarkBackground = false,
     bool deskew = true,
+    bool sharpen = false,
+    int upscaleTarget = 1800,
+    double rotateDegrees = 0,
+    bool crisp = false,
+    bool rotateBeforeEnhance = false,
+    bool flattenIllumination = false,
+    bool dewarp = false,
   }) async => null;
 }
 

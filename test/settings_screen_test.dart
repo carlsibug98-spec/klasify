@@ -159,7 +159,7 @@ void main() {
       expect(r.bottomRight, Radius.circular(AppTheme.cardRadius));
     });
 
-    test('every row renders inside its own shadowed segment Material', (
+    testWidgets('every row renders inside its own shadowed segment Material', (
       tester,
     ) async {
       await pumpSettings(tester);
