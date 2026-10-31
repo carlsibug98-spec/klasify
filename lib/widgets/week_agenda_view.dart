@@ -8,14 +8,22 @@ import '../models/class_status.dart';
 import '../theme/app_theme.dart';
 import 'campus_break_divider.dart';
 import 'class_card.dart';
+import 'class_segment_row.dart';
 import 'empty_state_card.dart';
 import 'first_run_options.dart';
 import 'selected_day_header.dart';
 import 'swipe_actions.dart';
 import 'weekday_tile.dart';
 
-/// Single-day agenda view showing the 1-row week strip, sticky day header,
-/// and time-ordered class cards with campus break indicators.
+/// Single-day agenda view showing the segmented day bar, sticky day header,
+/// and the day's classes as segmented stacks (approved mockup C) with
+/// campus break chips between the stacks.
+///
+/// The stacks follow the settings' A₂ language: classes with less than a
+/// [breakThreshold]-minute gap merge into one stack — first row takes the
+/// 16px top corners, meeting edges soften to 2px, and a 2px seam separates
+/// the rows — while a gap of [breakThreshold] minutes or more starts a new
+/// stack with a [CampusBreakDivider] between.
 class WeekAgendaView extends StatelessWidget {
   const WeekAgendaView({
     super.key,
@@ -56,6 +64,10 @@ class WeekAgendaView extends StatelessWidget {
   final Future<bool> Function(ClassItem) onLongPress;
   final ValueChanged<int> onAddClassForDay;
 
+  /// The gap (in minutes) from which two classes are separate stacks with a
+  /// break chip between, matching the divider rule this view always used.
+  static const int breakThreshold = 15;
+
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
@@ -72,6 +84,31 @@ class WeekAgendaView extends StatelessWidget {
       (sum, item) => sum + ((item.endMinutes - item.startMinutes) / 60.0),
     );
 
+    // Consecutive classes (gap under [breakThreshold]) merge into one
+    // segmented stack; every stack boundary carries a break chip.
+    final stacks = <List<ClassItem>>[];
+    for (final item in selectedClasses) {
+      final previous = stacks.isEmpty ? null : stacks.last.last;
+      if (previous != null &&
+          item.startMinutes - previous.endMinutes < breakThreshold) {
+        stacks.last.add(item);
+      } else {
+        stacks.add([item]);
+      }
+    }
+    final entries = <_AgendaEntry>[
+      for (var s = 0; s < stacks.length; s++) ...[
+        for (var row = 0; row < stacks[s].length; row++)
+          _ClassEntry(stacks[s], row),
+        // Stacks only break on a >= [breakThreshold] gap, so every boundary
+        // has a real break to name.
+        if (s < stacks.length - 1)
+          _BreakEntry(
+            stacks[s + 1].first.startMinutes - stacks[s].last.endMinutes,
+          ),
+      ],
+    ];
+
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(
@@ -80,7 +117,7 @@ class WeekAgendaView extends StatelessWidget {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            // Responsive 1-row week strip
+            // Segmented day bar: one 2px-seamed row of day segments.
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(
                 AppTheme.pageInset,
@@ -102,15 +139,24 @@ class WeekAgendaView extends StatelessWidget {
                             isToday: index + 1 == today,
                             selected: index + 1 == selectedDay,
                             onTap: () => onSelectDay(index + 1),
+                            borderRadius: AppTheme.segmentRadiusHOf(
+                              index,
+                              dayNames.length,
+                            ),
                           ),
                       ];
 
                       // If width allows, distribute evenly across the row
-                      if (constraints.maxWidth >= dayNames.length * 44) {
+                      if (constraints.maxWidth >=
+                          dayNames.length * 44 + (dayNames.length - 1) * 2) {
                         return Row(
                           children: [
-                            for (final tile in weekdayTiles)
-                              Expanded(child: tile),
+                            for (var index = 0;
+                                index < weekdayTiles.length;
+                                index++) ...[
+                              if (index > 0) const SizedBox(width: 2),
+                              Expanded(child: weekdayTiles[index]),
+                            ],
                           ],
                         );
                       }
@@ -122,8 +168,12 @@ class WeekAgendaView extends StatelessWidget {
                         physics: const BouncingScrollPhysics(),
                         child: Row(
                           children: [
-                            for (final tile in weekdayTiles)
-                              SizedBox(width: 48, child: tile),
+                            for (var index = 0;
+                                index < weekdayTiles.length;
+                                index++) ...[
+                              if (index > 0) const SizedBox(width: 2),
+                              SizedBox(width: 48, child: weekdayTiles[index]),
+                            ],
                           ],
                         ),
                       );
@@ -147,11 +197,11 @@ class WeekAgendaView extends StatelessWidget {
               ),
             ),
 
-            // Class List or Empty States. Switching days plays a short
+            // Class stacks or Empty States. Switching days plays a short
             // directional fade+slide instead of teleporting: the content
             // swaps immediately, then a 120ms enter-only transition runs,
             // matching the tab-switch motion. The list stays lazy (builder
-            // delegate) and cards scrolled into view later do not re-animate.
+            // delegate) and rows scrolled into view later do not re-animate.
             _DaySwitchTransition(
               day: selectedDay,
               dayDirection: dayDirection,
@@ -197,63 +247,67 @@ class WeekAgendaView extends StatelessWidget {
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
-                            // Items alternate between class cards and break dividers
-                            if (index.isOdd) {
-                              final prevIndex = index ~/ 2;
-                              final prevClass = selectedClasses[prevIndex];
-                              final nextClass = selectedClasses[prevIndex + 1];
-                              final gapMinutes =
-                                  nextClass.startMinutes - prevClass.endMinutes;
-
-                              if (gapMinutes >= 15) {
-                                return SlideTransition(
-                                  position: slide,
-                                  child: CampusBreakDivider(
-                                    breakMinutes: gapMinutes,
-                                  ),
-                                );
-                              }
-                              // Consecutive classes: ClassCard already includes standard 10px bottom gap.
-                              return const SizedBox.shrink();
-                            }
-
-                            final classIndex = index ~/ 2;
-                            final item = selectedClasses[classIndex];
-                            return SlideTransition(
-                              position: slide,
-                              child: SwipeActions(
-                                padding: const EdgeInsets.fromLTRB(
-                                  AppTheme.pageInset,
-                                  0,
-                                  AppTheme.pageInset,
-                                  10,
+                            final entry = entries[index];
+                            if (entry is _BreakEntry) {
+                              return SlideTransition(
+                                position: slide,
+                                child: CampusBreakDivider(
+                                  breakMinutes: entry.minutes,
                                 ),
-                                onEdit: () => onEdit(item),
-                                onDelete: () => onLongPress(item),
-                                child: ClassCard(
-                                  item: item,
-                                  insetHorizontally: false,
-                                  trailingGap: false,
-                                  status: isToday
-                                      ? classStatusAt(item, nowMinutes)
-                                      : null,
-                                  statusEntry: statusFor?.call(item),
-                                  isFocus:
-                                      focusClassId != null &&
-                                      item.id == focusClassId,
-                                  onTap: onTap != null
-                                      ? () => onTap!(item)
-                                      : null,
-                                  onLongPress: () => onLongPress(item),
+                              );
+                            }
+                            final classEntry = entry as _ClassEntry;
+                            final item = classEntry.stack[classEntry.rowIndex];
+                            final isSeam =
+                                classEntry.rowIndex < classEntry.stack.length - 1;
+                            final rowRadius = AppTheme.segmentRadiusOf(
+                              classEntry.rowIndex,
+                              classEntry.stack.length,
+                            );
+                            return KeyedSubtree(
+                              // Per-class key: a day switch or a list shift
+                              // reuses slots by identity, so SwipeActions
+                              // never inherits another class's plane state.
+                              key: ValueKey(
+                                'class-${item.id ?? Object.hash(item.subject, item.day, item.startMinutes)}',
+                              ),
+                              child: SlideTransition(
+                                position: slide,
+                                child: SwipeActions(
+                                  // The seam to the next row rides on the
+                                  // swipe plane's padding, so it collapses
+                                  // together with the row on delete.
+                                  padding: EdgeInsets.fromLTRB(
+                                    AppTheme.pageInset,
+                                    0,
+                                    AppTheme.pageInset,
+                                    isSeam ? AppTheme.segmentGap : 0,
+                                  ),
+                                  // The row clip adopts the segment's own
+                                  // corners while the plane is revealed.
+                                  borderRadius: rowRadius,
+                                  onEdit: () => onEdit(item),
+                                  onDelete: () => onLongPress(item),
+                                  child: ClassSegmentRow(
+                                    item: item,
+                                    radius: rowRadius,
+                                    status: isToday
+                                        ? classStatusAt(item, nowMinutes)
+                                        : null,
+                                    statusEntry: statusFor?.call(item),
+                                    isFocus:
+                                        focusClassId != null &&
+                                        item.id == focusClassId,
+                                    onTap: onTap != null
+                                        ? () => onTap!(item)
+                                        : null,
+                                    onLongPress: () => onLongPress(item),
+                                  ),
                                 ),
                               ),
                             );
                           },
-                          // Count includes class cards plus dividers between them
-                          childCount: math.max(
-                            0,
-                            selectedClasses.length * 2 - 1,
-                          ),
+                          childCount: math.max(0, entries.length),
                         ),
                       ),
                     ),
@@ -263,6 +317,27 @@ class WeekAgendaView extends StatelessWidget {
       ),
     );
   }
+}
+
+/// One lazy list slot in the day's agenda: either a class row inside its
+/// stack, or the break chip between two stacks.
+sealed class _AgendaEntry {
+  const _AgendaEntry();
+}
+
+class _ClassEntry extends _AgendaEntry {
+  const _ClassEntry(this.stack, this.rowIndex);
+
+  final List<ClassItem> stack;
+  final int rowIndex;
+}
+
+class _BreakEntry extends _AgendaEntry {
+  const _BreakEntry(this.minutes);
+
+  /// Minutes between the previous stack's last class and the next stack's
+  /// first class.
+  final int minutes;
 }
 
 /// Fades and slides the whole day content when the selected day changes.

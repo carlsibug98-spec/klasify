@@ -28,6 +28,7 @@ void main() {
     VoidCallback? onTap,
     VoidCallback? onSwipe,
     double? radius,
+    BorderRadius? borderRadius,
     bool forceOpen = false,
   }) {
     return MaterialApp(
@@ -37,6 +38,7 @@ void main() {
             SwipeActions(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               radius: radius,
+              borderRadius: borderRadius,
               forceOpen: forceOpen,
               onEdit: onEdit,
               onDelete: onDelete,
@@ -68,6 +70,27 @@ void main() {
           find.byWidgetPredicate((w) => w is ClipRRect && w.child is Stack),
         );
         expect(rowClip.borderRadius, BorderRadius.circular(28));
+        expect(rowClip.clipBehavior, Clip.none);
+      },
+    );
+
+    testWidgets(
+      'a non-uniform borderRadius shapes the row clip for segmented rows',
+      (tester) async {
+        // The weekly schedule's segmented rows carry 16px group corners with
+        // 2px meeting edges; the row clip must adopt that full shape, and
+        // borderRadius wins over a uniform radius when both are set.
+        const segment = BorderRadius.vertical(
+          top: Radius.circular(AppTheme.cardRadius),
+          bottom: Radius.circular(AppTheme.segmentSoften),
+        );
+        await tester.pumpWidget(host(radius: 28, borderRadius: segment));
+        await tester.pumpAndSettle();
+
+        final rowClip = tester.widget<ClipRRect>(
+          find.byWidgetPredicate((w) => w is ClipRRect && w.child is Stack),
+        );
+        expect(rowClip.borderRadius, segment);
         expect(rowClip.clipBehavior, Clip.none);
       },
     );

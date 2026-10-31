@@ -115,20 +115,42 @@ class AppTheme {
   /// [segmentSoften]; last → top [segmentSoften] / bottom [cardRadius].
   static BorderRadius segmentRadiusOf(int index, int count) {
     if (count == 1) return BorderRadius.circular(cardRadius);
-    final soften = Radius.circular(segmentSoften);
+    const soften = Radius.circular(segmentSoften);
     if (index == 0) {
-      return BorderRadius.vertical(
+      return const BorderRadius.vertical(
         top: Radius.circular(cardRadius),
         bottom: soften,
       );
     }
     if (index == count - 1) {
-      return BorderRadius.vertical(
+      return const BorderRadius.vertical(
         top: soften,
         bottom: Radius.circular(cardRadius),
       );
     }
-    return BorderRadius.all(soften);
+    return const BorderRadius.all(soften);
+  }
+
+  /// Corner logic by column position, for horizontal segment bars (the
+  /// segmented day bar): single → all [cardRadius]; first → left
+  /// [cardRadius] / right [segmentSoften]; middle → all [segmentSoften];
+  /// last → left [segmentSoften] / right [cardRadius].
+  static BorderRadius segmentRadiusHOf(int index, int count) {
+    if (count == 1) return BorderRadius.circular(cardRadius);
+    const soften = Radius.circular(segmentSoften);
+    if (index == 0) {
+      return const BorderRadius.horizontal(
+        left: Radius.circular(cardRadius),
+        right: soften,
+      );
+    }
+    if (index == count - 1) {
+      return const BorderRadius.horizontal(
+        left: soften,
+        right: Radius.circular(cardRadius),
+      );
+    }
+    return const BorderRadius.all(soften);
   }
 
   /// Settings group micro-label (11px tracked caps). #767676 passes WCAG AA

@@ -57,6 +57,7 @@ class SwipeActions extends StatefulWidget {
     this.padding = EdgeInsets.zero,
     this.forceOpen = false,
     this.radius,
+    this.borderRadius,
     this.targetKey,
   });
 
@@ -90,6 +91,12 @@ class SwipeActions extends StatefulWidget {
   /// 28px corners). The action pills always round themselves to 16px, so
   /// this only shapes the row edges.
   final double? radius;
+
+  /// Full corner shape of the row clip, for rows whose corners are not
+  /// uniform - the weekly schedule's segmented rows carry 16px group
+  /// corners with 2px meeting edges ([AppTheme.segmentRadiusOf]). Wins
+  /// over [radius] when both are set.
+  final BorderRadius? borderRadius;
 
   /// Anchor for callouts that need the row's content box — the card slot,
   /// page insets excluded. Sits on the row clip, whose box neither includes
@@ -354,7 +361,8 @@ class _SwipeActionsState extends State<SwipeActions>
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final radius = widget.radius ?? AppTheme.cardRadius;
+    final shapeRadius = widget.borderRadius ??
+        BorderRadius.circular(widget.radius ?? AppTheme.cardRadius);
     return Padding(
       padding: widget.padding,
       child: SizeTransition(
@@ -386,7 +394,7 @@ class _SwipeActionsState extends State<SwipeActions>
                   // and rounds whatever is visible at the row edges. Off at
                   // rest so the card's own shadow renders unclipped.
                   clipBehavior: _rowClip,
-                  borderRadius: BorderRadius.circular(radius),
+                  borderRadius: shapeRadius,
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [

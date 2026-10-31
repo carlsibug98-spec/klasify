@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 /// Sticky header delegate displaying the selected day name, full date,
-/// and daily workload badge (e.g. "3 classes · 4.5h").
+/// and the daily workload (e.g. "3 CLASSES · 4.5H").
 ///
-/// Follows app design: surface fill only, no outline borders.
+/// Follows the approved weekly redesign (mockup C): the workload badge
+/// becomes quiet tracked caps — the settings group-label treatment — so
+/// the row reads as one calm caption instead of a chip competing with
+/// the day name.
 class SelectedDayHeaderDelegate extends SliverPersistentHeaderDelegate {
   const SelectedDayHeaderDelegate({
     required this.dayName,
@@ -81,20 +84,18 @@ class SelectedDayHeaderDelegate extends SliverPersistentHeaderDelegate {
                 ),
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainer,
-                borderRadius: BorderRadius.circular(AppTheme.chipRadius),
-              ),
-              child: Text(
-                badgeText,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 11,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
+            // Quiet tracked caps (the settings group-label treatment):
+            // uppercase, wide tracking, faint ink — no chip behind it.
+            Text(
+              badgeText.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontSize: 10.5,
+                color: AppTheme.groupLabelColorOf(scheme),
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.3,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
           ],

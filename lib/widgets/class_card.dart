@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import '../models/class_item.dart';
 import '../models/class_status.dart';
 import '../theme/app_theme.dart';
+import 'class_tags.dart';
 import 'live_pulse.dart';
 import 'pressable_scale.dart';
-import 'pill.dart';
 
 /// Where a class sits relative to the current time. Only used on today.
 enum ClassStatus { done, live, upcoming }
@@ -196,7 +196,7 @@ class ClassCard extends StatelessWidget {
                                                     ),
                                               ),
                                               if (isLive)
-                                                _NowTag(
+                                                NowTag(
                                                   color: live,
                                                   pulse: LivePulse(
                                                     size: 7,
@@ -208,9 +208,9 @@ class ClassCard extends StatelessWidget {
                                                   !isLive &&
                                                   !isDone &&
                                                   mark == null)
-                                                const _NextUpTag(),
+                                                const NextUpTag(),
                                               if (mark != null)
-                                                _StatusPill(
+                                                ClassStatusPill(
                                                   status: mark,
                                                   label: mark.label,
                                                 ),
@@ -282,68 +282,6 @@ class ClassCard extends StatelessWidget {
   }
 }
 
-/// The NOW label: a small pill in the app's live color, with text in the
-/// theme's inverse ink so it reads on both light and dark schemes.
-class _NowTag extends StatelessWidget {
-  const _NowTag({required this.color, this.pulse});
-
-  final Color color;
-  final Widget? pulse;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(AppTheme.chipRadius),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (pulse != null) ...[pulse!, const SizedBox(width: 5)],
-          Text(
-            'NOW',
-            style: textTheme.labelMedium?.copyWith(
-              color: scheme.onPrimary,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.6,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// "Next up" pill on the class the hero is showing as next. Filled with the
-/// inverse ink, like the hero block, so it matches the hero's label.
-class _NextUpTag extends StatelessWidget {
-  const _NextUpTag();
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: scheme.primary,
-        borderRadius: BorderRadius.circular(AppTheme.chipRadius),
-      ),
-      child: Text(
-        'Next up',
-        style: textTheme.labelMedium?.copyWith(
-          color: scheme.onPrimary,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
 class _ClassMeta extends StatelessWidget {
   const _ClassMeta({required this.icon, required this.label, this.style});
 
@@ -366,33 +304,4 @@ class _ClassMeta extends StatelessWidget {
       ),
     ],
   );
-}
-
-/// Status pill with the app's theme colors: green for finished, amber for
-/// cancelled, neutral for not attending.
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.status, required this.label});
-
-  final DayStatus status;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final (background, foreground) = switch (status) {
-      DayStatus.finished => (
-        AppTheme.successBackgroundOf(context),
-        AppTheme.successForegroundOf(context),
-      ),
-      DayStatus.cancelled => (
-        AppTheme.warningBackgroundOf(context),
-        AppTheme.warningForegroundOf(context),
-      ),
-      DayStatus.notAttending => (
-        scheme.surfaceContainerHighest,
-        scheme.onSurface,
-      ),
-    };
-    return Pill(label: label, background: background, foreground: foreground);
-  }
 }
