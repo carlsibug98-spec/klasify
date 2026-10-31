@@ -9,8 +9,10 @@ import '../models/class_status.dart';
 import '../widgets/day_status_sheet.dart';
 import '../utils/next_class.dart';
 import '../widgets/app_notification.dart';
+import '../widgets/campus_break_divider.dart';
 import '../widgets/class_card.dart';
 import '../widgets/class_delete_undo.dart';
+import '../widgets/class_segment_row.dart';
 import '../widgets/error_view.dart';
 import '../widgets/first_run_options.dart';
 import '../widgets/next_class_card.dart';
@@ -22,6 +24,7 @@ import '../widgets/swipe_actions.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_state_transition.dart';
 import '../widgets/empty_state_card.dart';
+import '../widgets/week_agenda_view.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -298,6 +301,84 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final isCelebration =
         (allDoneForToday || isFreeDay) && (next == null || !next.isNow);
 
+    // The Today list renders as the same segmented stacks the Week tab
+    // shows: consecutive classes (gap under the week view's break
+    // threshold) merge into one rail — 16px group corners, 2px softened
+    // meeting edges, 2px seams — and every stack boundary carries a
+    // coffee chip.
+    final stacks = <List<ClassItem>>[];
+    for (final c in today) {
+      final previous = stacks.isEmpty ? null : stacks.last.last;
+      if (previous != null &&
+          c.startMinutes - previous.endMinutes <
+              WeekAgendaView.breakThreshold) {
+        stacks.last.add(c);
+      } else {
+        stacks.add([c]);
+      }
+    }
+
+    // One slot of the Today list: the keyed segment row inside its swipe
+    // plane, seams riding on the plane's padding so they collapse with the
+    // row on delete. The first slot of the day is the coach tour's swipe
+    // demo target: the tour holds its actions plane open while step 2 is
+    // showing.
+    Widget todayRow(ClassItem c, int rowIndex, int stackLength) {
+      final radius = AppTheme.segmentRadiusOf(rowIndex, stackLength);
+      final isSeam = rowIndex < stackLength - 1;
+      final padding = EdgeInsets.fromLTRB(
+        AppTheme.pageInset,
+        0,
+        AppTheme.pageInset,
+        isSeam ? AppTheme.segmentGap : 0,
+      );
+      final segment = ClassSegmentRow(
+        item: c,
+        radius: radius,
+        status: classStatusAt(c, nowMinutes),
+        statusEntry: activeStatusEntry(_statuses, c.id, now),
+        // The orange time follows the hero: the class in progress, or the
+        // next one once the current is marked.
+        isFocus: nextId != null && c.id == nextId && !isCelebration,
+        onTap: () => showDayStatusSheet(
+          context,
+          item: c,
+          date: now,
+          current: activeStatusEntry(_statuses, c.id, now),
+        ),
+        onLongPress: () => _deleteClass(c),
+      );
+      final plane = identical(c, stacks.first.first)
+          ? ValueListenableBuilder<bool>(
+              valueListenable: widget.tourSwipeDemo ?? HomeScreen.swipeDemoOff,
+              builder: (context, demo, row) => SwipeActions(
+                targetKey: widget.swipeTargetKey,
+                forceOpen: demo,
+                padding: padding,
+                borderRadius: radius,
+                onEdit: () => _open(AppRoutes.classForm, c),
+                onDelete: () => _deleteClass(c),
+                child: row!,
+              ),
+              child: segment,
+            )
+          : SwipeActions(
+              padding: padding,
+              borderRadius: radius,
+              onEdit: () => _open(AppRoutes.classForm, c),
+              onDelete: () => _deleteClass(c),
+              child: segment,
+            );
+      // Per-class key: a list shift reuses slots by identity, so
+      // SwipeActions never inherits another class's plane state.
+      return KeyedSubtree(
+        key: ValueKey(
+          'today-class-${c.id ?? Object.hash(c.subject, c.day, c.startMinutes)}',
+        ),
+        child: plane,
+      );
+    }
+
     final scaffold = Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -515,108 +596,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             ),
                           )
                         else
-                          for (final (index, c) in today.indexed)
-                            if (index == 0)
-                              // The first card is the coach tour's swipe
-                              // demo target: the tour holds its actions
-                              // plane open while step 2 is showing.
-                              ValueListenableBuilder<bool>(
-                                valueListenable:
-                                    widget.tourSwipeDemo ??
-                                    HomeScreen.swipeDemoOff,
-                                builder: (context, demo, card) => SwipeActions(
-                                  targetKey: widget.swipeTargetKey,
-                                  padding: const EdgeInsets.fromLTRB(
-                                    AppTheme.pageInset,
-                                    0,
-                                    AppTheme.pageInset,
-                                    10,
-                                  ),
-                                  forceOpen: demo,
-                                  onEdit: () => _open(AppRoutes.classForm, c),
-                                  onDelete: () => _deleteClass(c),
-                                  child: card!,
-                                ),
-                                child: ClassCard(
-                                  item: c,
-                                  insetHorizontally: false,
-                                  trailingGap: false,
-                                  status: classStatusAt(c, nowMinutes),
-                                  statusEntry: activeStatusEntry(
-                                    _statuses,
-                                    c.id,
-                                    now,
-                                  ),
-                                  onTap: () => showDayStatusSheet(
-                                    context,
-                                    item: c,
-                                    date: now,
-                                    current: activeStatusEntry(
-                                      _statuses,
-                                      c.id,
-                                      now,
-                                    ),
-                                  ),
-                                  // The next class in the list gets the same accent
-                                  // as the hero, so the list links back to it.
-                                  isNext:
-                                      nextId != null &&
-                                      c.id == nextId &&
-                                      !next!.isNow,
-                                  // The orange time follows the hero: the class in
-                                  // progress, or the next one once the current is marked.
-                                  isFocus:
-                                      nextId != null &&
-                                      c.id == nextId &&
-                                      !isCelebration,
-                                  onLongPress: () => _deleteClass(c),
-                                ),
-                              )
-                            else
-                              SwipeActions(
-                                padding: const EdgeInsets.fromLTRB(
-                                  AppTheme.pageInset,
-                                  0,
-                                  AppTheme.pageInset,
-                                  10,
-                                ),
-                                onEdit: () => _open(AppRoutes.classForm, c),
-                                onDelete: () => _deleteClass(c),
-                                child: ClassCard(
-                                  item: c,
-                                  insetHorizontally: false,
-                                  trailingGap: false,
-                                  status: classStatusAt(c, nowMinutes),
-                                  statusEntry: activeStatusEntry(
-                                    _statuses,
-                                    c.id,
-                                    now,
-                                  ),
-                                  onTap: () => showDayStatusSheet(
-                                    context,
-                                    item: c,
-                                    date: now,
-                                    current: activeStatusEntry(
-                                      _statuses,
-                                      c.id,
-                                      now,
-                                    ),
-                                  ),
-                                  // The next class in the list gets the same accent
-                                  // as the hero, so the list links back to it.
-                                  isNext:
-                                      nextId != null &&
-                                      c.id == nextId &&
-                                      !next!.isNow,
-                                  // The orange time follows the hero: the class in
-                                  // progress, or the next one once the current is marked.
-                                  isFocus:
-                                      nextId != null &&
-                                      c.id == nextId &&
-                                      !isCelebration,
-                                  onLongPress: () => _deleteClass(c),
-                                ),
+                          // The same segmented stacks the Week tab shows,
+                          // with a coffee chip between stacks.
+                          for (final (stackIndex, stack) in stacks.indexed) ...[
+                            for (final (rowIndex, c) in stack.indexed)
+                              todayRow(c, rowIndex, stack.length),
+                            if (stackIndex < stacks.length - 1)
+                              CampusBreakDivider(
+                                breakMinutes:
+                                    stacks[stackIndex + 1].first.startMinutes -
+                                    stack.last.endMinutes,
                               ),
+                          ],
                       ],
                     ),
                   ),

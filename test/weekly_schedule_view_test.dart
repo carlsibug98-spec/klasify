@@ -382,4 +382,45 @@ void main() {
       ),
     );
   });
+
+  testWidgets('Segment rows show the room and professor icons', (
+    WidgetTester tester,
+  ) async {
+    const class1 = ClassItem(
+      id: 1,
+      subject: 'Discrete Mathematics',
+      room: '208',
+      professor: 'Prof. Cruz',
+      day: 5,
+      startMinutes: 10 * 60 + 15,
+      endMinutes: 11 * 60 + 15,
+    );
+
+    final classesByDay = <int, List<ClassItem>>{
+      for (var d = 1; d <= 7; d++) d: [],
+    };
+    classesByDay[5] = [class1];
+
+    await tester.pumpWidget(
+      _host(
+        WeekAgendaView(
+          classesByDay: classesByDay,
+          allClassesEmpty: false,
+          today: 5,
+          nowMinutes: 9 * 60,
+          selectedDay: 5,
+          dayDirection: 1,
+          onSelectDay: (_) {},
+          onTap: (_) {},
+          onEdit: (_) {},
+          onLongPress: (_) async => true,
+          onAddClassForDay: (_) {},
+        ),
+      ),
+    );
+
+    // The meta line keeps the pin/person icons the old cards had.
+    expect(find.byIcon(Icons.location_on_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.person_outline_rounded), findsOneWidget);
+  });
 }

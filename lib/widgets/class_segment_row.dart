@@ -77,10 +77,42 @@ class ClassSegmentRow extends StatelessWidget {
         : scheme.primary;
     final subjectColor = isDone ? scheme.onSurfaceVariant : scheme.onSurface;
 
-    final meta = [
-      room,
-      if (hasProfessor) item.professor.trim(),
-    ].join(' · ');
+    // The meta line keeps the Today cards' pin/person icons: room and
+    // professor stay scannable at a glance instead of dissolving into one
+    // grey string. Built as a single Text.rich so the ellipsis still bites
+    // the last run — the room survives truncation, the professor yields
+    // first, matching the old cards' priority.
+    final metaIconColor = scheme.onSurfaceVariant;
+    final metaSpans = <InlineSpan>[
+      WidgetSpan(
+        alignment: PlaceholderAlignment.middle,
+        child: Icon(Icons.location_on_outlined, size: 13, color: metaIconColor),
+      ),
+      const WidgetSpan(
+        alignment: PlaceholderAlignment.middle,
+        child: SizedBox(width: 3),
+      ),
+      TextSpan(text: room),
+      if (hasProfessor) ...[
+        const WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: SizedBox(width: 10),
+        ),
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: Icon(
+            Icons.person_outline_rounded,
+            size: 13,
+            color: metaIconColor,
+          ),
+        ),
+        const WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: SizedBox(width: 3),
+        ),
+        TextSpan(text: item.professor.trim()),
+      ],
+    ];
 
     final markLabel = mark == null || statusEntry == null
         ? null
@@ -164,8 +196,8 @@ class ClassSegmentRow extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            meta,
+                          Text.rich(
+                            TextSpan(children: metaSpans),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: textTheme.bodySmall?.copyWith(
