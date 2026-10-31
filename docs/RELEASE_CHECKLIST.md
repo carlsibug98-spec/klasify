@@ -13,7 +13,7 @@ Already handled in this repo (do not redo):
 ## 0. One-time setup (do once, ever)
 - [ ] Confirm the `applicationId` (`io.github.carlsibug98_spec.klasify`) is final — it cannot change after the first release.
 - [ ] Enable 2-Step Verification on: the Google/Play account, the Apple ID, and GitHub.
-- [ ] GitHub backup exists (`carlsibug98-spec/klasify`, private). Push before and after every work session.
+- [ ] GitHub backup exists (`carlsibug98-spec/klasify`, private). Push before and after every work session — see §9 for the one-command sync.
 
 ## 1. Local release gate (every build)
 - [ ] `flutter analyze` — no new warnings.
@@ -61,6 +61,29 @@ Already handled in this repo (do not redo):
 - [ ] Watch for 72 h: Play vitals (bad-behavior thresholds: crash rate 1.09%, ANR 0.47%), Sentry issues if enabled, and the first reviews.
 - [ ] Success metric defined *before* launch, e.g. "≥ 20% of installs return in week 6" — read it from Play Console statistics; revisit onboarding if the number comes in low.
 
-## 8. Yearly maintenance
+## 8. GitHub backup & zip sync (every work session)
+The sandbox agent keeps the repo and the downloadable zip in sync with one
+command: `/home/z/my-project/scripts/sync_github.sh "<commit message>"`.
+It performs, in order:
+
+1. **Commit** any pending changes (message = first argument).
+2. **Push** `main` to `carlsibug98-spec/klasify`.
+3. **Rebuild** `download/klasify-v<version>-build<N>.zip` (version derived from
+   `pubspec.yaml`; full source **plus `.git`**, so the zip alone can restore the
+   whole repo anywhere). Exactly one zip is kept — old builds are replaced.
+4. **Leak-scan** the zip: plaintext sweep plus a full-history
+   `git log --all -S` pickaxe for `github_pat_`/`ghp_`/`gho_`/`ghs_`.
+   On any hit the zip is destroyed and nothing is uploaded.
+5. **Replace** the zip asset on the rolling GitHub release **`latest-build`**
+   (repo → Releases → "Latest build"). One release, one asset, always the
+   newest zip; superseded builds stay recoverable through git history.
+
+Token handling: a fine-grained PAT scoped to **only** `carlsibug98-spec/klasify`
+with *Contents: Read and write*, passed via `$KLASIFY_GH_TOKEN` or
+`/home/z/my-project/.secrets/klasify_gh_token` (chmod 600). It is never
+committed, never embedded in remote URLs or command lines. Revoke and rotate
+immediately if it ever leaks, and before its expiry date.
+
+## 9. Yearly maintenance
 - [ ] Google Play raises the target-API bar every August (36 since Aug 31, 2026 → expect 37 by Aug 31, 2027). When the Flutter toolchain supports it, raise both `maxOf(..., 36)` numbers in `android/app/build.gradle.kts`.
 - [ ] Re-run this checklist from step 1 for every release.
