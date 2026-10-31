@@ -6,10 +6,14 @@ import '../services/reminder_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/component_kit.dart';
 
-/// Settings: one calm surface per task group.
+/// Settings: one calm surface per task.
 ///
-/// Rows use a neutral leading tile instead of accent decoration, so the only
-/// colour on the page belongs to state — the reminders dot.
+/// Rows render as their own segments — the first row carries the group's top
+/// corners, middle rows soften to 2px, the last row carries the bottom
+/// corners — separated by a tight 2px seam of scaffold (the approved
+/// segmented-rows study). Rows use a neutral leading tile instead of accent
+/// decoration, so the only colour on the page belongs to state — the
+/// reminders dot.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key, this.onReplayCoachTour});
 
@@ -63,7 +67,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: AppTheme.pagePadding,
             children: [
               const _SettingsGroup(
-                title: 'Schedule',
+                title: 'SCHEDULE',
                 rows: [
                   _SettingsRowData(
                     icon: Icons.document_scanner_outlined,
@@ -81,7 +85,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: AppTheme.sectionGap),
               _SettingsGroup(
-                title: 'Notifications',
+                title: 'NOTIFICATIONS',
                 rows: [
                   _SettingsRowData(
                     icon: Icons.notifications_none_rounded,
@@ -98,7 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: AppTheme.sectionGap),
               _SettingsGroup(
-                title: 'Help',
+                title: 'HELP',
                 onReplayCoachTour: widget.onReplayCoachTour,
                 rows: const [
                   _SettingsRowData(
@@ -124,7 +128,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: AppTheme.sectionGap),
               const _SettingsGroup(
-                title: 'About',
+                title: 'ABOUT',
                 rows: [
                   _SettingsRowData(
                     icon: Icons.info_outline_rounded,
@@ -167,8 +171,9 @@ class _SettingsRowData {
   });
 }
 
-/// A grouped panel of rows separated by inset hairlines. One surface per
-/// group, instead of one card per row.
+/// A labelled group of row segments. Each row is its own segment with a
+/// position-dependent radius (see [AppTheme.segmentRadiusOf]); segments sit
+/// [AppTheme.segmentGap] apart with no divider lines.
 class _SettingsGroup extends StatelessWidget {
   const _SettingsGroup({
     required this.title,
@@ -218,48 +223,65 @@ class _SettingsGroup extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.only(bottom: 8, left: 2),
           child: Text(
             title,
             style: theme.textTheme.labelMedium?.copyWith(
-              fontSize: 12,
+              fontSize: 11,
               height: 1.2,
               fontWeight: FontWeight.w700,
-              letterSpacing: 0.2,
-              color: scheme.onSurfaceVariant,
+              letterSpacing: 1.3,
+              color: AppTheme.groupLabelColorOf(scheme),
             ),
           ),
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainer,
-            borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        for (var i = 0; i < rows.length; i++) ...[
+          if (i > 0) const SizedBox(height: AppTheme.segmentGap),
+          _SettingsSegment(
+            radius: AppTheme.segmentRadiusOf(i, rows.length),
+            child: SettingsRow(
+              compact: true,
+              icon: rows[i].icon,
+              title: rows[i].title,
+              subtitle: rows[i].subtitle,
+              trailing: _rowTrailing(context, rows[i]),
+              onTap: () => _openRow(context, rows[i]),
+            ),
           ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: [
-              for (var i = 0; i < rows.length; i++) ...[
-                if (i > 0)
-                  Divider(
-                    height: 1,
-                    thickness: 1,
-                    indent: SettingsRow.dividerIndent,
-                    endIndent: SettingsRow.rowInset,
-                    color: scheme.outlineVariant,
-                  ),
-                SettingsRow(
-                  compact: true,
-                  icon: rows[i].icon,
-                  title: rows[i].title,
-                  subtitle: rows[i].subtitle,
-                  trailing: _rowTrailing(context, rows[i]),
-                  onTap: () => _openRow(context, rows[i]),
-                ),
-              ],
-            ],
-          ),
-        ),
+        ],
       ],
+    );
+  }
+}
+
+/// One settings row as its own segment — the approved segmented-rows study.
+///
+/// The ambient shadow wraps the Material (it paints behind the segment and
+/// must not be clipped); the hairline rides on the Material's shape so it
+/// follows the segment's radius. Same edge language as the class cards.
+class _SettingsSegment extends StatelessWidget {
+  const _SettingsSegment({required this.radius, required this.child});
+
+  final BorderRadius radius;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: AppTheme.cardShadowsOf(scheme),
+      ),
+      child: Material(
+        color: AppTheme.cardFillColorOf(scheme),
+        shape: RoundedRectangleBorder(
+          borderRadius: radius,
+          side: AppTheme.cardBorderSideOf(scheme),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: child,
+      ),
     );
   }
 }

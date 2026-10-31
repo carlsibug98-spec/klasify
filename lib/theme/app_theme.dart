@@ -102,6 +102,42 @@ class AppTheme {
         : scheme.surfaceContainer;
   }
 
+  // ---- Settings segments (approved segmented-rows study, mockup v2) ----
+  // Settings rows render as their own segments: group corners stay
+  // [cardRadius], the meeting edges between rows soften to [segmentSoften]
+  // so junctions never read as hard cuts, and segments sit [segmentGap]
+  // apart on the scaffold with no divider lines.
+  static const double segmentSoften = 2;
+  static const double segmentGap = 2;
+
+  /// Corner logic by row position: single-row group → all [cardRadius];
+  /// first → top [cardRadius] / bottom [segmentSoften]; middle → all
+  /// [segmentSoften]; last → top [segmentSoften] / bottom [cardRadius].
+  static BorderRadius segmentRadiusOf(int index, int count) {
+    if (count == 1) return BorderRadius.circular(cardRadius);
+    final soften = Radius.circular(segmentSoften);
+    if (index == 0) {
+      return BorderRadius.vertical(
+        top: Radius.circular(cardRadius),
+        bottom: soften,
+      );
+    }
+    if (index == count - 1) {
+      return BorderRadius.vertical(
+        top: soften,
+        bottom: Radius.circular(cardRadius),
+      );
+    }
+    return BorderRadius.all(soften);
+  }
+
+  /// Settings group micro-label (11px tracked caps). #767676 passes WCAG AA
+  /// on the white scaffold (4.55:1); #8A8A8A passes on the black one (6.05:1).
+  static Color groupLabelColorOf(ColorScheme scheme) =>
+      scheme.brightness == Brightness.dark
+      ? const Color(0xFF8A8A8A)
+      : const Color(0xFF767676);
+
   // ---- Status colours ----
   static const Color success = Color(0xFF1F6B4A);
   static const Color onSuccess = Color(0xFFFFFFFF);

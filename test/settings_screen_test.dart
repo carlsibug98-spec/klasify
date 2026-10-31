@@ -30,10 +30,10 @@ void main() {
     await pumpSettings(tester);
     await tester.pump();
 
-    expect(find.text('Schedule'), findsOneWidget);
-    expect(find.text('Notifications'), findsOneWidget);
-    expect(find.text('Help'), findsOneWidget);
-    expect(find.text('About'), findsOneWidget);
+    expect(find.text('SCHEDULE'), findsOneWidget);
+    expect(find.text('NOTIFICATIONS'), findsOneWidget);
+    expect(find.text('HELP'), findsOneWidget);
+    expect(find.text('ABOUT'), findsOneWidget);
 
     expect(find.text('Import schedule'), findsOneWidget);
     expect(find.text('Backup and restore'), findsOneWidget);
@@ -124,5 +124,56 @@ void main() {
     await tester.tap(find.text('Home-screen widget'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+  });
+
+  group('segmented rows (approved settings study)', () {
+    test('single-row groups are fully rounded standalone cards', () {
+      final r = AppTheme.segmentRadiusOf(0, 1);
+      expect(r.topLeft, Radius.circular(AppTheme.cardRadius));
+      expect(r.topRight, Radius.circular(AppTheme.cardRadius));
+      expect(r.bottomLeft, Radius.circular(AppTheme.cardRadius));
+      expect(r.bottomRight, Radius.circular(AppTheme.cardRadius));
+    });
+
+    test('first row curves the top, softens the meeting edge', () {
+      final r = AppTheme.segmentRadiusOf(0, 3);
+      expect(r.topLeft, Radius.circular(AppTheme.cardRadius));
+      expect(r.topRight, Radius.circular(AppTheme.cardRadius));
+      expect(r.bottomLeft, Radius.circular(AppTheme.segmentSoften));
+      expect(r.bottomRight, Radius.circular(AppTheme.segmentSoften));
+    });
+
+    test('middle rows soften every corner, no dead-straight cuts', () {
+      final r = AppTheme.segmentRadiusOf(1, 3);
+      expect(r.topLeft, Radius.circular(AppTheme.segmentSoften));
+      expect(r.topRight, Radius.circular(AppTheme.segmentSoften));
+      expect(r.bottomLeft, Radius.circular(AppTheme.segmentSoften));
+      expect(r.bottomRight, Radius.circular(AppTheme.segmentSoften));
+    });
+
+    test('last row curves the bottom, softens the meeting edge', () {
+      final r = AppTheme.segmentRadiusOf(2, 3);
+      expect(r.topLeft, Radius.circular(AppTheme.segmentSoften));
+      expect(r.topRight, Radius.circular(AppTheme.segmentSoften));
+      expect(r.bottomLeft, Radius.circular(AppTheme.cardRadius));
+      expect(r.bottomRight, Radius.circular(AppTheme.cardRadius));
+    });
+
+    test('every row renders inside its own shadowed segment Material', (
+      tester,
+    ) async {
+      await pumpSettings(tester);
+      await tester.pump();
+
+      // Seven rows → seven segments. Each wraps a Material whose shape
+      // carries the hairline side; the ambient shadow wraps the Material.
+      final segments = find.byWidgetPredicate(
+        (w) =>
+            w is Material &&
+            w.shape is RoundedRectangleBorder &&
+            (w.shape as RoundedRectangleBorder).side != BorderSide.none,
+      );
+      expect(segments, findsNWidgets(7));
+    });
   });
 }
