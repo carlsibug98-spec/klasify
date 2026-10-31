@@ -22,7 +22,10 @@ if (releaseKeyFile.exists()) {
 
 android {
     namespace = "com.klasify.app"
-    compileSdk = flutter.compileSdkVersion
+    // Google Play has required API 36 for new apps and updates since
+    // August 31, 2026. maxOf keeps us at 36+ even if the installed Flutter
+    // SDK's default is older, without ever lowering a newer default.
+    compileSdk = maxOf(flutter.compileSdkVersion, 36)
     // No ndkVersion declared on purpose: every plugin ships prebuilt .so
     // libraries (paddle_ocr_native bundles ONNX Runtime), so no NDK is
     // needed to compile, and skipping it keeps CI/low-disk builds light.
@@ -41,7 +44,11 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // paddle_ocr_native ships its ONNX Runtime only for Android API 26+.
         minSdk = maxOf(flutter.minSdkVersion, 26)
-        targetSdk = flutter.targetSdkVersion
+        // Google Play target-API requirement: new apps and app updates must
+        // target API 36+ (deadline August 31, 2026, already in force).
+        // Staying below only blocks *updates* — but the first public release
+        // counts as a new app, so 36 is the floor from day one.
+        targetSdk = maxOf(flutter.targetSdkVersion, 36)
         ndk {
             abiFilters += "arm64-v8a"
         }

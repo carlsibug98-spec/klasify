@@ -116,6 +116,26 @@ Keep both that file and the keystore out of source control. Without a release ke
 ### If Gradle reports an NDK installation error
 The NDK version is controlled by the Flutter SDK's `flutter.ndkVersion` setting in `android/app/build.gradle.kts`. In Android Studio SDK Manager → SDK Tools, enable **Show Package Details** under **NDK (Side by side)** and install the exact version Flutter requests. If the package is not listed, update Android SDK Command-line Tools and retry. Do not randomly change the NDK version to a newer one; use a version supported by the installed Flutter/Android Gradle Plugin.
 
+## Crash reporting (optional, off by default)
+Klasify itself makes no network requests. Public distribution builds may enable opt-in crash reporting through Sentry so device-specific crashes can be found and fixed:
+
+1. Create a free project at https://sentry.io (Flutter platform) and copy its DSN.
+2. Build with the DSN compiled in:
+   ```bash
+   flutter build appbundle --release \
+     --dart-define=KLASIFY_SENTRY_DSN=https://<key>@<org>.ingest.sentry.io/<id>
+   ```
+3. `docs/privacy-policy.html` documents exactly what is (and is not) transmitted.
+
+Without the define, the Sentry SDK is never initialized, nothing is queued or sent, and the app behaves exactly as it did before crash reporting existed. Reports contain technical diagnostics only — device model, OS and app version, stack traces, timestamps — never schedule content, class names, or user identifiers. Events captured while offline are cached on disk and uploaded when connectivity returns.
+
+## Publishing to Google Play (key gates)
+- `android/app/build.gradle.kts` pins `targetSdk` and `compileSdk` to at least **36**, the level Google Play has required for new apps and updates since August 31, 2026.
+- **16 KB page-size support** (required since November 1, 2025) is handled by the current Flutter + AGP 9 toolchain for the app's own code. `paddle_ocr_native` ships prebuilt ONNX Runtime libraries, so after the first release build, verify the bundle with Play Console's pre-launch report (or `zipalign -P 16 -c`) before submitting.
+- The privacy policy lives at `docs/privacy-policy.html`. Host it publicly (GitHub Pages works), then paste the URL into the Play listing — both are mandatory.
+- Sign release builds via `android/key.properties` (see "Build an APK") and back the keystore up in two separate places. A lost upload key means the app can never be updated under the same listing again.
+- Personal Play accounts must run a closed test with **12 testers opted in continuously for 14 days** before production access is granted. Plan the semester calendar around it.
+
 ## Project structure
 ```text
 lib/
@@ -184,12 +204,13 @@ lib/
 test/
 ```
 
-There is no server component. The Android `INTERNET` permission is limited to Flutter's debug and profile manifests for development tooling; it is not present in the main/release app manifest.
+There is no server component. The `sentry_flutter` dependency (opt-in crash reporting) merges the Android `INTERNET` permission into release builds, but the SDK stays completely dormant unless a DSN was compiled in with `--dart-define=KLASIFY_SENTRY_DSN=...`; without it, the app opens no network connections. In debug and profile builds, Flutter development tooling additionally uses `INTERNET` as before.
 
 ## Local data and safety
 - Classes are stored in `class_schedule.db` on this device only.
 - Android system backups exclude the schedule database and app preferences; use the in-app JSON export when moving or reinstalling the app.
 - There is no online database, account, cloud sync, or backend service. OCR models are packaged with the app, and timetable images/PDFs are processed on-device.
+- Crash reporting is opt-in at build time (see "Crash reporting (optional, off by default)") and transmits technical diagnostics only, never schedule content. `docs/privacy-policy.html` is the privacy statement to publish with the app.
 - Uninstalling the app may remove its local database. Back up important schedules before uninstalling or clearing app data.
 - Database upgrade from version 1 to version 2 adds validation triggers without rebuilding the classes table. Existing rows are retained; invalid legacy rows are not silently dropped. New inserts/updates must meet validation rules.
 - UI errors remain understandable to users; detailed failures are written to the debug console for troubleshooting.

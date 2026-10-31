@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Klasify Privacy Policy</title>
+<style>
+  :root { --ink:#111; --muted:#555; --line:#e5e5e5; --accent:#d9530d; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; color: var(--ink);
+    font: 16px/1.65 Georgia, "Times New Roman", serif;
+    background: #fff;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 48px 24px 64px; }
+  header { border-bottom: 3px solid var(--ink); padding-bottom: 20px; margin-bottom: 28px; }
+  .brand { font: 700 13px/1 Helvetica, Arial, sans-serif; letter-spacing: .18em; text-transform: uppercase; color: var(--accent); margin: 0 0 10px; }
+  h1 { font: 700 34px/1.2 Helvetica, Arial, sans-serif; margin: 0 0 8px; }
+  .effective { color: var(--muted); font-size: 14px; margin: 0; }
+  h2 { font: 700 20px/1.3 Helvetica, Arial, sans-serif; margin: 36px 0 10px; }
+  p, li { margin: 0 0 12px; }
+  ul { padding-left: 22px; margin: 0 0 12px; }
+  li { margin-bottom: 6px; }
+  .summary {
+    border-left: 4px solid var(--accent); background: #faf7f4;
+    padding: 14px 18px; margin: 20px 0; font-size: 16px;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font: 14px/1.5 Helvetica, Arial, sans-serif; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f5f5f5; font-weight: 700; }
+  .todo { color: var(--accent); font-weight: 700; }
+  a { color: var(--accent); }
+  footer { border-top: 1px solid var(--line); margin-top: 40px; padding-top: 16px; color: var(--muted); font-size: 13px; }
+  @media print { body { font-size: 12pt; } main { max-width: none; } }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <p class="brand">Klasify</p>
+  <h1>Privacy Policy</h1>
+  <p class="effective">Effective date: October 31, 2026 &nbsp;·&nbsp; Applies to the Klasify Android and iOS apps</p>
+</header>
+
+<div class="summary">
+<strong>In short:</strong> Klasify works entirely on your device. It has no
+accounts, no cloud, no analytics, and no advertising. Your schedule never
+leaves your phone. The only feature that can ever transmit anything is
+<strong>optional crash reporting</strong>, which exists only in builds where
+the developer explicitly enabled it, and which sends technical crash
+diagnostics — never your schedule, class names, professors, or notes.
+</div>
+
+<h2>1. Who we are</h2>
+<p>Klasify is an offline-first weekly class timetable app for students,
+developed by an independent developer ("we", "us"). It is distributed on
+Google Play and, where applicable, the Apple App Store.</p>
+
+<h2>2. Data stored on your device</h2>
+<p>All app data is created and stored locally in the app's private database on
+your device:</p>
+<ul>
+  <li><strong>Schedule data</strong> — subjects, rooms, professors, days, and times you enter or import.</li>
+  <li><strong>Class status marks</strong> — done / skipping / cancelled marks and their time ranges.</li>
+  <li><strong>App settings</strong> — reminders enabled, onboarding completed, theme preferences.</li>
+  <li><strong>Imported images and PDFs</strong> — processed on-device by built-in OCR. They are not uploaded anywhere, and no model download is required.</li>
+</ul>
+<p>This data is never sent to us or to any server. Android's system backup is
+configured to <em>exclude</em> the schedule database and app preferences; the
+in-app JSON backup export exists so you can move your schedule yourself.
+Exported backup files are ordinary files you control — wherever you save or
+send them is your choice, outside this app.</p>
+
+<h2>3. Data we do NOT collect</h2>
+<p>We do not collect, transmit, or sell any of the following, in any build of
+the app:</p>
+<ul>
+  <li>Names, email addresses, phone numbers, or any account details — the app has no login.</li>
+  <li>Schedule content, class names, rooms, professor names, or notes.</li>
+  <li>Location data, contacts, photos, or files other than those you explicitly pick for import.</li>
+  <li>Advertising identifiers or cross-app tracking data of any kind.</li>
+  <li>Usage analytics, screen recording, or behavioral profiling.</li>
+</ul>
+
+<h2>4. Optional crash reporting (the only network feature)</h2>
+<p>Distribution builds of Klasify can include the Sentry crash-reporting SDK
+so that crashes on real devices can be diagnosed and fixed. It is enabled only
+when the developer compiles a Sentry configuration into that specific build,
+and it remains completely dormant otherwise — builds without it open no
+network connections at all.</p>
+<p>When active, a crash report may contain:</p>
+<ul>
+  <li>Device model and manufacturer, operating system version, and app version.</li>
+  <li>The error's stack trace, timestamp, and technical breadcrumbs (app lifecycle and navigation events).</li>
+</ul>
+<p>Crash reports are configured to <strong>exclude</strong> personal
+identifiers, screenshots, and any schedule content. Reports captured while
+offline are stored temporarily on the device and sent when a connection is
+available. Reports are retained on Sentry's servers per Sentry's retention
+policy (approximately 90 days) and are visible only to the developer.
+Sentry's own privacy policy applies to that service:
+<a href="https://sentry.io/privacy/">sentry.io/privacy</a>.</p>
+<p>Because the SDK is present in these builds, the Android
+<code>INTERNET</code> permission appears in the app manifest. The permission
+itself grants no access to your data; it only permits the network connection
+described above.</p>
+
+<h2>5. App permissions and why</h2>
+<table>
+  <tr><th>Permission</th><th>Purpose</th><th>Required?</th></tr>
+  <tr><td>Notifications</td><td>Shows your class reminders. You are asked for consent and can decline; everything else in the app works without it.</td><td>Optional</td></tr>
+  <tr><td>Receive boot completed</td><td>Re-schedules your reminders after the phone restarts. No data is read or sent.</td><td>Automatic</td></tr>
+  <tr><td>Schedule exact alarms</td><td>Makes reminders fire at the exact class-prep time instead of being delayed by battery saving. You can use the app without granting it.</td><td>Optional</td></tr>
+  <tr><td>Internet (crash-reporting builds only)</td><td>Sends the optional crash reports described in section 4. Dormant unless enabled in the build.</td><td>Automatic</td></tr>
+</table>
+
+<h2>6. Deleting your data</h2>
+<p>Everything the app stores lives on your device. Uninstalling the app (or
+clearing its app data) permanently deletes your schedule and settings — export
+a JSON backup first if you want to keep them. Crash reports already sent to
+Sentry cannot be recalled, but they contain no identifiers linking them to
+you, and they expire automatically under Sentry's retention policy.</p>
+
+<h2>7. Children and students</h2>
+<p>Klasify is a general-audience study tool and is not directed at children
+under 13. Since the app collects no personal information in any build, no
+age gate or parental consent mechanism is needed.</p>
+
+<h2>8. Changes to this policy</h2>
+<p>If this policy changes, the new version replaces this page with a new
+effective date. Continuing to use the app after a change means you accept the
+updated policy.</p>
+
+<h2>9. Contact</h2>
+<p>Questions about this policy or about your data:
+<span class="todo">【your contact email — replace this placeholder before
+publishing this page】</span></p>
+
+<footer>
+Klasify is offline-first software. This page is the complete privacy
+statement for the app and is intended to be published at a public URL
+referenced by the store listings.
+</footer>
+</main>
+</body>
+</html>

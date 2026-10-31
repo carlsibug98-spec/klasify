@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'routes/app_router.dart';
 import 'routes/app_routes.dart';
+import 'services/crash_reporting.dart';
 import 'services/onboarding_store.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final seenOnboarding = await OnboardingStore.isCompleted();
-  runApp(ScheduleApp(showOnboarding: !seenOnboarding));
+  await initCrashReporting(() async {
+    final seenOnboarding = await OnboardingStore.isCompleted();
+    runApp(ScheduleApp(showOnboarding: !seenOnboarding));
+  });
 }
 
 class ScheduleApp extends StatelessWidget {
