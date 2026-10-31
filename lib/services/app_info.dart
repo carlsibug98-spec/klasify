@@ -10,12 +10,12 @@ class AppInfo {
   static const String name = 'Klasify';
 
   /// Semantic version, mirrors pubspec.yaml's `version: <version>+<build>`.
-  static const String version = '1.3.4';
+  static const String version = '1.4.0';
 
   /// Release build number, mirrors the `+<build>` part of pubspec.yaml.
-  static const int build = 9;
+  static const int build = 10;
 
-  /// The label Settings shows, e.g. "Version 1.3.4 (build 9)".
+  /// The label Settings shows, e.g. "Version 1.4.0 (build 10)".
   static const String versionLabel = 'Version $version (build $build)';
 
   /// The app's defining fact, stated wherever identity is shown.
