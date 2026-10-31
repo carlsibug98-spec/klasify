@@ -83,6 +83,12 @@ android {
 android {
     packaging {
         jniLibs {
+            // 16 KB page-size support (Google Play requirement since
+            // November 1, 2025): native libraries must ship uncompressed so
+            // the OS can map them at 16 KB page boundaries. AGP 8+ already
+            // defaults to this; pinning it stops a legacy packaging flag
+            // from silently reintroducing install-time extraction.
+            useLegacyPackaging = false
             excludes += setOf(
                 "lib/armeabi-v7a/**",
                 "lib/x86/**",

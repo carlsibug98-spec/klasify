@@ -131,8 +131,8 @@ Without the define, the Sentry SDK is never initialized, nothing is queued or se
 
 ## Publishing to Google Play (key gates)
 - `android/app/build.gradle.kts` pins `targetSdk` and `compileSdk` to at least **36**, the level Google Play has required for new apps and updates since August 31, 2026.
-- **16 KB page-size support** (required since November 1, 2025) is handled by the current Flutter + AGP 9 toolchain for the app's own code. `paddle_ocr_native` ships prebuilt ONNX Runtime libraries, so after the first release build, verify the bundle with Play Console's pre-launch report (or `zipalign -P 16 -c`) before submitting.
-- The privacy policy lives at `docs/privacy-policy.html`. Host it publicly (GitHub Pages works), then paste the URL into the Play listing — both are mandatory.
+- **16 KB page-size support** (required since November 1, 2025) is handled by the current Flutter + AGP 9 toolchain for the app's own code. `paddle_ocr_native` ships prebuilt ONNX Runtime libraries, so after the first release build, verify the bundle before submitting: run `python3 tool/check_16kb.py <release .apk or .aab>` (plain Python, no Android SDK needed) and cross-check Play Console's pre-launch report.
+- The privacy policy lives at `docs/privacy-policy.html`. Host it publicly (GitHub Pages works), then paste the URL into the Play listing — both are mandatory. `docs/RELEASE_CHECKLIST.md` has the exact hosting recipe and the full submission runbook.
 - Sign release builds via `android/key.properties` (see "Build an APK") and back the keystore up in two separate places. A lost upload key means the app can never be updated under the same listing again.
 - Personal Play accounts must run a closed test with **12 testers opted in continuously for 14 days** before production access is granted. Plan the semester calendar around it.
 
