@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_relative_lib_imports
 // Round-11 generalization audit, Track C: never-seen TEXT through the pure
 // parse surfaces (no OCR involved).
 //
@@ -86,7 +87,7 @@ class _Row {
   final int end;
 }
 
-List<_Row> chainRows(String text) {
+List<_Row> _chainRows(String text) {
   final normalized = normalizeOcrTokens(text);
   final sectioned = ParseChain.sectionedRows(normalized);
   if (sectioned.isNotEmpty) {
@@ -148,7 +149,7 @@ void main() {
   for (final negative in ['2025 - 2026', 'Room 8', 'not a time']) {
     final parsed = PdfTimetableText.parseRailLine(negative);
     check('rail-negative', negative, parsed == null, null,
-        parsed == null ? null : parsed.minute);
+        parsed?.minute);
   }
 
   // Noon-crossing rail sequence carried by the resolver:
@@ -227,7 +228,7 @@ void main() {
     ),
   ];
   for (final case_ in textCases) {
-    final rows = chainRows(case_.$1);
+    final rows = _chainRows(case_.$1);
     final expected = [
       for (final e in case_.$2)
         (e.$1, dayIndex(e.$2), minutes(e.$3), minutes(e.$4)),
@@ -284,7 +285,7 @@ void main() {
     ),
   ];
   for (final case_ in stretchCases) {
-    final rows = chainRows(case_.$1);
+    final rows = _chainRows(case_.$1);
     final expectedDays = case_.$2.map((e) => dayIndex(e.$2)).toSet();
     final gotDays = rows.map((r) => r.day).toSet();
     final ok = expectedDays.difference(gotDays).isEmpty &&

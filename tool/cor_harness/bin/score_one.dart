@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_relative_lib_imports
 // Single-fixture scorer for round-8 sweeps: scores one COR fixture (or a
 // generated variant of it) against its ground truth using the same chain as
 // the full harness (tesseract stand-in -> band join -> normalize ->

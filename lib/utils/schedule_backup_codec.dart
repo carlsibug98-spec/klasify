@@ -1,9 +1,10 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import '../database/database_helper.dart';
 import '../models/class_item.dart';
 
-/// Validates the JSON format used by local schedule backups.
+/// Validates and writes the JSON format used by local schedule backups.
 class ScheduleBackupCodec {
   ScheduleBackupCodec._();
 
@@ -16,6 +17,32 @@ class ScheduleBackupCodec {
   /// Format marker written by pre-rename ClassCue builds. Still accepted so
   /// backups exported before the Klasify rename restore cleanly.
   static const legacyBackupFormat = 'class_schedule_backup';
+
+  /// Writes [classes] in the exact payload shape the manual export has used
+  /// since version 1, so the automatic backup and the manual export stay
+  /// byte-compatible and every restore path accepts both.
+  static Uint8List encode(List<ClassItem> classes) {
+    final payload = <String, Object?>{
+      'format': klasifyBackupFormat,
+      'version': 1,
+      'exportedAt': DateTime.now().toUtc().toIso8601String(),
+      'classes': classes
+          .map(
+            (c) => {
+              'subject': c.subject,
+              'room': c.room,
+              'professor': c.professor,
+              'day': c.day,
+              'start_minutes': c.startMinutes,
+              'end_minutes': c.endMinutes,
+            },
+          )
+          .toList(),
+    };
+    return Uint8List.fromList(
+      utf8.encode(const JsonEncoder.withIndent('  ').convert(payload)),
+    );
+  }
 
   static List<ClassItem> decode(List<int> bytes) {
     if (bytes.length > maxBytes) {

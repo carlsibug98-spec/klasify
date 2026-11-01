@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_relative_lib_imports
 // Round-11 diagnosis: dump the parsed rows for one gen fixture so the
 // failing room/professor fields can be compared with truth.
 // Usage: dart run tool/cor_harness/bin/round11_diag.dart <truth.json> <fixture> <image>
@@ -17,28 +18,28 @@ void main(List<String> args) {
   final text = joinOcrRegions(regions);
   final normalized = normalizeOcrTokens(text);
   if (args.length > 3 && args[3] == '--raw') {
-    print('=== raw OCR lines ===');
+    stdout.writeln('=== raw OCR lines ===');
     final sorted = [...regions]..sort((a, b) => a.top.compareTo(b.top));
     for (final r in sorted) {
-      print('  y=${r.top.round()}..${r.bottom.round()} '
+      stdout.writeln('  y=${r.top.round()}..${r.bottom.round()} '
           'x=${r.left.round()}..${r.right.round()} '
           'conf=${(r.confidence * 100).round()} ${r.text}');
     }
-    print('=== joined+normalized text ===');
+    stdout.writeln('=== joined+normalized text ===');
     for (final line in normalized.split('\n')) {
-      print('  | $line');
+      stdout.writeln('  | $line');
     }
     return;
   }
   final sectioned = ParseChain.sectionedRows(normalized);
-  print('=== truth (${fixture}) ===');
+  stdout.writeln('=== truth ($fixture) ===');
   for (final c in (truthAll[fixture]['truth_classes'] as List)) {
-    print('  ${c['subject']} | ${c['day']} | ${c['start']}-${c['end']}'
+    stdout.writeln('  ${c['subject']} | ${c['day']} | ${c['start']}-${c['end']}'
         ' | room=${c['room']} | prof=${c['professor']}');
   }
-  print('=== parsed (${sectioned.length} rows) ===');
+  stdout.writeln('=== parsed (${sectioned.length} rows) ===');
   for (final r in sectioned) {
-    print('  ${r.subject} | ${r.day} | ${r.startMinutes}-${r.endMinutes}'
+    stdout.writeln('  ${r.subject} | ${r.day} | ${r.startMinutes}-${r.endMinutes}'
         ' | room=${r.room} | prof=${r.professor}');
   }
 }

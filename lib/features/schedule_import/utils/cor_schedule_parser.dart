@@ -416,7 +416,7 @@ class CorScheduleParser {
         final moved = _formatRoom(
             professor.substring(trailing.start).trim());
         professor = professor.substring(0, trailing.start).trim();
-        room = '$room ${moved}'.trim();
+        room = '$room $moved'.trim();
       }
     }
     return (room: room, professor: professor);

@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_relative_lib_imports
 import 'dart:convert';
 import 'dart:io';
 import '../lib/standin.dart';

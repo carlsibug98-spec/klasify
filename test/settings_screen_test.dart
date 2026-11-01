@@ -129,34 +129,34 @@ void main() {
   group('segmented rows (approved settings study)', () {
     test('single-row groups are fully rounded standalone cards', () {
       final r = AppTheme.segmentRadiusOf(0, 1);
-      expect(r.topLeft, Radius.circular(AppTheme.cardRadius));
-      expect(r.topRight, Radius.circular(AppTheme.cardRadius));
-      expect(r.bottomLeft, Radius.circular(AppTheme.cardRadius));
-      expect(r.bottomRight, Radius.circular(AppTheme.cardRadius));
+      expect(r.topLeft, const Radius.circular(AppTheme.cardRadius));
+      expect(r.topRight, const Radius.circular(AppTheme.cardRadius));
+      expect(r.bottomLeft, const Radius.circular(AppTheme.cardRadius));
+      expect(r.bottomRight, const Radius.circular(AppTheme.cardRadius));
     });
 
     test('first row curves the top, softens the meeting edge', () {
       final r = AppTheme.segmentRadiusOf(0, 3);
-      expect(r.topLeft, Radius.circular(AppTheme.cardRadius));
-      expect(r.topRight, Radius.circular(AppTheme.cardRadius));
-      expect(r.bottomLeft, Radius.circular(AppTheme.segmentSoften));
-      expect(r.bottomRight, Radius.circular(AppTheme.segmentSoften));
+      expect(r.topLeft, const Radius.circular(AppTheme.cardRadius));
+      expect(r.topRight, const Radius.circular(AppTheme.cardRadius));
+      expect(r.bottomLeft, const Radius.circular(AppTheme.segmentSoften));
+      expect(r.bottomRight, const Radius.circular(AppTheme.segmentSoften));
     });
 
     test('middle rows soften every corner, no dead-straight cuts', () {
       final r = AppTheme.segmentRadiusOf(1, 3);
-      expect(r.topLeft, Radius.circular(AppTheme.segmentSoften));
-      expect(r.topRight, Radius.circular(AppTheme.segmentSoften));
-      expect(r.bottomLeft, Radius.circular(AppTheme.segmentSoften));
-      expect(r.bottomRight, Radius.circular(AppTheme.segmentSoften));
+      expect(r.topLeft, const Radius.circular(AppTheme.segmentSoften));
+      expect(r.topRight, const Radius.circular(AppTheme.segmentSoften));
+      expect(r.bottomLeft, const Radius.circular(AppTheme.segmentSoften));
+      expect(r.bottomRight, const Radius.circular(AppTheme.segmentSoften));
     });
 
     test('last row curves the bottom, softens the meeting edge', () {
       final r = AppTheme.segmentRadiusOf(2, 3);
-      expect(r.topLeft, Radius.circular(AppTheme.segmentSoften));
-      expect(r.topRight, Radius.circular(AppTheme.segmentSoften));
-      expect(r.bottomLeft, Radius.circular(AppTheme.cardRadius));
-      expect(r.bottomRight, Radius.circular(AppTheme.cardRadius));
+      expect(r.topLeft, const Radius.circular(AppTheme.segmentSoften));
+      expect(r.topRight, const Radius.circular(AppTheme.segmentSoften));
+      expect(r.bottomLeft, const Radius.circular(AppTheme.cardRadius));
+      expect(r.bottomRight, const Radius.circular(AppTheme.cardRadius));
     });
 
     testWidgets('every row renders inside its own shadowed segment Material', (

@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_relative_lib_imports
 // Synthetic check mirroring test/skew_profile_estimator_test.dart without
 // the flutter_test dependency, so the VM can verify the assertions the CI
 // test will make.

@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_relative_lib_imports
 /// COR benchmark harness: runs the REAL Klasify parser chain on REAL
 /// tesseract output for the 6-sample COR fixture set and prints the bench
 /// metrics. Mirrors the bench5/bench6/bench7 flutter-test pipeline minus the
@@ -57,13 +58,6 @@ void main(List<String> args) {
         : '$fixturesDir/$name';
     final regions = tesseractRegions(path);
     final text = joinOcrRegions(regions);
-    final confidences = regions
-        .map((region) => region.confidence.clamp(0.0, 1.0).toDouble())
-        .toList();
-    final meanConfidence = confidences.isEmpty
-        ? 0.0
-        : confidences.reduce((a, b) => a + b) / confidences.length;
-
     // Exactly what the service returns to the review screen.
     final normalized = normalizeOcrTokens(text);
     final sectioned = ParseChain.sectionedRows(normalized);

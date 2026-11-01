@@ -78,7 +78,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _SettingsRowData(
                     icon: Icons.settings_backup_restore_rounded,
                     title: 'Backup and restore',
-                    subtitle: 'Save or restore a file',
+                    subtitle: 'Saves automatically after every change',
                     route: AppRoutes.backup,
                   ),
                 ],
@@ -468,7 +468,8 @@ class _AboutSheet extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   'Timetable, reminders, and the home-screen widget all work '
-                  'offline. Back up a file to move your schedule to a new phone.',
+                  'offline. Automatic backups and file exports move your '
+                  'schedule to a new phone.',
                   style: textTheme.bodyMedium?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),

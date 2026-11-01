@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_relative_lib_imports
 // Round-8 verification probe: runs the production skew estimator and RGBA
 // rotation on real fixture data prepared by scripts/round8_probe_data.py.
 //

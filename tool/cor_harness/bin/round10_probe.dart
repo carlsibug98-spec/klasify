@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_relative_lib_imports
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -6,8 +7,8 @@ import '../../../lib/features/schedule_import/utils/ocr_resample.dart';
 /// Round-10 VM probe: runs the production resample/unsharp code on raw
 /// buffers so the harness measures exactly what the app will run.
 ///
-///   lanczos <in.bin> <w> <h> <dw> <dh> <out.bin>   rgba -> rgba
-///   unsharp <in.bin> <w> <h> <out.bin>             rgba -> rgba
+///   `lanczos <in.bin> <w> <h> <dw> <dh> <out.bin>`   rgba -> rgba
+///   `unsharp <in.bin> <w> <h> <out.bin>`             rgba -> rgba
 void main(List<String> args) {
   final cmd = args[0];
   final sw = Stopwatch()..start();
@@ -25,7 +26,7 @@ void main(List<String> args) {
       dh,
     );
     File(args[6]).writeAsBytesSync(out);
-    stdout.writeln('lanczos ${w}x${h} -> ${dw}x${dh} in ${sw.elapsedMilliseconds} ms');
+    stdout.writeln('lanczos ${w}x$h -> ${dw}x$dh in ${sw.elapsedMilliseconds} ms');
   } else if (cmd == 'unsharp') {
     final rgba = File(args[1]).readAsBytesSync();
     final w = int.parse(args[2]);
@@ -43,7 +44,7 @@ void main(List<String> args) {
     );
     File(args[4]).writeAsBytesSync(out);
     stdout.writeln(
-        'unsharp ${w}x${h} sigma=$sigma pct=$percent thr=$threshold in ${sw.elapsedMilliseconds} ms');
+        'unsharp ${w}x$h sigma=$sigma pct=$percent thr=$threshold in ${sw.elapsedMilliseconds} ms');
   } else {
     stderr.writeln('unknown command $cmd');
     exit(2);

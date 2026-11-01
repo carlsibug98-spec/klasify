@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'routes/app_router.dart';
 import 'routes/app_routes.dart';
+import 'services/auto_backup_service.dart';
 import 'services/crash_reporting.dart';
 import 'services/onboarding_store.dart';
 import 'theme/app_theme.dart';
@@ -8,6 +11,9 @@ import 'theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initCrashReporting(() async {
+    // The quiet backup follows schedule changes for the whole session; it
+    // starts async so launch never waits on disk or prefs.
+    unawaited(AutoBackupService.instance.attach());
     final seenOnboarding = await OnboardingStore.isCompleted();
     runApp(ScheduleApp(showOnboarding: !seenOnboarding));
   });

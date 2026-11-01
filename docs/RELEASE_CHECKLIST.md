@@ -70,17 +70,20 @@ It performs, in order:
 2. **Push** `main` to `carlsibug98-spec/klasify`.
 3. **Rebuild** `download/klasify-v<version>-build<N>.zip` (version derived from
    `pubspec.yaml`; full source **plus `.git`**, so the zip alone can restore the
-   whole repo anywhere). Exactly one zip is kept — old builds are replaced.
+   whole repo anywhere).
 4. **Leak-scan** the zip: plaintext sweep plus a full-history
    `git log --all -S` pickaxe for `github_pat_`/`ghp_`/`gho_`/`ghs_`.
    On any hit the zip is destroyed and nothing is uploaded.
-5. **Replace** the zip asset on the rolling GitHub release **`latest-build`**
-   (repo → Releases → "Latest build"). One release, one asset, always the
-   newest zip; superseded builds stay recoverable through git history.
+5. **Add** the zip as a new asset on the GitHub release **`latest-build`**
+   (repo → Releases → "Latest build"). **Never replace or delete older
+   assets** — every build's zip stays downloadable forever so previous
+   versions can be pulled at any time. The newest build is simply one more
+   asset on the same release, listed alongside all earlier ones.
 
 Token handling: a fine-grained PAT scoped to **only** `carlsibug98-spec/klasify`
-with *Contents: Read and write*, passed via `$KLASIFY_GH_TOKEN` or
-`/home/z/my-project/.secrets/klasify_gh_token` (chmod 600). It is never
+with *Contents: Read and write*, stored at
+`/home/z/my-project/.secrets/klasify_gh_token` (chmod 600, symlinked to
+`.secrets/github-token.txt`) or passed via `$KLASIFY_GH_TOKEN`. It is never
 committed, never embedded in remote URLs or command lines. Revoke and rotate
 immediately if it ever leaks, and before its expiry date.
 

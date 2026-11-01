@@ -1,11 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Backup policy:
+  - The raw SQLite database and shared preferences stay device-only (a stale
+    database restored onto a newer schema is worse than no restore).
+  - The automatic JSON backup (files/auto_backups/) is explicitly included:
+    it is schema-safe to restore and rides with Android's device cloud backup
+    (Google Drive) so the schedule survives a lost phone.
+-->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="database" path="." />
         <exclude domain="sharedpref" path="." />
+        <include domain="file" path="auto_backups/" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="database" path="." />
         <exclude domain="sharedpref" path="." />
+        <include domain="file" path="auto_backups/" />
     </device-transfer>
 </data-extraction-rules>

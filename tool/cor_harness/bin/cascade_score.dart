@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_relative_lib_imports
 // Round-11 generalization audit: production-faithful multi-candidate scorer.
 //
 // Takes a truth file + fixture key + one or more candidate images (the pass

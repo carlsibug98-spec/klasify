@@ -16,6 +16,7 @@ An offline-first Flutter app for maintaining a weekly class timetable. **All sch
 - In-memory import draft caching (`ImportRouteCache`) allowing users to pause and resume timetable reviews
 - Import review screen with conflict checks, uncertain room detection, and all-or-nothing atomic SQLite save
 - JSON schedule backup and restore with structure validation and confirmation dialogs
+- **Automatic backups**: a fresh backup file is written after every schedule change (no button to press). The copy lives in the app support folder and is included in Android's own device cloud backup (Google Drive) when device backup is on — still no account, no server, no internet permission
 - On-device weekly class reminders with notification permission and battery-saving handling
 - Android Home-screen widget integration (`NextClassWidgetService`) synced automatically on changes
 - First-launch onboarding (3 pages, skippable) and replayable anytime from Settings
@@ -208,8 +209,8 @@ There is no server component. The `sentry_flutter` dependency (opt-in crash repo
 
 ## Local data and safety
 - Classes are stored in `class_schedule.db` on this device only.
-- Android system backups exclude the schedule database and app preferences; use the in-app JSON export when moving or reinstalling the app.
-- There is no online database, account, cloud sync, or backend service. OCR models are packaged with the app, and timetable images/PDFs are processed on-device.
+- Android system backups exclude the raw schedule database and app preferences (a stale database restored onto a newer schema is worse than no restore). The **automatic JSON backup** (`files/auto_backups/`) is explicitly included, so the validated, schema-safe schedule rides with Android's device cloud backup (Google Drive) when device backup is on. The manual in-app JSON export remains the way to move a schedule on demand.
+- There is no online database, account, cloud sync, or backend service. OCR models are packaged with the app, and timetable images/PDFs are processed on-device. The automatic backup is written locally; any upload to Google's backup storage is performed by the operating system's own device-backup feature under the user's Google account, never by Klasify.
 - Crash reporting is opt-in at build time (see "Crash reporting (optional, off by default)") and transmits technical diagnostics only, never schedule content. `docs/privacy-policy.html` is the privacy statement to publish with the app.
 - Uninstalling the app may remove its local database. Back up important schedules before uninstalling or clearing app data.
 - Database upgrade from version 1 to version 2 adds validation triggers without rebuilding the classes table. Existing rows are retained; invalid legacy rows are not silently dropped. New inserts/updates must meet validation rules.

@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_relative_lib_imports
 /// Regression check: runs every expectation from
 /// test/cor_schedule_parser_test.dart plus the neighbouring parser suites'
 /// COR-relevant cases through the REAL parser, without Flutter.
@@ -5,6 +6,7 @@
 /// The flutter test suite remains the source of truth on a machine with the
 /// SDK; this harness catches COR-parser regressions inside the benchmark VM.
 library;
+import 'dart:io';
 
 import '../../../lib/features/schedule_import/utils/cor_schedule_parser.dart';
 import '../../../lib/features/schedule_import/utils/parse_chain.dart';
@@ -16,7 +18,7 @@ void expectEq(Object? actual, Object? expected, String label) {
   checks++;
   if ('$actual' != '$expected') {
     failures++;
-    print('FAIL $label\n  expected: $expected\n  actual:   $actual');
+    stdout.writeln('FAIL $label\n  expected: $expected\n  actual:   $actual');
   }
 }
 
@@ -24,7 +26,7 @@ void expectTrue(bool value, String label) {
   checks++;
   if (!value) {
     failures++;
-    print('FAIL $label (expected true)');
+    stdout.writeln('FAIL $label (expected true)');
   }
 }
 
@@ -181,5 +183,5 @@ PATHAit 3 - Dance, Sports, and Adventure Prof. Ana Reyes Rm 301
     't14 vocabulary fallback',
   );
 
-  print('checks=$checks failures=$failures');
+  stdout.writeln('checks=$checks failures=$failures');
 }
