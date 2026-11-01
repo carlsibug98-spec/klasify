@@ -186,6 +186,12 @@ class AppTheme {
   static Color liveOf(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark ? _liveDark : _live;
 
+  /// Soft end of the live gradient (the right edge of the live bar).
+  static Color liveSoftOf(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+      ? const Color(0xFFFFA983)
+      : const Color(0xFFD9663C);
+
   static Color successBackgroundOf(BuildContext context) =>
       successBackgroundFor(Theme.of(context).colorScheme);
 

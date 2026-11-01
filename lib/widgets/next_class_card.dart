@@ -1,23 +1,29 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
 import 'live_pulse.dart';
 import 'pressable_scale.dart';
 
-/// The hero block at the top of Today: the one inverted surface on the screen.
+/// The hero block at the top of Today — a segment stack on the tier system.
 ///
-/// Mirrors the five states of the home-screen widget:
-///   * live now — status pill, room CTA, subject, "24 min left"/"1 h 30 min
-///     left", bar;
-///   * next up — status pill, room CTA, subject, "STARTS IN" caption, big
-///     countdown;
-///   * all done / free day — outline check, message, next-class shelf;
+/// The states mirror the Android widget, minus its LATER TODAY rows: those
+/// live only on the widget, because the Today list right below this card
+/// already shows the day's remaining classes.
+///   * live now — pulse dot, tracked-caps status, room CTA, subject, "ENDS
+///     IN" caption, big countdown, 6px gradient bar;
+///   * next up — the same hero on the raised tier, "STARTS IN" caption, a
+///     day pill when the class is on another day;
+///   * all done / free day / weekend — an outline check row; with a next
+///     class ahead it becomes the top segment of a two-segment stack whose
+///     bottom segment is the next-class shelf;
 ///   * empty schedule — logo mark, "No classes scheduled".
 ///
-/// The class name leads every class state and the countdown supports it. The
-/// time and professor live in the schedule list, not in the hero. Layout
-/// values come from the states board: 16px radius, 18/18/18/20 padding,
-/// 30-blur/14-offset shadow, a 6px in-card progress bar, and the mock's 28px
-/// status pill, 34px room CTA and 44px countdown.
+/// Geometry is [AppTheme.segmentRadiusOf] verbatim (16px outer corners, 2px
+/// meeting edges) with [AppTheme.segmentGap] seams of scaffold between
+/// segments. Colour is decided by meaning, not position: a class you can
+/// still catch sits on the raised isNext tier, celebrations and the empty
+/// state sit on the quiet card tier. Countdowns read "24 min" — the caption
+/// above already carries the direction, so no "left" suffix anywhere.
 class NextClassCard extends StatelessWidget {
   final String label;
   final String subject;
@@ -27,8 +33,8 @@ class NextClassCard extends StatelessWidget {
   /// Class states have no time line; the countdown carries that job.
   final String time;
 
-  /// Right side of the live row ("Ends in 24m"). The next-up state uses the
-  /// big [countdown] instead, and the shelf uses this as the starts-in line.
+  /// Right side of the live row. The next-up state uses the big [countdown]
+  /// instead, and the shelf uses this as the starts-in line.
   final String whenText;
 
   final VoidCallback? onTap;
@@ -36,6 +42,9 @@ class NextClassCard extends StatelessWidget {
   final String? celebrationTitle;
   final String? celebrationSubtitle;
   final IconData? celebrationIcon;
+
+  /// Day pill in the hero header ("TOMORROW", "MONDAY") when the next class
+  /// is on another day, and on the celebration shelf.
   final String? dayPillText;
 
   /// Time left in the live class, or time until the next-up class. The card
@@ -43,7 +52,7 @@ class NextClassCard extends StatelessWidget {
   final Duration? countdown;
 
   /// For the "In class" hero: elapsed fraction (0..1), drawn as a 6px rounded
-  /// gradient bar inside the card. Null = no bar.
+  /// gradient bar inside the hero. Null = no bar.
   final double? liveProgress;
 
   /// Minutes left in the live class: the bar tween duration, so it moves at
@@ -122,8 +131,105 @@ class NextClassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
     final isCelebration =
         celebrationTitle != null || celebrationSubtitle != null;
+
+    // The raised tier marks a class you can still catch; everything else
+    // sits on the quiet card tier.
+    final heroFill = AppTheme.cardFillColorOf(scheme, isNext: true);
+    final quietFill = AppTheme.cardFillColorOf(scheme);
+
+    final List<Widget> segments;
+    if (_empty) {
+      segments = [
+        _Segment(
+          fill: quietFill,
+          radius: AppTheme.segmentRadiusOf(0, 1),
+          child: const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 18, 16),
+            child: _EmptyBody(),
+          ),
+        ),
+      ];
+    } else if (isCelebration) {
+      // Solo celebration rounds fully; with a shelf below it becomes the
+      // first segment of two (16px top, 2px meeting bottom).
+      final checkRadius =
+          _hasUpNext
+          ? AppTheme.segmentRadiusOf(0, 2)
+          : AppTheme.segmentRadiusOf(0, 1);
+      segments = [
+        // Top segment: the check row. Bottom segment (only when a next
+        // class exists): the shelf, flat on its own segment — the 2px seam
+        // of scaffold replaces the old inset box.
+        _Segment(
+          fill: quietFill,
+          radius: checkRadius,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 17, 18, 17),
+            child: _CheckRow(
+              title: celebrationTitle ?? label,
+              subtitle: celebrationSubtitle ?? subject,
+              icon: celebrationIcon,
+              textTheme: textTheme,
+            ),
+          ),
+        ),
+        if (_hasUpNext) ...[
+          const SizedBox(height: AppTheme.segmentGap),
+          _Segment(
+            fill: quietFill,
+            radius: AppTheme.segmentRadiusOf(1, 2),
+            onTap: onTeaserTap,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 13, 18, 16),
+              child: _ShelfBody(
+                dayPillText: dayPillText,
+                whenText: whenText,
+                subject: subject,
+                time: time,
+                textTheme: textTheme,
+              ),
+            ),
+          ),
+        ],
+      ];
+    } else {
+      segments = [
+        _Segment(
+          fill: heroFill,
+          radius: AppTheme.segmentRadiusOf(0, 1),
+          onTap: onTap,
+          onLongPress: onLongPress,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 17, 18, 18),
+            child: _ClassBody(
+              label: label,
+              dayPillText: dayPillText,
+              subject: subject.trim(),
+              room: room.trim(),
+              countdown: countdown,
+              isLive: _isLive,
+              liveProgress: liveProgress,
+              liveRemaining: liveRemaining,
+              textTheme: textTheme,
+            ),
+          ),
+        ),
+      ];
+    }
+
+    // One segment renders alone; two or more stack with scaffold seams.
+    Widget content = segments.first;
+    for (final (index, segment) in segments.indexed) {
+      if (index == 0) continue;
+      content = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [content, const SizedBox(height: AppTheme.segmentGap), segment],
+      );
+    }
 
     return SizedBox(
       width: double.infinity,
@@ -151,65 +257,70 @@ class NextClassCard extends StatelessWidget {
                 .join('. '),
         child: PressableScale(
           enabled: onTap != null,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x33000000),
-                  blurRadius: 30,
-                  offset: Offset(0, 14),
-                ),
-              ],
-            ),
-            child: Material(
-              color: const Color(0xFF151515),
-              borderRadius: BorderRadius.circular(16),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: onTap,
-                onLongPress: onLongPress,
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
-                  child: _empty
-                      ? _EmptyBody(textTheme: textTheme)
-                      : isCelebration
-                      ? _CelebrationBody(
-                          title: celebrationTitle ?? label,
-                          subtitle: celebrationSubtitle ?? subject,
-                          icon: celebrationIcon,
-                          dayPillText: dayPillText,
-                          whenText: whenText,
-                          subject: subject,
-                          time: time,
-                          onTeaserTap: onTeaserTap,
-                          textTheme: textTheme,
-                        )
-                      : _ClassBody(
-                          label: label,
-                          subject: subject.trim(),
-                          room: room.trim(),
-                          countdown: countdown,
-                          isLive: _isLive,
-                          liveProgress: liveProgress,
-                          liveRemaining: liveRemaining,
-                          textTheme: textTheme,
-                        ),
-                ),
-              ),
-            ),
-          ),
+          child: content,
+        ),
+      ),
+    );
+  }
+
+  /// The shelf only appears when there is an upcoming class to show. Without
+  /// one, the celebration stays a single quiet segment instead of leaving an
+  /// empty block.
+  bool get _hasUpNext =>
+      (dayPillText?.trim().isNotEmpty ?? false) ||
+      whenText.trim().isNotEmpty ||
+      subject.trim().isNotEmpty;
+}
+
+/// One segment of the stack: themed fill, hairline edge, the card's ambient
+/// shadow in light mode, and its own tap target (the hero swipes/deletes,
+/// the shelf jumps to the week view).
+class _Segment extends StatelessWidget {
+  const _Segment({
+    required this.fill,
+    required this.radius,
+    required this.child,
+    this.onTap,
+    this.onLongPress,
+  });
+
+  final Color fill;
+  final BorderRadius radius;
+  final Widget child;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: AppTheme.cardShadowsOf(scheme),
+      ),
+      child: Material(
+        color: fill,
+        shape: RoundedRectangleBorder(
+          borderRadius: radius,
+          side: AppTheme.cardBorderSideOf(scheme),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          child: child,
         ),
       ),
     );
   }
 }
 
-/// The class hero: status row, subject, structured countdown, progress.
+/// The class hero: status row (day pill, tracked caps, room CTA), subject,
+/// structured countdown, and the live progress bar.
 class _ClassBody extends StatelessWidget {
   const _ClassBody({
     required this.label,
+    required this.dayPillText,
     required this.subject,
     required this.room,
     required this.countdown,
@@ -220,6 +331,7 @@ class _ClassBody extends StatelessWidget {
   });
 
   final String label;
+  final String? dayPillText;
   final String subject;
   final String room;
   final Duration? countdown;
@@ -228,10 +340,9 @@ class _ClassBody extends StatelessWidget {
   final Duration? liveRemaining;
   final TextTheme textTheme;
 
-  static const _live = Color(0xFFFF8A5C);
-
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final showRoomCta = room.isNotEmpty;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -239,12 +350,29 @@ class _ClassBody extends StatelessWidget {
       children: [
         Row(
           children: [
-            _StatusPill(label: label, isLive: isLive),
-            const SizedBox(width: 12),
-            // The room is the second thing you look for after the class name,
-            // so it stays on the status line in both states. Live used to put
-            // "Ends in 24m" here; the big countdown now carries that instead
-            // of repeating it.
+            if (isLive) ...[
+              LivePulse(
+                size: 8,
+                color: AppTheme.liveOf(context),
+                haloOpacity: 0.22,
+              ),
+              const SizedBox(width: 9),
+            ],
+            if (dayPillText != null && dayPillText!.trim().isNotEmpty) ...[
+              _DayPill(text: dayPillText!.trim(), textTheme: textTheme),
+              const SizedBox(width: 9),
+            ],
+            // Tracked-caps status line. Orange is reserved for the live
+            // state; next up stays label-grey.
+            _CapsLabel(
+              text: label,
+              color: isLive ? AppTheme.liveOf(context) : null,
+              textTheme: textTheme,
+            ),
+            const Spacer(),
+            // The room is the second thing you look for after the class
+            // name, so it stays on the status line in both states. Live used
+            // to put "Ends in 24m" here; the big countdown carries that now.
             if (showRoomCta)
               Flexible(
                 child: Align(
@@ -254,57 +382,38 @@ class _ClassBody extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 13),
         Text(
           subject,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: textTheme.titleLarge?.copyWith(
-            color: Colors.white,
+            color: scheme.onSurface,
             fontSize: 20,
-            height: 26 / 20,
-            fontWeight: FontWeight.w600,
+            height: 1.25,
+            fontWeight: FontWeight.w800,
             letterSpacing: -0.2,
           ),
         ),
         if (countdown != null) ...[
-          SizedBox(height: isLive ? 10 : 12),
+          const SizedBox(height: 11),
           // Without this caption the big numbers read like the class's
-          // duration. Live units already say "left"; the caption still names
-          // what the number counts down to.
-          if (isLive) ...[
-            Text(
-              'ENDS IN',
-              style: textTheme.labelSmall?.copyWith(
-                color: const Color(0xFF9A9A9A),
-                fontSize: 11,
-                height: 1.2,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.0,
-              ),
+          // duration. The direction lives here; the units stay bare.
+          Text(
+            isLive ? 'ENDS IN' : 'STARTS IN',
+            style: textTheme.labelSmall?.copyWith(
+              color: AppTheme.groupLabelColorOf(scheme),
+              fontSize: 10.5,
+              height: 1.2,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
             ),
-            const SizedBox(height: 4),
-          ] else ...[
-            Text(
-              'STARTS IN',
-              style: textTheme.labelSmall?.copyWith(
-                color: const Color(0xFF9A9A9A),
-                fontSize: 11,
-                height: 1.2,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.0,
-              ),
-            ),
-            const SizedBox(height: 4),
-          ],
-          _HeroCountdown(
-            duration: countdown!,
-            isLive: isLive,
-            textTheme: textTheme,
           ),
+          const SizedBox(height: 2),
+          _HeroCountdown(duration: countdown!, textTheme: textTheme),
         ],
         if (isLive && liveProgress != null) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           _LiveProgressBar(progress: liveProgress!, remaining: liveRemaining),
         ],
       ],
@@ -312,50 +421,71 @@ class _ClassBody extends StatelessWidget {
   }
 }
 
-/// "Live now" (with the pulsing dot) or "Next up".
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, required this.isLive});
+/// Tracked small caps: 11px, +1.1 tracking, uppercase. Label-grey unless a
+/// [color] overrides it (the live state).
+class _CapsLabel extends StatelessWidget {
+  const _CapsLabel({
+    required this.text,
+    required this.textTheme,
+    this.color,
+  });
 
-  final String label;
-  final bool isLive;
+  final String text;
+  final TextTheme textTheme;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      height: 28,
-      padding: EdgeInsets.only(left: isLive ? 10 : 12, right: 12),
-      decoration: const BoxDecoration(
-        color: Color(0xFF262626),
-        borderRadius: BorderRadius.all(Radius.circular(14)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isLive) ...[
-            const LivePulse(
-              size: 8,
-              color: _ClassBody._live,
-              haloOpacity: 0.22,
-            ),
-            const SizedBox(width: 8),
-          ],
-          Text(
-            label,
-            style: textTheme.bodyMedium?.copyWith(
-              color: const Color(0xFFF2F2F2),
-              fontSize: 13,
-              height: 1.2,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+    final scheme = Theme.of(context).colorScheme;
+    return Text(
+      // Tracked caps render uppercase, matching the widget's textAllCaps.
+      text.toUpperCase(),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: textTheme.labelSmall?.copyWith(
+        color: color ?? AppTheme.groupLabelColorOf(scheme),
+        fontSize: 11,
+        height: 1.2,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.1,
       ),
     );
   }
 }
 
-/// Room CTA in the top-right, only for the next-up state.
+/// Day pill ("TOMORROW"): the inverted pill marking a class on another day.
+class _DayPill extends StatelessWidget {
+  const _DayPill({required this.text, required this.textTheme});
+
+  final String text;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      height: 22,
+      padding: const EdgeInsets.symmetric(horizontal: 9),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: scheme.primary,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        text,
+        style: textTheme.labelSmall?.copyWith(
+          color: scheme.onPrimary,
+          fontSize: 10,
+          height: 1.1,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+}
+
+/// Room CTA in the top-right: the one inverted pill on the tier surface.
 class _RoomCta extends StatelessWidget {
   const _RoomCta({required this.room, required this.textTheme});
 
@@ -364,32 +494,33 @@ class _RoomCta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Semantics(
       button: false,
       label: 'Room $room',
       excludeSemantics: true,
       child: Container(
-        height: 34,
-        padding: const EdgeInsets.only(left: 12, right: 16),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.all(Radius.circular(17)),
+        height: 30,
+        padding: const EdgeInsets.only(left: 10, right: 13),
+        decoration: BoxDecoration(
+          color: scheme.primary,
+          borderRadius: BorderRadius.circular(999),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const _NavArrow(size: 20),
-            const SizedBox(width: 8),
+            const _NavArrow(size: 15),
+            const SizedBox(width: 6),
             Flexible(
               child: Text(
                 room,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF000000),
-                  fontSize: 14,
+                  color: scheme.onPrimary,
+                  fontSize: 13,
                   height: 1.2,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -400,21 +531,19 @@ class _RoomCta extends StatelessWidget {
   }
 }
 
-/// Big structured countdown: 44px values with 16px units on the baseline.
+/// Big structured countdown: 42px values with 15px units on the baseline.
+/// Units stay bare ("1 h 25 min", "24 min") — the caption above carries the
+/// direction, so nothing says "left".
 class _HeroCountdown extends StatelessWidget {
-  const _HeroCountdown({
-    required this.duration,
-    required this.isLive,
-    required this.textTheme,
-  });
+  const _HeroCountdown({required this.duration, required this.textTheme});
 
   final Duration duration;
-  final bool isLive;
   final TextTheme textTheme;
 
   @override
   Widget build(BuildContext context) {
-    final parts = _countdownParts(duration, isLive: isLive);
+    final scheme = Theme.of(context).colorScheme;
+    final parts = _countdownParts(duration);
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -425,11 +554,11 @@ class _HeroCountdown extends StatelessWidget {
           Text(
             part.value,
             style: textTheme.displaySmall?.copyWith(
-              color: Colors.white,
-              fontSize: 44,
-              height: 52 / 44,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -1.32,
+              color: scheme.onSurface,
+              fontSize: 42,
+              height: 1.15,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -1.2,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
@@ -437,8 +566,8 @@ class _HeroCountdown extends StatelessWidget {
           Text(
             part.unit,
             style: textTheme.bodyMedium?.copyWith(
-              color: const Color(0xFF8E8E8E),
-              fontSize: 16,
+              color: scheme.onSurfaceVariant,
+              fontSize: 15,
               height: 1.2,
               fontWeight: FontWeight.w500,
               letterSpacing: 0,
@@ -458,49 +587,7 @@ class _HeroCountdown extends StatelessWidget {
   }
 }
 
-/// One icon + label pair in the class meta row.
-class _MetaItem extends StatelessWidget {
-  const _MetaItem({
-    required this.icon,
-    required this.iconColor,
-    required this.text,
-    required this.color,
-    required this.textTheme,
-  });
-
-  final IconData icon;
-  final Color iconColor;
-  final String text;
-  final Color color;
-  final TextTheme textTheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 15, color: iconColor),
-        const SizedBox(width: 6),
-        Flexible(
-          child: Text(
-            text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: textTheme.bodySmall?.copyWith(
-              color: color,
-              fontSize: 13,
-              height: 18 / 13,
-              fontWeight: FontWeight.w400,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// The 6px in-card elapsed bar: rounded track, orange gradient fill.
+/// The 6px in-hero elapsed bar: rounded track, orange gradient fill.
 ///
 /// One linear tween from the current fraction to full over exactly the
 /// minutes the class has left, so the bar's speed IS the class's speed —
@@ -523,15 +610,18 @@ class _LiveProgressBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(3),
         child: Container(
           height: 6,
-          color: const Color(0xFF262626),
+          color: Theme.of(context).colorScheme.outlineVariant,
           alignment: Alignment.centerLeft,
           child: FractionallySizedBox(
             widthFactor: f,
             heightFactor: 1,
-            child: const DecoratedBox(
+            child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFFFF8A5C), Color(0xFFFFA983)],
+                  colors: [
+                    AppTheme.liveOf(context),
+                    AppTheme.liveSoftOf(context),
+                  ],
                 ),
               ),
             ),
@@ -555,200 +645,156 @@ class _LiveProgressBar extends StatelessWidget {
   }
 }
 
-/// All-done / weekend / free-day hero: an outline check row and, when there
-/// really is an upcoming class, the next-class shelf beneath.
-class _CelebrationBody extends StatelessWidget {
-  const _CelebrationBody({
+/// The celebration check row: outline icon, heavy title, quiet subtitle.
+class _CheckRow extends StatelessWidget {
+  const _CheckRow({
     required this.title,
     required this.subtitle,
     required this.icon,
-    required this.dayPillText,
-    required this.whenText,
-    required this.subject,
-    required this.time,
     required this.textTheme,
-    this.onTeaserTap,
   });
 
   final String title;
   final String subtitle;
   final IconData? icon;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        if (icon != null) ...[
+          ExcludeSemantics(
+            child: Icon(icon, size: 26, color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(width: 13),
+        ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.titleMedium?.copyWith(
+                  color: scheme.onSurface,
+                  fontSize: 19,
+                  height: 1.26,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.1,
+                ),
+              ),
+              if (subtitle.trim().isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(
+                  subtitle.trim(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 13,
+                    height: 1.4,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The next-class shelf, flat on its own quiet segment: day pill left,
+/// starts-in right, then the subject and its time range.
+class _ShelfBody extends StatelessWidget {
+  const _ShelfBody({
+    required this.dayPillText,
+    required this.whenText,
+    required this.subject,
+    required this.time,
+    required this.textTheme,
+  });
+
   final String? dayPillText;
   final String whenText;
   final String subject;
   final String time;
   final TextTheme textTheme;
 
-  /// Makes the "next class" shelf tappable (jump to that day on Week).
-  final VoidCallback? onTeaserTap;
-
-  static const _muted = Color(0xFF9A9A9A);
-
   @override
   Widget build(BuildContext context) {
-    // The shelf only appears when there is an upcoming class to show. Without
-    // one, the celebration stays compact instead of leaving an empty block.
-    final hasUpNext =
-        subject.trim().isNotEmpty ||
-        whenText.trim().isNotEmpty ||
-        (dayPillText?.trim().isNotEmpty ?? false);
-
+    final scheme = Theme.of(context).colorScheme;
     return Column(
-      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            if (icon != null) ...[
-              ExcludeSemantics(
-                child: Icon(icon, size: 28, color: Colors.white),
-              ),
-              const SizedBox(width: 14),
-            ],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
-                      fontSize: 19,
-                      height: 1.26,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.1,
-                    ),
-                  ),
-                  if (subtitle.trim().isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle.trim(),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: _muted,
-                        fontSize: 13,
-                        height: 18 / 13,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-        if (hasUpNext) ...[
-          const SizedBox(height: 18),
-          Semantics(
-            button: onTeaserTap != null,
-            enabled: onTeaserTap != null,
-            label: onTeaserTap == null
-                ? null
-                : 'Show this class on the week view',
-            excludeSemantics: true,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: const Color(0xFF252525),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFF2A2A2A)),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(18),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: onTeaserTap,
-                  borderRadius: BorderRadius.circular(18),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 16,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            if (dayPillText != null && dayPillText!.isNotEmpty)
-                              Container(
-                                height: 22,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 9,
-                                ),
-                                alignment: Alignment.center,
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(10),
-                                  ),
-                                ),
-                                child: Text(
-                                  dayPillText!,
-                                  style: textTheme.labelSmall?.copyWith(
-                                    color: const Color(0xFF000000),
-                                    fontSize: 10,
-                                    height: 1.1,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.8,
-                                  ),
-                                ),
-                              ),
-                            if (whenText.isNotEmpty) ...[
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  whenText,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.end,
-                                  style: textTheme.bodySmall?.copyWith(
-                                    color: const Color(0xFFBDBDBD),
-                                    fontSize: 12,
-                                    height: 1.3,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.1,
-                                    fontFeatures: const [
-                                      FontFeature.tabularFigures(),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          subject,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: textTheme.bodyMedium?.copyWith(
-                            color: Colors.white,
-                            fontSize: 16,
-                            height: 22 / 16,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.1,
-                          ),
-                        ),
-                        if (time.trim().isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          _MetaItem(
-                            icon: Icons.access_time_rounded,
-                            iconColor: const Color(0xFF7D7D7D),
-                            text: time.trim(),
-                            color: _muted,
-                            textTheme: textTheme,
-                          ),
-                        ],
-                      ],
-                    ),
+            if (dayPillText != null && dayPillText!.isNotEmpty)
+              _DayPill(text: dayPillText!, textTheme: textTheme),
+            if (whenText.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  whenText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 12,
+                    height: 1.3,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.1,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
               ),
-            ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 9),
+        Text(
+          subject,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: textTheme.bodyMedium?.copyWith(
+            color: scheme.onSurface,
+            fontSize: 15,
+            height: 1.3,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.1,
+          ),
+        ),
+        if (time.trim().isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(
+                Icons.access_time_rounded,
+                size: 13,
+                color: scheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  time.trim(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 12,
+                    height: 1.3,
+                    fontWeight: FontWeight.w400,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ],
@@ -756,15 +802,14 @@ class _CelebrationBody extends StatelessWidget {
   }
 }
 
-/// Empty-schedule hero. The board says the app uses a dedicated empty card;
-/// this keeps the widget's logo + copy inside that same card.
+/// Empty-schedule state: logo tile plus copy, on one quiet segment.
 class _EmptyBody extends StatelessWidget {
-  const _EmptyBody({required this.textTheme});
-
-  final TextTheme textTheme;
+  const _EmptyBody();
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -772,13 +817,13 @@ class _EmptyBody extends StatelessWidget {
           width: 44,
           height: 44,
           padding: const EdgeInsets.all(6),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.all(Radius.circular(12)),
+          decoration: BoxDecoration(
+            color: scheme.primary,
+            borderRadius: BorderRadius.circular(13),
           ),
-          child: const _LogoMark(),
+          child: _LogoMark(color: scheme.onPrimary),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -786,17 +831,18 @@ class _EmptyBody extends StatelessWidget {
               Text(
                 'No classes scheduled',
                 style: textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
+                  color: scheme.onSurface,
                   fontSize: 17,
                   height: 1.25,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 3),
               Text(
                 'Add a class or import a timetable to begin.',
                 style: textTheme.bodySmall?.copyWith(
-                  color: const Color(0xFFB3B3B3),
+                  color: scheme.onSurfaceVariant,
                   fontSize: 13,
                   height: 1.3,
                   fontWeight: FontWeight.w400,
@@ -810,20 +856,28 @@ class _EmptyBody extends StatelessWidget {
   }
 }
 
-/// The three-bar Klasify mark used by the widget's empty state.
+/// The three-bar Klasify mark used by the empty state. The bars take the
+/// tile's inverse colour so the mark survives both tile fills; the dot
+/// stays the signal orange.
 class _LogoMark extends StatelessWidget {
-  const _LogoMark();
+  const _LogoMark({required this.color});
+
+  final Color color;
 
   @override
   Widget build(BuildContext context) =>
-      CustomPaint(painter: _LogoMarkPainter());
+      CustomPaint(painter: _LogoMarkPainter(color: color));
 }
 
 class _LogoMarkPainter extends CustomPainter {
+  const _LogoMarkPainter({required this.color});
+
+  final Color color;
+
   @override
   void paint(Canvas canvas, Size size) {
     final scale = size.width / 40;
-    final black = Paint()..color = const Color(0xFF000000);
+    final bars = Paint()..color = color;
     final orange = Paint()..color = const Color(0xFFFF8A5C);
     if (size.width < size.height) {
       canvas.translate(0, (size.height - size.width) / 2);
@@ -839,7 +893,7 @@ class _LogoMarkPainter extends CustomPainter {
         ),
         Radius.circular(2 * unit / 40),
       ),
-      black,
+      bars,
     );
     canvas.drawRRect(
       RRect.fromRectAndRadius(
@@ -851,7 +905,7 @@ class _LogoMarkPainter extends CustomPainter {
         ),
         Radius.circular(2 * unit / 40),
       ),
-      black,
+      bars,
     );
     canvas.drawRRect(
       RRect.fromRectAndRadius(
@@ -863,7 +917,7 @@ class _LogoMarkPainter extends CustomPainter {
         ),
         Radius.circular(2 * unit / 40),
       ),
-      black,
+      bars,
     );
     canvas.drawCircle(
       Offset(4 * unit / 40, 11 * unit / 40),
@@ -873,7 +927,8 @@ class _LogoMarkPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _LogoMarkPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _LogoMarkPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 /// The mock's room affordance: a stroked navigation arrow on a 24-unit grid,
@@ -916,39 +971,30 @@ class _NavArrowPainter extends CustomPainter {
 }
 
 /// [Duration] -> the two biggest value/unit pairs, e.g. "1h 25min" or
-/// "2d 3h". Live countdowns read "24 min left" or "1 h 30 min left";
-/// next-up ones are labelled "STARTS IN" above the numbers.
-List<({String value, String unit})> _countdownParts(
-  Duration duration, {
-  required bool isLive,
-}) {
+/// "2d 3h". Units stay bare — "24 min", "1 h 30 min"; the "STARTS IN" /
+/// "ENDS IN" caption above the numbers carries the direction.
+List<({String value, String unit})> _countdownParts(Duration duration) {
   final totalMinutes = duration.inMinutes.clamp(0, 7 * 24 * 60);
-  final List<({String value, String unit})> parts;
   if (totalMinutes >= 1440) {
     final days = totalMinutes ~/ 1440;
     final hours = (totalMinutes % 1440) ~/ 60;
-    parts = [
+    return [
       (value: '$days', unit: 'd'),
       if (hours > 0) (value: '$hours', unit: 'h'),
     ];
-  } else if (totalMinutes >= 60) {
+  }
+  if (totalMinutes >= 60) {
     final hours = totalMinutes ~/ 60;
     final minutes = totalMinutes % 60;
-    parts = [
+    return [
       (value: '$hours', unit: 'h'),
       if (minutes > 0) (value: '$minutes', unit: 'min'),
     ];
-  } else {
-    parts = [(value: '${totalMinutes == 0 ? 1 : totalMinutes}', unit: 'min')];
   }
-  if (!isLive) return parts;
-
-  // Only the final unit says "left": "24 min left", "1 h 30 min left".
-  final last = parts.removeLast();
-  return [...parts, (value: last.value, unit: '${last.unit} left')];
+  return [(value: '${totalMinutes == 0 ? 1 : totalMinutes}', unit: 'min')];
 }
 
 String _countdownSummary(Duration duration) {
-  final parts = _countdownParts(duration, isLive: false);
+  final parts = _countdownParts(duration);
   return parts.map((part) => '${part.value}${part.unit}').join(' ');
 }

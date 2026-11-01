@@ -2,38 +2,36 @@
 <resources>
     <color name="splash_background">#FFFFFF</color>
 
-    <!-- Klasify homescreen widget, light mode: native clean surface -->
+    <!-- Klasify homescreen widget, light mode: segment tiers on the launcher.
+         The raised tier marks a class you can still catch; the quiet tier is
+         every other segment. Hairline edges keep both alive on wallpaper. -->
     <color name="next_class_widget_surface">#F4F4F4</color>
+    <color name="next_class_widget_hero_bg">#E6E6E6</color>
+    <color name="next_class_widget_seg_stroke">#12000000</color>
     <color name="next_class_widget_outline">#E0E0E0</color>
 
-    <color name="next_class_widget_pill_bg">#EAEAEA</color>
-    <color name="next_class_widget_pill_text">#000000</color>
     <color name="next_class_widget_accent">#000000</color>
-    <color name="next_class_widget_live">#E65100</color>
-    <color name="next_class_widget_live_halo">#38E65100</color>
+    <color name="next_class_widget_live">#B43C1C</color>
+    <color name="next_class_widget_live_halo">#38B43C1C</color>
 
     <!-- Text hierarchy: subject and time lead; details stay secondary. -->
     <color name="next_class_widget_text">#000000</color>
     <color name="next_class_widget_time">#000000</color>
-    <color name="next_class_widget_secondary">#666666</color>
-    <color name="next_class_widget_meta">#666666</color>
-    <color name="next_class_widget_meta_icon">#666666</color>
-    <color name="next_class_widget_unit">#666666</color>
-    <color name="next_class_widget_muted">#666666</color>
-    <color name="next_class_widget_compact_text">#666666</color>
+    <color name="next_class_widget_secondary">#4A4A4A</color>
+    <color name="next_class_widget_meta">#4A4A4A</color>
+    <color name="next_class_widget_meta_icon">#4A4A4A</color>
+    <color name="next_class_widget_unit">#4A4A4A</color>
+    <color name="next_class_widget_muted">#767676</color>
+    <color name="next_class_widget_compact_text">#000000</color>
     <color name="next_class_widget_later_time">#000000</color>
-    <color name="next_class_widget_room">#666666</color>
-    <color name="next_class_widget_divider">#E0E0E0</color>
+    <color name="next_class_widget_room">#4A4A4A</color>
 
-    <!-- Celebration shelf & day pill -->
-    <color name="next_class_widget_shelf_bg">#E8E8E8</color>
-    <color name="next_class_widget_shelf_outline">#DDDDDD</color>
     <color name="next_class_widget_day_pill_bg">#000000</color>
     <color name="next_class_widget_day_pill_text">#FFFFFF</color>
 
     <!-- Live progress bar -->
-    <color name="next_class_widget_track">#DCDCDC</color>
-    <color name="next_class_widget_progress_end">#FF8A5C</color>
+    <color name="next_class_widget_track">#DEDEDE</color>
+    <color name="next_class_widget_progress_end">#D9663C</color>
 
     <!-- Upcoming widget redesign: month calendar -->
     <color name="next_class_widget_cal_weekday">#000000</color>

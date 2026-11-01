@@ -400,7 +400,7 @@ void main() {
       });
       await tester.pump();
 
-      expect(find.text('Live now'), findsOneWidget);
+      expect(find.text('LIVE NOW'), findsOneWidget);
       final card = tester.widget<NextClassCard>(find.byType(NextClassCard));
       expect(card.liveProgress, isNotNull);
       expect(card.liveProgress, inInclusiveRange(0.0, 1.0));

@@ -1,19 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Klasify Upcoming home-screen widget, matching the states board.
+    Klasify Upcoming home-screen widget — the segment stack.
+
+    The old outer card is gone: every state renders as a stack of segments
+    floating on the launcher, 10dp outer corners, 2dp meeting edges, 2dp
+    seams of wallpaper between them (AppTheme.segmentRadiusOf scaled to
+    launcher size). The raised tier (#E6E6E6 / #242424) marks a class you
+    can still catch; the quiet tier (#F4F4F4 / #181818) is everything else.
 
     States:
-      1. container_upcoming — "Next up" pill, room CTA, subject, a STARTS IN
-         caption over the structured countdown, LATER TODAY rows, and (tall
-         widgets only) the month calendar.
-      2. container_inclass  — "In class" pill, room CTA, subject and the big
-         hours/minutes-left countdown.
-      3. container_alldone  — outline check, all-done/free-day copy, and the
-         next-class shelf (day pill, starts-in, subject, time).
+      1. container_upcoming — hero segment (tracked-caps status, Today chip
+         or day pill, room CTA, subject, a STARTS IN caption over the
+         structured countdown, and the LATER TODAY caption as its last
+         line) with the day's remaining classes as quiet segments below,
+         and (tall widgets only) the month calendar on its own segment.
+      2. container_inclass  — solo hero: live dot, tracked-caps status,
+         room CTA, subject, time range, ENDS IN caption, the big
+         hours/minutes countdown and the 6px gradient bar.
+      3. container_alldone  — quiet two-segment stack: outline check row on
+         top, next-class shelf below (day pill, starts-in, subject, time).
+         Without a shelf the check row becomes a solo segment.
       4. container_active   — compact fallback for short widgets: dot status
-         line plus subject.
-      5. widget_empty_container — logo mark and empty copy.
-    The provider drives every state; colours come from values/ and
+         line plus subject on a solo hero segment.
+      5. widget_empty_container — logo mark and empty copy on a solo quiet
+         segment.
+    The provider drives every state and swaps segment backgrounds by
+    position (setBackgroundResource); colours come from values/ and
     values-night/ so light and dark mode stay automatic.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -21,11 +33,10 @@
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/next_class_widget_background"
-    android:paddingStart="18dp"
-    android:paddingTop="16dp"
-    android:paddingEnd="18dp"
-    android:paddingBottom="16dp">
+    android:paddingStart="10dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="10dp"
+    android:paddingBottom="10dp">
 
     <!-- 1. Next up  -->
     <LinearLayout
@@ -34,433 +45,605 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <!-- Hero segment: first position while later rows exist, solo
+             otherwise (the provider swaps the background). -->
         <LinearLayout
+            android:id="@+id/widget_upcoming_hero"
             android:layout_width="match_parent"
-            android:layout_height="34dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/widget_upcoming_pill"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:background="@drawable/next_class_widget_pill"
-                android:fontFamily="sans-serif-medium"
-                android:gravity="center_vertical"
-                android:includeFontPadding="false"
-                android:paddingStart="10dp"
-                android:paddingEnd="12dp"
-                android:text="@string/next_class_widget_label"
-                android:textColor="@color/next_class_widget_pill_text"
-                android:textSize="13sp" />
-
-            <FrameLayout
-                android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
+            android:layout_height="wrap_content"
+            android:background="@drawable/next_class_widget_seg_hero_first"
+            android:orientation="vertical"
+            android:paddingStart="14dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="13dp">
 
             <LinearLayout
-                android:id="@+id/widget_upcoming_cta"
-                android:layout_width="wrap_content"
-                android:layout_height="34dp"
-                android:background="@drawable/next_class_widget_cta_pill"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
                 android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="12dp"
-                android:paddingEnd="16dp">
-
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:contentDescription="@null"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/next_class_widget_navigate_icon"
-                    android:tint="@color/next_class_widget_cta_fg" />
-
-                <FrameLayout
-                    android:layout_width="8dp"
-                    android:layout_height="1dp" />
+                android:orientation="horizontal">
 
                 <TextView
-                    android:id="@+id/widget_upcoming_cta_room"
+                    android:id="@+id/widget_upcoming_caps"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif"
+                    android:includeFontPadding="false"
+                    android:letterSpacing="0.1"
+                    android:maxLines="1"
+                    android:text="@string/next_class_widget_label"
+                    android:textAllCaps="true"
+                    android:textColor="@color/next_class_widget_muted"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    tools:text="NEXT UP" />
+
+                <TextView
+                    android:id="@+id/widget_upcoming_day_chip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="20dp"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/next_class_widget_day_chip_outline"
+                    android:fontFamily="sans-serif"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:letterSpacing="0.08"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:text="@string/next_class_widget_today"
+                    android:textAllCaps="true"
+                    android:textColor="@color/next_class_widget_accent"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    tools:text="Today" />
+
+                <TextView
+                    android:id="@+id/widget_upcoming_day_pill"
+                    android:layout_width="wrap_content"
+                    android:layout_height="20dp"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/next_class_widget_day_pill"
                     android:ellipsize="end"
+                    android:fontFamily="sans-serif"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:letterSpacing="0.08"
+                    android:maxLines="1"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:textColor="@color/next_class_widget_day_pill_text"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    tools:text="TOMORROW" />
+
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <LinearLayout
+                    android:id="@+id/widget_upcoming_cta"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:background="@drawable/next_class_widget_cta_pill"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="16dp">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:contentDescription="@null"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/next_class_widget_navigate_icon"
+                        android:tint="@color/next_class_widget_cta_fg" />
+
+                    <FrameLayout
+                        android:layout_width="8dp"
+                        android:layout_height="1dp" />
+
+                    <TextView
+                        android:id="@+id/widget_upcoming_cta_room"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="sans-serif-medium"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:maxWidth="110dp"
+                        android:textColor="@color/next_class_widget_cta_fg"
+                        android:textSize="15sp"
+                        tools:text="Lab 2" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/widget_upcoming_subject"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.01"
+                android:maxLines="1"
+                android:textColor="@color/next_class_widget_text"
+                android:textSize="20sp"
+                tools:text="Physics Lab" />
+
+            <TextView
+                android:id="@+id/widget_upcoming_starts_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:fontFamily="sans-serif"
+                android:includeFontPadding="false"
+                android:letterSpacing="0.1"
+                android:text="@string/next_class_widget_starts_in_label"
+                android:textAllCaps="true"
+                android:textColor="@color/next_class_widget_muted"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="3dp"
+                android:gravity="bottom"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/widget_upcoming_value_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif"
+                    android:fontFeatureSettings="tnum"
+                    android:includeFontPadding="false"
+                    android:letterSpacing="-0.03"
+                    android:textColor="@color/next_class_widget_text"
+                    android:textSize="44sp"
+                    android:textStyle="bold"
+                    tools:text="1" />
+
+                <TextView
+                    android:id="@+id/widget_upcoming_unit_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginEnd="10dp"
                     android:fontFamily="sans-serif-medium"
                     android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:maxWidth="110dp"
-                    android:textColor="@color/next_class_widget_cta_fg"
+                    android:paddingBottom="6dp"
+                    android:textColor="@color/next_class_widget_unit"
                     android:textSize="15sp"
-                    tools:text="Lab 2" />
+                    tools:text="h" />
+
+                <TextView
+                    android:id="@+id/widget_upcoming_value_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif"
+                    android:fontFeatureSettings="tnum"
+                    android:includeFontPadding="false"
+                    android:letterSpacing="-0.03"
+                    android:textColor="@color/next_class_widget_text"
+                    android:textSize="44sp"
+                    android:textStyle="bold"
+                    tools:text="25" />
+
+                <TextView
+                    android:id="@+id/widget_upcoming_unit_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:includeFontPadding="false"
+                    android:paddingBottom="6dp"
+                    android:textColor="@color/next_class_widget_unit"
+                    android:textSize="15sp"
+                    tools:text="min" />
             </LinearLayout>
+
+            <!-- The LATER TODAY caption rides the hero as its last line;
+                 the rows themselves are the quiet segments below. -->
+            <TextView
+                android:id="@+id/widget_upcoming_later_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:fontFamily="sans-serif"
+                android:includeFontPadding="false"
+                android:letterSpacing="0.1"
+                android:text="@string/next_class_widget_later_today"
+                android:textAllCaps="true"
+                android:textColor="@color/next_class_widget_muted"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/widget_upcoming_subject"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:ellipsize="end"
-            android:fontFamily="sans-serif-medium"
-            android:includeFontPadding="false"
-            android:letterSpacing="-0.01"
-            android:maxLines="1"
-            android:textColor="@color/next_class_widget_text"
-            android:textSize="20sp"
-            tools:text="Physics Lab" />
-
-        <TextView
-            android:id="@+id/widget_upcoming_starts_label"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:fontFamily="sans-serif-medium"
-            android:includeFontPadding="false"
-            android:letterSpacing="0.1"
-            android:text="@string/next_class_widget_starts_in_label"
-            android:textColor="@color/next_class_widget_muted"
-            android:textSize="11sp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:layout_marginTop="3dp"
-            android:gravity="bottom"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/widget_upcoming_value_1"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:includeFontPadding="false"
-                android:letterSpacing="-0.03"
-                android:textColor="@color/next_class_widget_text"
-                android:textSize="44sp"
-                android:textStyle="bold"
-                tools:text="1" />
-
-            <TextView
-                android:id="@+id/widget_upcoming_unit_1"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:layout_marginEnd="10dp"
-                android:fontFamily="sans-serif-medium"
-                android:includeFontPadding="false"
-                android:paddingBottom="6dp"
-                android:textColor="@color/next_class_widget_unit"
-                android:textSize="15sp"
-                tools:text="h" />
-
-            <TextView
-                android:id="@+id/widget_upcoming_value_2"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:includeFontPadding="false"
-                android:letterSpacing="-0.03"
-                android:textColor="@color/next_class_widget_text"
-                android:textSize="44sp"
-                android:textStyle="bold"
-                tools:text="25" />
-
-            <TextView
-                android:id="@+id/widget_upcoming_unit_2"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:fontFamily="sans-serif-medium"
-                android:includeFontPadding="false"
-                android:paddingBottom="6dp"
-                android:textColor="@color/next_class_widget_unit"
-                android:textSize="15sp"
-                tools:text="min" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/widget_upcoming_later_label"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:layout_marginBottom="4dp"
-            android:fontFamily="sans-serif-medium"
-            android:includeFontPadding="false"
-            android:letterSpacing="0.1"
-            android:text="@string/next_class_widget_later_today"
-            android:textColor="@color/next_class_widget_muted"
-            android:textSize="11sp" />
-
-        <FrameLayout
-            android:id="@+id/widget_later_divider_1"
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@color/next_class_widget_divider" />
-
+        <!-- Later-today rows: quiet segments, 2dp seams. Position radius is
+             swapped at bind time (mid when row 2 shows, last when alone). -->
         <LinearLayout
             android:id="@+id/widget_later_row_1"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:background="@drawable/next_class_widget_seg_quiet_last"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingTop="10dp"
-            android:paddingBottom="10dp">
+            android:paddingStart="14dp"
+            android:paddingTop="9dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="9dp">
 
             <TextView
                 android:id="@+id/widget_later_time_1"
-                android:layout_width="78dp"
+                android:layout_width="56dp"
                 android:layout_height="wrap_content"
+                android:fontFamily="sans-serif"
                 android:fontFeatureSettings="tnum"
                 android:includeFontPadding="false"
                 android:maxLines="1"
                 android:textColor="@color/next_class_widget_later_time"
-                android:textSize="15sp"
+                android:textSize="13sp"
+                android:textStyle="bold"
                 tools:text="3:00 PM" />
 
-            <TextView
-                android:id="@+id/widget_later_subject_1"
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
                 android:layout_weight="1"
-                android:ellipsize="end"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:textColor="@color/next_class_widget_text"
-                android:textSize="15sp"
-                tools:text="Data Structures" />
+                android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/widget_later_room_1"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:ellipsize="end"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:maxWidth="110dp"
-                android:textColor="@color/next_class_widget_room"
-                android:textSize="12sp"
-                tools:text="Class 242-B" />
+                <TextView
+                    android:id="@+id/widget_later_subject_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif"
+                    android:includeFontPadding="false"
+                    android:letterSpacing="-0.01"
+                    android:maxLines="1"
+                    android:textColor="@color/next_class_widget_text"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    tools:text="Biology" />
+
+                <LinearLayout
+                    android:id="@+id/widget_later_room_box_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="11dp"
+                        android:layout_height="11dp"
+                        android:contentDescription="@null"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/next_class_widget_room_icon"
+                        android:tint="@color/next_class_widget_meta_icon" />
+
+                    <TextView
+                        android:id="@+id/widget_later_room_1"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:ellipsize="end"
+                        android:fontFamily="sans-serif"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:maxWidth="140dp"
+                        android:textColor="@color/next_class_widget_room"
+                        android:textSize="11sp"
+                        tools:text="Lab 3" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
-
-        <FrameLayout
-            android:id="@+id/widget_later_divider_2"
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@color/next_class_widget_divider" />
 
         <LinearLayout
             android:id="@+id/widget_later_row_2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:background="@drawable/next_class_widget_seg_quiet_last"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingTop="10dp"
-            android:paddingBottom="10dp">
+            android:paddingStart="14dp"
+            android:paddingTop="9dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="9dp">
 
             <TextView
                 android:id="@+id/widget_later_time_2"
-                android:layout_width="78dp"
+                android:layout_width="56dp"
                 android:layout_height="wrap_content"
+                android:fontFamily="sans-serif"
                 android:fontFeatureSettings="tnum"
                 android:includeFontPadding="false"
                 android:maxLines="1"
                 android:textColor="@color/next_class_widget_later_time"
-                android:textSize="15sp"
+                android:textSize="13sp"
+                android:textStyle="bold"
                 tools:text="4:30 PM" />
 
-            <TextView
-                android:id="@+id/widget_later_subject_2"
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
                 android:layout_weight="1"
-                android:ellipsize="end"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:textColor="@color/next_class_widget_text"
-                android:textSize="15sp"
-                tools:text="English Lit" />
+                android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/widget_later_room_2"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:ellipsize="end"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:maxWidth="110dp"
-                android:textColor="@color/next_class_widget_room"
-                android:textSize="12sp"
-                tools:text="Class 118" />
+                <TextView
+                    android:id="@+id/widget_later_subject_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif"
+                    android:includeFontPadding="false"
+                    android:letterSpacing="-0.01"
+                    android:maxLines="1"
+                    android:textColor="@color/next_class_widget_text"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    tools:text="Design Class" />
+
+                <LinearLayout
+                    android:id="@+id/widget_later_room_box_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="11dp"
+                        android:layout_height="11dp"
+                        android:contentDescription="@null"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/next_class_widget_room_icon"
+                        android:tint="@color/next_class_widget_meta_icon" />
+
+                    <TextView
+                        android:id="@+id/widget_later_room_2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:ellipsize="end"
+                        android:fontFamily="sans-serif"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:maxWidth="140dp"
+                        android:textColor="@color/next_class_widget_room"
+                        android:textSize="11sp"
+                        tools:text="Class 242-B" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
 
-        <include
-            android:id="@+id/widget_cal_section"
-            layout="@layout/widget_next_class_calendar"
+        <!-- Month calendar (tall widgets only): its own quiet segment. -->
+        <LinearLayout
+            android:id="@+id/widget_cal_panel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp" />
+            android:layout_marginTop="12dp"
+            android:background="@drawable/next_class_widget_seg_quiet_solo"
+            android:orientation="vertical"
+            android:paddingStart="12dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="12dp"
+            android:visibility="gone">
+
+            <include
+                android:id="@+id/widget_cal_section"
+                layout="@layout/widget_next_class_calendar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
     </LinearLayout>
 
     <!-- 2. In class  -->
     <LinearLayout
         android:id="@+id/container_inclass"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
         android:orientation="vertical"
         android:visibility="gone">
 
         <LinearLayout
+            android:id="@+id/widget_inclass_hero"
             android:layout_width="match_parent"
-            android:layout_height="34dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/widget_inclass_pill"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:background="@drawable/next_class_widget_pill"
-                android:drawableStart="@drawable/next_class_widget_live_halo"
-                android:drawablePadding="8dp"
-                android:fontFamily="sans-serif-medium"
-                android:gravity="center_vertical"
-                android:includeFontPadding="false"
-                android:paddingStart="10dp"
-                android:paddingEnd="12dp"
-                android:text="@string/next_class_widget_in_class"
-                android:textColor="@color/next_class_widget_pill_text"
-                android:textSize="13sp" />
-
-            <FrameLayout
-                android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
+            android:layout_height="wrap_content"
+            android:background="@drawable/next_class_widget_seg_hero_solo"
+            android:orientation="vertical"
+            android:paddingStart="14dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="13dp">
 
             <LinearLayout
-                android:id="@+id/widget_inclass_cta"
-                android:layout_width="wrap_content"
-                android:layout_height="34dp"
-                android:background="@drawable/next_class_widget_cta_pill"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
                 android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="12dp"
-                android:paddingEnd="16dp">
-
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:contentDescription="@null"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/next_class_widget_navigate_icon"
-                    android:tint="@color/next_class_widget_cta_fg" />
-
-                <FrameLayout
-                    android:layout_width="8dp"
-                    android:layout_height="1dp" />
+                android:orientation="horizontal">
 
                 <TextView
-                    android:id="@+id/widget_inclass_cta_room"
+                    android:id="@+id/widget_inclass_caps"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:drawableStart="@drawable/next_class_widget_live_halo"
+                    android:drawablePadding="6dp"
                     android:ellipsize="end"
+                    android:fontFamily="sans-serif"
+                    android:includeFontPadding="false"
+                    android:letterSpacing="0.1"
+                    android:maxLines="1"
+                    android:text="@string/next_class_widget_in_class"
+                    android:textAllCaps="true"
+                    android:textColor="@color/next_class_widget_live"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    tools:text="IN CLASS" />
+
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <LinearLayout
+                    android:id="@+id/widget_inclass_cta"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:background="@drawable/next_class_widget_cta_pill"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="16dp">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:contentDescription="@null"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/next_class_widget_navigate_icon"
+                        android:tint="@color/next_class_widget_cta_fg" />
+
+                    <FrameLayout
+                        android:layout_width="8dp"
+                        android:layout_height="1dp" />
+
+                    <TextView
+                        android:id="@+id/widget_inclass_cta_room"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="sans-serif-medium"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:maxWidth="110dp"
+                        android:textColor="@color/next_class_widget_cta_fg"
+                        android:textSize="15sp"
+                        tools:text="304" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/widget_inclass_subject"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.01"
+                android:maxLines="1"
+                android:textColor="@color/next_class_widget_text"
+                android:textSize="20sp"
+                tools:text="Advanced Mathematics" />
+
+            <TextView
+                android:id="@+id/widget_inclass_time"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:fontFamily="sans-serif"
+                android:fontFeatureSettings="tnum"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/next_class_widget_secondary"
+                android:textSize="13sp"
+                tools:text="1:00 – 2:30 PM" />
+
+            <TextView
+                android:id="@+id/widget_inclass_ends_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:fontFamily="sans-serif"
+                android:includeFontPadding="false"
+                android:letterSpacing="0.1"
+                android:text="@string/next_class_widget_ends_in_label"
+                android:textAllCaps="true"
+                android:textColor="@color/next_class_widget_muted"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="3dp"
+                android:gravity="bottom"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/widget_inclass_value_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif"
+                    android:fontFeatureSettings="tnum"
+                    android:includeFontPadding="false"
+                    android:letterSpacing="-0.03"
+                    android:textColor="@color/next_class_widget_text"
+                    android:textSize="44sp"
+                    android:textStyle="bold"
+                    tools:text="1" />
+
+                <TextView
+                    android:id="@+id/widget_inclass_unit_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginEnd="10dp"
                     android:fontFamily="sans-serif-medium"
                     android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:maxWidth="110dp"
-                    android:textColor="@color/next_class_widget_cta_fg"
+                    android:paddingBottom="6dp"
+                    android:textColor="@color/next_class_widget_unit"
                     android:textSize="15sp"
-                    tools:text="304" />
+                    tools:text="h" />
+
+                <TextView
+                    android:id="@+id/widget_inclass_value_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif"
+                    android:fontFeatureSettings="tnum"
+                    android:includeFontPadding="false"
+                    android:letterSpacing="-0.03"
+                    android:textColor="@color/next_class_widget_text"
+                    android:textSize="44sp"
+                    android:textStyle="bold"
+                    tools:text="30" />
+
+                <TextView
+                    android:id="@+id/widget_inclass_unit_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:includeFontPadding="false"
+                    android:paddingBottom="6dp"
+                    android:textColor="@color/next_class_widget_unit"
+                    android:textSize="15sp"
+                    tools:text="min" />
             </LinearLayout>
-        </LinearLayout>
 
-        <TextView
-            android:id="@+id/widget_inclass_subject"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:ellipsize="end"
-            android:fontFamily="sans-serif-medium"
-            android:includeFontPadding="false"
-            android:letterSpacing="-0.01"
-            android:maxLines="1"
-            android:textColor="@color/next_class_widget_text"
-            android:textSize="20sp"
-            tools:text="Advanced Mathematics" />
-
-        <TextView
-            android:id="@+id/widget_inclass_ends_label"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:fontFamily="sans-serif-medium"
-            android:includeFontPadding="false"
-            android:letterSpacing="0.1"
-            android:text="@string/next_class_widget_ends_in_label"
-            android:textColor="@color/next_class_widget_muted"
-            android:textSize="11sp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:layout_marginTop="3dp"
-            android:gravity="bottom"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/widget_inclass_value_1"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:includeFontPadding="false"
-                android:letterSpacing="-0.03"
-                android:textColor="@color/next_class_widget_text"
-                android:textSize="44sp"
-                android:textStyle="bold"
-                tools:text="1" />
-
-            <TextView
-                android:id="@+id/widget_inclass_unit_1"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:layout_marginEnd="10dp"
-                android:fontFamily="sans-serif-medium"
-                android:includeFontPadding="false"
-                android:paddingBottom="6dp"
-                android:textColor="@color/next_class_widget_unit"
-                android:textSize="15sp"
-                tools:text="h" />
-
-            <TextView
-                android:id="@+id/widget_inclass_value_2"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="sans-serif"
-                android:fontFeatureSettings="tnum"
-                android:includeFontPadding="false"
-                android:letterSpacing="-0.03"
-                android:textColor="@color/next_class_widget_text"
-                android:textSize="44sp"
-                android:textStyle="bold"
-                tools:text="30" />
-
-            <TextView
-                android:id="@+id/widget_inclass_unit_2"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:fontFamily="sans-serif-medium"
-                android:includeFontPadding="false"
-                android:paddingBottom="6dp"
-                android:textColor="@color/next_class_widget_unit"
-                android:textSize="15sp"
-                tools:text="min left" />
+            <ProgressBar
+                android:id="@+id/widget_inclass_bar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="6dp"
+                android:layout_marginTop="12dp"
+                android:indeterminate="false"
+                android:max="100"
+                android:progress="0"
+                android:progressDrawable="@drawable/next_class_widget_progress" />
         </LinearLayout>
     </LinearLayout>
 
@@ -472,32 +655,39 @@
         android:orientation="vertical"
         android:visibility="gone">
 
-        <!-- Absorbs spare height so a short card (no shelf) centres the
+        <!-- Absorbs spare height so a short stack (no shelf) centres the
              message instead of leaving a dead band under it. Collapses to
-             zero as soon as the header + shelf need the room. -->
+             zero as soon as the check row + shelf need the room. -->
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1" />
 
         <LinearLayout
+            android:id="@+id/widget_alldone_top"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="@drawable/next_class_widget_seg_quiet_first"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:paddingStart="14dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="12dp">
 
             <ImageView
-                android:layout_width="28dp"
-                android:layout_height="28dp"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
                 android:contentDescription="@null"
                 android:importantForAccessibility="no"
                 android:src="@drawable/next_class_widget_check_icon"
-                android:tint="@color/next_class_widget_text" />
+                android:tint="@color/next_class_widget_secondary" />
 
             <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="14dp"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
                 android:orientation="vertical">
 
                 <TextView
@@ -528,17 +718,24 @@
             </LinearLayout>
         </LinearLayout>
 
+        <!-- 2dp seam of wallpaper between the check row and the shelf. -->
+        <FrameLayout
+            android:id="@+id/widget_alldone_seam"
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:visibility="gone" />
+
         <LinearLayout
             android:id="@+id/widget_alldone_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/next_class_widget_shelf_background"
+            android:background="@drawable/next_class_widget_seg_quiet_last"
             android:orientation="vertical"
-            android:paddingStart="18dp"
-            android:paddingTop="10dp"
-            android:paddingEnd="18dp"
-            android:paddingBottom="10dp">
+            android:paddingStart="14dp"
+            android:paddingTop="11dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="13dp"
+            android:visibility="gone">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -551,10 +748,11 @@
                     android:layout_width="wrap_content"
                     android:layout_height="22dp"
                     android:background="@drawable/next_class_widget_day_pill"
-                    android:fontFamily="sans-serif-medium"
+                    android:fontFamily="sans-serif"
                     android:gravity="center"
                     android:includeFontPadding="false"
                     android:letterSpacing="0.08"
+                    android:maxLines="1"
                     android:paddingStart="9dp"
                     android:paddingEnd="9dp"
                     android:textColor="@color/next_class_widget_day_pill_text"
@@ -571,13 +769,14 @@
                     android:id="@+id/widget_alldone_starts"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif"
                     android:fontFeatureSettings="tnum"
                     android:includeFontPadding="false"
                     android:maxLines="1"
                     android:textColor="@color/next_class_widget_secondary"
                     android:textSize="13sp"
                     android:textStyle="bold"
-                    tools:text="Starts in 16h 30m" />
+                    tools:text="Starts in 16h 20m" />
             </LinearLayout>
 
             <TextView
@@ -586,12 +785,13 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:ellipsize="end"
-                android:fontFamily="sans-serif-medium"
+                android:fontFamily="sans-serif"
                 android:includeFontPadding="false"
                 android:letterSpacing="-0.01"
                 android:maxLines="1"
                 android:textColor="@color/next_class_widget_text"
                 android:textSize="16sp"
+                android:textStyle="bold"
                 tools:text="Chemistry" />
 
             <LinearLayout
@@ -602,8 +802,8 @@
                 android:orientation="horizontal">
 
                 <ImageView
-                    android:layout_width="15dp"
-                    android:layout_height="15dp"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
                     android:contentDescription="@null"
                     android:importantForAccessibility="no"
                     android:src="@drawable/next_class_widget_clock_icon"
@@ -616,6 +816,7 @@
                     android:layout_marginStart="6dp"
                     android:layout_weight="1"
                     android:ellipsize="end"
+                    android:fontFamily="sans-serif"
                     android:fontFeatureSettings="tnum"
                     android:includeFontPadding="false"
                     android:maxLines="1"
@@ -636,7 +837,13 @@
         android:id="@+id/container_active"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:background="@drawable/next_class_widget_seg_hero_solo"
         android:orientation="vertical"
+        android:paddingStart="14dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="13dp"
         android:visibility="gone">
 
         <LinearLayout
@@ -646,11 +853,12 @@
             android:orientation="horizontal">
 
             <ImageView
-                android:layout_width="14dp"
-                android:layout_height="14dp"
+                android:id="@+id/widget_active_dot"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
                 android:contentDescription="@null"
                 android:importantForAccessibility="no"
-                android:src="@drawable/next_class_widget_live_halo" />
+                android:src="@drawable/next_class_widget_live_dot" />
 
             <TextView
                 android:id="@+id/widget_label"
@@ -659,11 +867,12 @@
                 android:layout_marginStart="8dp"
                 android:layout_weight="1"
                 android:ellipsize="end"
-                android:fontFamily="sans-serif-medium"
+                android:fontFamily="sans-serif"
                 android:includeFontPadding="false"
                 android:maxLines="1"
                 android:textColor="@color/next_class_widget_compact_text"
                 android:textSize="13sp"
+                android:textStyle="bold"
                 tools:text="In class · ends in 24m" />
         </LinearLayout>
 
@@ -688,23 +897,28 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"
+        android:background="@drawable/next_class_widget_seg_quiet_solo"
         android:gravity="center_vertical"
         android:orientation="horizontal"
+        android:paddingStart="14dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="12dp"
         android:visibility="gone">
 
         <ImageView
-            android:layout_width="56dp"
-            android:layout_height="56dp"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:background="@drawable/next_class_widget_logo_tile"
             android:contentDescription="@null"
             android:importantForAccessibility="no"
-            android:padding="8dp"
+            android:padding="7dp"
             android:src="@drawable/next_class_widget_logo" />
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
+            android:layout_marginStart="12dp"
             android:layout_weight="1"
             android:orientation="vertical">
 

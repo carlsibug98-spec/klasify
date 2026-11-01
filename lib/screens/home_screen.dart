@@ -440,7 +440,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   FadeTransition(
                                     opacity: animation,
                                     // The 2% vertical slide masks the
-                                    // crossfade between two solid black
+                                    // crossfade between two solid tier
                                     // cards so they don't ghost into each
                                     // other (same pattern as
                                     // app_state_transition.dart).
@@ -500,6 +500,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                         whenText: next.isNow
                                             ? next.whenText
                                             : '',
+                                        // A class on another day carries the
+                                        // day pill in the header (TOMORROW,
+                                        // or the weekday). Today's next-up
+                                        // stays pill-free.
+                                        dayPillText: !next.isNow &&
+                                                next.item.day != now.weekday
+                                            ? next.dayPillText(now)
+                                            : null,
                                         // The elapsed bar sits inside the
                                         // live card now (6px rounded gradient
                                         // track), not on its bottom edge.

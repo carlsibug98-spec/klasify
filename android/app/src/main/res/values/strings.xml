@@ -6,8 +6,6 @@
     <string name="next_class_widget_starts_in" formatted="false">Starts in %s</string>
     <string name="next_class_widget_starts_in_label">STARTS IN</string>
     <string name="next_class_widget_ends_in_label">ENDS IN</string>
-    <string name="next_class_widget_min_left">min left</string>
-    <string name="next_class_widget_hour_left">h left</string>
     <string name="next_class_widget_unit_hours">h</string>
     <string name="next_class_widget_unit_minutes">min</string>
     <string name="next_class_widget_unit_days">d</string>

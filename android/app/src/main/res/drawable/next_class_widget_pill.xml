@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Status pill behind Next up / In class: 28dp high, 14dp radius. -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="@color/next_class_widget_pill_bg" />
-    <corners android:radius="14dp" />
-</shape>

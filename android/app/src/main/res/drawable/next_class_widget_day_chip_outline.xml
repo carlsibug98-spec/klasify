@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Today" chip beside the tracked-caps header: outlined, not filled. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#00000000" />
+    <corners android:radius="7dp" />
+    <stroke
+        android:width="1dp"
+        android:color="@color/next_class_widget_accent" />
+</shape>

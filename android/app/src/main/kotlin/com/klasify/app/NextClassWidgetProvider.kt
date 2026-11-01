@@ -527,11 +527,38 @@ class NextClassWidgetProvider : AppWidgetProvider() {
             )
             views.setTextViewText(R.id.widget_upcoming_subject, item.subject)
 
-            // LATER TODAY belongs to the current day only.
+            // The day chip marks today; a class on another day gets the
+            // filled day pill instead (TOMORROW, or the weekday name).
+            if (nextClass.dayDifference == 0) {
+                views.setViewVisibility(R.id.widget_upcoming_day_chip, View.VISIBLE)
+                views.setViewVisibility(R.id.widget_upcoming_day_pill, View.GONE)
+            } else {
+                views.setViewVisibility(R.id.widget_upcoming_day_chip, View.GONE)
+                views.setViewVisibility(R.id.widget_upcoming_day_pill, View.VISIBLE)
+                val dayPill = if (nextClass.dayDifference == 1) {
+                    context.getString(R.string.next_class_widget_day_tomorrow)
+                } else {
+                    weekdayName(item.day).uppercase(Locale.getDefault())
+                }
+                views.setTextViewText(R.id.widget_upcoming_day_pill, dayPill)
+            }
+
+            // LATER TODAY belongs to the current day only. Its caption rides
+            // the hero segment; the rows are the quiet segments below it, so
+            // the hero rounds first (10/2) with rows and solo (10) without.
             val later = if (showLater) remaining.take(2) else emptyList()
             views.setViewVisibility(
                 R.id.widget_upcoming_later_label,
                 if (later.isEmpty()) View.GONE else View.VISIBLE,
+            )
+            views.setInt(
+                R.id.widget_upcoming_hero,
+                "setBackgroundResource",
+                if (later.isEmpty()) {
+                    R.drawable.next_class_widget_seg_hero_solo
+                } else {
+                    R.drawable.next_class_widget_seg_hero_first
+                },
             )
             bindLaterRow(
                 views,
@@ -545,9 +572,25 @@ class NextClassWidgetProvider : AppWidgetProvider() {
                 item = later.getOrNull(1),
                 showRow = later.size > 1,
             )
+            // Corner logic by position: row 1 rounds last (2/10) when it is
+            // the only row, straight (2/2) when row 2 follows it.
+            views.setInt(
+                R.id.widget_later_row_1,
+                "setBackgroundResource",
+                if (later.size > 1) {
+                    R.drawable.next_class_widget_seg_quiet_mid
+                } else {
+                    R.drawable.next_class_widget_seg_quiet_last
+                },
+            )
+            views.setInt(
+                R.id.widget_later_row_2,
+                "setBackgroundResource",
+                R.drawable.next_class_widget_seg_quiet_last,
+            )
 
             views.setViewVisibility(
-                R.id.widget_cal_section,
+                R.id.widget_cal_panel,
                 if (showCalendar) View.VISIBLE else View.GONE,
             )
             if (showCalendar) {
@@ -572,15 +615,34 @@ class NextClassWidgetProvider : AppWidgetProvider() {
                 roomText = item.room,
             )
 
-            // The board's live hero reads "24 min left"; a long class reads
-            // "1 h 30 min left" instead of dumping 90 minutes.
-            bindLiveCountdown(
+            // The time range sits under the subject; the big countdown below
+            // reads "24 min" — the ENDS IN caption carries the direction, so
+            // no unit says "left" anymore.
+            views.setTextViewText(
+                R.id.widget_inclass_time,
+                formatTimeRange(item.startMinutes, item.endMinutes),
+            )
+            bindCountdown(
                 context,
                 views,
                 millis = millisUntil(now, item.endMinutes),
+                value1 = R.id.widget_inclass_value_1,
+                unit1 = R.id.widget_inclass_unit_1,
+                value2 = R.id.widget_inclass_value_2,
+                unit2 = R.id.widget_inclass_unit_2,
             )
-
             views.setTextViewText(R.id.widget_inclass_subject, item.subject)
+
+            // The 6px elapsed bar moves at real-time speed between updates.
+            val span = (item.endMinutes - item.startMinutes).coerceAtLeast(1)
+            val nowMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+            val elapsed = (nowMinutes - item.startMinutes).coerceIn(0, span)
+            views.setProgressBar(
+                R.id.widget_inclass_bar,
+                100,
+                elapsed * 100 / span,
+                false,
+            )
         }
 
         private fun showAllDone(
@@ -610,7 +672,22 @@ class NextClassWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.widget_alldone_title, title)
             views.setTextViewText(R.id.widget_alldone_subtitle, subtitle)
 
+            // Two-segment stack when a next class exists: check row first
+            // (10/2), seam of wallpaper, shelf last (2/10). Solo otherwise.
             val hasShelf = showShelf && next != null
+            views.setInt(
+                R.id.widget_alldone_top,
+                "setBackgroundResource",
+                if (hasShelf) {
+                    R.drawable.next_class_widget_seg_quiet_first
+                } else {
+                    R.drawable.next_class_widget_seg_quiet_solo
+                },
+            )
+            views.setViewVisibility(
+                R.id.widget_alldone_seam,
+                if (hasShelf) View.VISIBLE else View.GONE,
+            )
             views.setViewVisibility(
                 R.id.widget_alldone_card,
                 if (hasShelf) View.VISIBLE else View.GONE,
@@ -654,6 +731,17 @@ class NextClassWidgetProvider : AppWidgetProvider() {
                 ),
             )
             views.setTextViewText(R.id.widget_subject, item.subject)
+            // The dot carries the same meaning as the caps header: orange
+            // for live, inverted for next up.
+            val dotColor = ContextCompat.getColor(
+                context,
+                if (templateRes == R.string.next_class_widget_compact_in_class) {
+                    R.color.next_class_widget_live
+                } else {
+                    R.color.next_class_widget_accent
+                },
+            )
+            views.setInt(R.id.widget_active_dot, "setColorFilter", dotColor)
         }
 
         // -- View helpers ----------------------------------------------------
@@ -699,74 +787,27 @@ class NextClassWidgetProvider : AppWidgetProvider() {
             }
         }
 
-        /**
-         * Live hero countdown: "24 min left", "1 h 30 min left" or "1 h left".
-         * The trailing unit carries "left" so long classes don't collapse into
-         * a wall of minutes.
-         */
-        private fun bindLiveCountdown(
-            context: Context,
-            views: RemoteViews,
-            millis: Long,
-        ) {
-            val parts = countdownParts(millis)
-            views.setTextViewText(R.id.widget_inclass_value_1, parts[0].first)
-            views.setTextViewText(
-                R.id.widget_inclass_unit_1,
-                context.getString(
-                    if (parts.size == 1) liveUnit(parts[0].second) else parts[0].second,
-                ),
-            )
-            val hasSecond = parts.size > 1
-            views.setViewVisibility(
-                R.id.widget_inclass_value_2,
-                if (hasSecond) View.VISIBLE else View.GONE,
-            )
-            views.setViewVisibility(
-                R.id.widget_inclass_unit_2,
-                if (hasSecond) View.VISIBLE else View.GONE,
-            )
-            if (hasSecond) {
-                views.setTextViewText(R.id.widget_inclass_value_2, parts[1].first)
-                views.setTextViewText(
-                    R.id.widget_inclass_unit_2,
-                    context.getString(liveUnit(parts[1].second)),
-                )
-            }
-        }
-
-        /** "min" -> "min left", "h" -> "h left" for the last live unit. */
-        private fun liveUnit(unitRes: Int): Int = when (unitRes) {
-            R.string.next_class_widget_unit_minutes -> R.string.next_class_widget_min_left
-            R.string.next_class_widget_unit_hours -> R.string.next_class_widget_hour_left
-            else -> unitRes
-        }
-
         private fun bindLaterRow(
             views: RemoteViews,
             index: Int,
             item: NextWidgetClass?,
             showRow: Boolean,
         ) {
-            val divider = if (index == 1) {
-                R.id.widget_later_divider_1
-            } else {
-                R.id.widget_later_divider_2
-            }
             val row = if (index == 1) R.id.widget_later_row_1 else R.id.widget_later_row_2
             val time = if (index == 1) R.id.widget_later_time_1 else R.id.widget_later_time_2
             val subject =
                 if (index == 1) R.id.widget_later_subject_1 else R.id.widget_later_subject_2
             val room = if (index == 1) R.id.widget_later_room_1 else R.id.widget_later_room_2
+            val roomBox =
+                if (index == 1) R.id.widget_later_room_box_1 else R.id.widget_later_room_box_2
 
-            views.setViewVisibility(divider, if (showRow) View.VISIBLE else View.GONE)
             views.setViewVisibility(row, if (showRow) View.VISIBLE else View.GONE)
             if (!showRow || item == null) return
 
             views.setTextViewText(time, formatMinutes12(item.item.startMinutes))
             views.setTextViewText(subject, item.item.subject)
             val roomText = formatRoom(item.item.room)
-            views.setViewVisibility(room, if (roomText.isEmpty()) View.GONE else View.VISIBLE)
+            views.setViewVisibility(roomBox, if (roomText.isEmpty()) View.GONE else View.VISIBLE)
             views.setTextViewText(room, roomText)
         }
 

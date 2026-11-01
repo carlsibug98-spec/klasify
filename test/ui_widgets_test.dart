@@ -399,7 +399,7 @@ void main() {
         ),
       ),
     );
-    expect(find.text('Next up'), findsOneWidget);
+    expect(find.text('NEXT UP'), findsOneWidget);
     expect(find.text('Data Structures'), findsOneWidget);
     expect(find.text('Room 304'), findsOneWidget);
     // The class hero deliberately carries no time range or professor: the
@@ -436,9 +436,11 @@ void main() {
         ),
       ),
     );
-    // Live units already say "left"; a second caption would be noise.
+    // Units stay bare: the ENDS IN caption carries the direction, so the
+    // countdown reads "24 min" — no "left" suffix anywhere.
     expect(find.text('STARTS IN'), findsNothing);
-    expect(find.text('min left'), findsOneWidget);
+    expect(find.text('ENDS IN'), findsOneWidget);
+    expect(find.text('min'), findsOneWidget);
   });
 
   testWidgets('hero status tag pulses only while in class', (tester) async {
