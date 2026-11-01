@@ -1818,10 +1818,14 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return Container(
+      // Option-C edge (holdouts board §5): the file tile joins the card
+      // family — card fill + hairline + ambient; the icon chip lifts one
+      // step so it survives the new fill.
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerLowest,
+        color: AppTheme.cardFillColorOf(scheme),
         borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-        border: Border.all(color: scheme.outlineVariant),
+        border: Border.fromBorderSide(AppTheme.cardBorderSideOf(scheme)),
+        boxShadow: AppTheme.cardShadowsOf(scheme),
       ),
       padding: const EdgeInsets.all(12),
       child: Row(
@@ -1830,7 +1834,9 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: scheme.surfaceContainerLowest,
+              color: scheme.brightness == Brightness.dark
+                  ? scheme.surfaceContainerHigh
+                  : scheme.surfaceContainer,
               borderRadius: BorderRadius.circular(AppTheme.controlRadius),
             ),
             child: Icon(

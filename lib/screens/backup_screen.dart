@@ -401,11 +401,15 @@ class _ActionPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    // Option-C edge, same primitive as the class card: fill + hairline +
+    // tight ambient shadow (holdouts board §1).
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainer,
+        color: AppTheme.cardFillColorOf(scheme),
         borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        border: Border.fromBorderSide(AppTheme.cardBorderSideOf(scheme)),
+        boxShadow: AppTheme.cardShadowsOf(scheme),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

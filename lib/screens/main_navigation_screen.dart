@@ -330,9 +330,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
             Expanded(
               child: Container(
                 key: _tourNavKey,
+                // Option-C edge, quiet (holdouts board §6): the pill is
+                // chrome, but it is inset and rounded like a card, so it
+                // carries the C edge — fill + hairline + ambient — without
+                // ever competing with the content above it.
                 decoration: BoxDecoration(
-                  color: scheme.surfaceContainer,
+                  color: AppTheme.cardFillColorOf(scheme),
                   borderRadius: BorderRadius.circular(16),
+                  border: Border.fromBorderSide(
+                    AppTheme.cardBorderSideOf(scheme),
+                  ),
+                  boxShadow: AppTheme.cardShadowsOf(scheme),
                 ),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,

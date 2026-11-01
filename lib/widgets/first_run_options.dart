@@ -43,10 +43,17 @@ class FirstRunOptions extends StatelessWidget {
               icon: Icons.add,
               title: 'Add by hand',
               subtitle: 'One class at a time',
-              background: scheme.surface,
+              // Option-C edge (holdouts board §2): the tile keeps its
+              // two-tone with the black Scan tile — white in light — and
+              // rises to the dark card fill in dark mode, with the C
+              // hairline replacing the old outline border.
+              background: scheme.brightness == Brightness.dark
+                  ? AppTheme.cardFillColorOf(scheme)
+                  : scheme.surface,
               foreground: scheme.onSurface,
               subtitleColor: scheme.onSurfaceVariant,
-              border: scheme.outlineVariant,
+              border: AppTheme.cardBorderSideOf(scheme).color,
+              shadow: AppTheme.cardShadowsOf(scheme),
               onTap: onAdd,
             ),
           ),
@@ -85,9 +92,14 @@ class _ExampleCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return Container(
       padding: const EdgeInsets.all(16),
+      // Option-C edge (holdouts board §2): the example card is a real
+      // content card now — fill + hairline + ambient, like the class card
+      // it previews.
       decoration: BoxDecoration(
-        color: scheme.surface,
+        color: AppTheme.cardFillColorOf(scheme),
         borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        border: Border.fromBorderSide(AppTheme.cardBorderSideOf(scheme)),
+        boxShadow: AppTheme.cardShadowsOf(scheme),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -140,6 +152,7 @@ class _OptionTile extends StatelessWidget {
     required this.subtitleColor,
     required this.onTap,
     this.border,
+    this.shadow = const <BoxShadow>[],
   });
 
   final IconData icon;
@@ -149,6 +162,9 @@ class _OptionTile extends StatelessWidget {
   final Color foreground;
   final Color subtitleColor;
   final Color? border;
+
+  /// Ambient shadow behind the tile (option C carries one in light mode).
+  final List<BoxShadow> shadow;
   final VoidCallback onTap;
 
   @override
@@ -158,52 +174,61 @@ class _OptionTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppTheme.controlRadius),
       side: border == null ? BorderSide.none : BorderSide(color: border!),
     );
-    return Semantics(
-      button: true,
-      child: Material(
-        color: background,
-        shape: shape,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          customBorder: shape,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 104),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Icon(icon, size: 26, color: foreground),
-                  const SizedBox(height: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: textTheme.bodyLarge?.copyWith(
-                          color: foreground,
-                          fontSize: 15,
-                          height: 1.3,
-                          fontWeight: FontWeight.w700,
+    return DecoratedBox(
+      // The ambient layer rides outside the Material, exactly like the
+      // class card: DecoratedBox paints the shadow, Material paints the
+      // hairline on its own edge.
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppTheme.controlRadius),
+        boxShadow: shadow,
+      ),
+      child: Semantics(
+        button: true,
+        child: Material(
+          color: background,
+          shape: shape,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            customBorder: shape,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 104),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Icon(icon, size: 26, color: foreground),
+                    const SizedBox(height: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: textTheme.bodyLarge?.copyWith(
+                            color: foreground,
+                            fontSize: 15,
+                            height: 1.3,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: subtitleColor,
-                          fontSize: 13,
-                          height: 1.38,
-                          fontWeight: FontWeight.w400,
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: subtitleColor,
+                            fontSize: 13,
+                            height: 1.38,
+                            fontWeight: FontWeight.w400,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

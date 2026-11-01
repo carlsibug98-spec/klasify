@@ -786,9 +786,13 @@ class ImportAttentionBanner extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(14),
+      // Option-C edge (holdouts board §4): semantic fill stays, the banner
+      // gains the same hairline + ambient as every content card.
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        border: Border.fromBorderSide(AppTheme.cardBorderSideOf(scheme)),
+        boxShadow: AppTheme.cardShadowsOf(scheme),
       ),
       child: Semantics(
         liveRegion: blocking,
@@ -879,9 +883,13 @@ class ImportStatCard extends StatelessWidget {
         : scheme.onSurfaceVariant;
     return Container(
       padding: const EdgeInsets.all(14),
+      // Option-C edge (holdouts board §3): stat cards join the card
+      // family; the flagged one keeps its amber fill under the hairline.
       decoration: BoxDecoration(
-        color: flagged ? scheme.tertiaryContainer : scheme.surfaceContainer,
+        color: flagged ? scheme.tertiaryContainer : AppTheme.cardFillColorOf(scheme),
         borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        border: Border.fromBorderSide(AppTheme.cardBorderSideOf(scheme)),
+        boxShadow: AppTheme.cardShadowsOf(scheme),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -976,7 +984,10 @@ class ImportDraftCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-        side: BorderSide.none,
+        // Option-C hairline (holdouts board §3): the review cards are
+        // content cards — they keep the themed Card fill and gain the
+        // same edge the schedule cards carry.
+        side: AppTheme.cardBorderSideOf(scheme),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 6, 14),
