@@ -325,6 +325,16 @@ class _CoachTourOverlayState extends State<CoachTourOverlay>
       return;
     }
     final screen = MediaQuery.sizeOf(context);
+    // The overlay's own box, not the window: the first-run coach mounts inside
+    // HomeScreen (below the app bar, above the nav bar), so a window-relative
+    // "bottom" pushed its card up over the tiles. The full tour fills the
+    // screen and is unaffected.
+    final overlayBox = context.findRenderObject() as RenderBox?;
+    final overlayReady = overlayBox != null && overlayBox.hasSize;
+    final overlaySize = overlayReady ? overlayBox.size : screen;
+    final overlayOrigin = overlayReady
+        ? overlayBox.localToGlobal(Offset.zero)
+        : Offset.zero;
     final located = widget.keys.locate(_current.target);
     if (located == null) {
       // Target may not be laid out yet: the replay path mounts over a Today
@@ -351,12 +361,17 @@ class _CoachTourOverlayState extends State<CoachTourOverlay>
       return;
     }
     _measureAttempts = 0;
-    final hole = located.rect;
+    // Anchors are global rects; the painter and the Positioned card live in
+    // the overlay's own coordinates.
+    final hole = located.rect.shift(-overlayOrigin);
     _reportStep(_current);
     // Mock 04's last step narrows the tooltip over the bottom bar to 290;
     // every other step runs the full 350 card.
     final maxTipWidth = _current.target == CoachTarget.nav ? 290.0 : 350.0;
-    final maxWidth = (screen.width - 2 * _tipSideGap).clamp(0.0, maxTipWidth);
+    final maxWidth = (overlaySize.width - 2 * _tipSideGap).clamp(
+      0.0,
+      maxTipWidth,
+    );
     // Mock 04 anchors every tooltip at left:20, including the narrower
     // bottom-bar step (a centered 290 card would sit at 50).
     final tipLeft = _tipSideGap.toDouble();
@@ -364,12 +379,17 @@ class _CoachTourOverlayState extends State<CoachTourOverlay>
     // four-row card is around 210-240px tall.
     final tipBox = _tipKey.currentContext?.findRenderObject() as RenderBox?;
     final tipHeight = tipBox?.size.height ?? 216;
+    // Never let the card run past either edge of the overlay. The upper bound
+    // collapses safely on screens shorter than the card itself.
+    final tipTopCeiling = overlaySize.height - tipHeight - 8;
+    final tipTopMax = tipTopCeiling < 8 ? 8.0 : tipTopCeiling;
     // The mock 04 placement is per target, not per screen position: the
     // hero's tooltip hangs below it, every lower target's flips above. Fit
     // fallbacks cover cramped screens.
-    final fitsBelow = hole.bottom + _holeGap + tipHeight <= screen.height - 8;
+    final fitsBelow =
+        hole.bottom + _holeGap + tipHeight <= overlaySize.height - 8;
     final fitsAbove = hole.top - _holeGap - tipHeight >= 8;
-    final spaceBelow = screen.height - 8 - (hole.bottom + _holeGap);
+    final spaceBelow = overlaySize.height - 8 - (hole.bottom + _holeGap);
     final spaceAbove = (hole.top - _holeGap) - 8;
     final below =
         _current.target == CoachTarget.hero
@@ -386,11 +406,11 @@ class _CoachTourOverlayState extends State<CoachTourOverlay>
       tipLeft: tipLeft,
       tipWidth: maxWidth,
       tipTop: below
-          ? (hole.bottom + _holeGap).clamp(8.0, screen.height - tipHeight - 8.0)
+          ? (hole.bottom + _holeGap).clamp(8.0, tipTopMax)
           : null,
       tipBottom: below
           ? null
-          : (screen.height - hole.top + _holeGap).clamp(8.0, screen.height - tipHeight - 8.0),
+          : (overlaySize.height - hole.top + _holeGap).clamp(8.0, tipTopMax),
       // Center the caret's base on the target, then keep it clear of the
       // card's 20px corners so it never rides the radius.
       caretX:

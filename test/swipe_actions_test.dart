@@ -160,7 +160,11 @@ void main() {
       // so the step shows the gesture happening instead of a pre-swiped card.
       expect(planeFade().opacity, 0);
 
-      await tester.pumpAndSettle();
+      // Walk the rehearsal in small steps: it holds between beats with no
+      // frame scheduled, and pumpAndSettle stops at those idle gaps.
+      for (var i = 0; i < 40 && planeFade().opacity < 1; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
       expect(planeFade().opacity, 1);
 
       await tester.pumpWidget(host(forceOpen: false));

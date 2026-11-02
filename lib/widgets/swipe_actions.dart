@@ -250,19 +250,33 @@ class _SwipeActionsState extends State<SwipeActions>
   Future<void> _runSwipeDemo(int token) async {
     bool live() => mounted && token == _demoToken && widget.forceOpen;
 
-    // Beat 1: a short yield left — the direction the gesture travels.
-    _controller.duration = const Duration(milliseconds: 260);
-    await _controller.animateTo(0.3, curve: AppTheme.motionEaseOut);
+    // Let the tour's tooltip land before the card moves: two entrances on the
+    // same frame read as one blur, and the gesture is the thing to follow.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     if (!live()) return;
 
-    // Beat 2: it settles back, like a swipe that didn't take.
-    _controller.duration = const Duration(milliseconds: 220);
-    await _controller.animateTo(0, curve: AppTheme.motionEaseInOut);
+    // Beat 1: the finger starts left, revealing the plane. Slower than a real
+    // swipe: this is a demonstration, and the eye has to read the reveal.
+    _controller.duration = const Duration(milliseconds: 300);
+    await _controller.animateTo(0.26, curve: Curves.easeInOutCubic);
     if (!live()) return;
 
-    // Beat 3: the real swipe lands and the plane settles open — slower and
+    // Hold the plane open. Without this pause the reveal is a flicker.
+    await Future<void>.delayed(const Duration(milliseconds: 220));
+    if (!live()) return;
+
+    // Beat 2: released short of the snap — the row comes back.
+    _controller.duration = const Duration(milliseconds: 320);
+    await _controller.animateTo(0, curve: Curves.easeInOutCubic);
+    if (!live()) return;
+
+    // A breath at rest so the cancel reads as "didn't take", not a stutter.
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+    if (!live()) return;
+
+    // Beat 3: the real swipe lands and the plane settles open — long and
     // deliberate, because this is the beat the step is explaining.
-    _controller.duration = const Duration(milliseconds: 420);
+    _controller.duration = const Duration(milliseconds: 620);
     await _controller.animateTo(1, curve: AppTheme.motionEaseOut);
     _controller.duration = AppTheme.motionPage;
   }
