@@ -10,7 +10,7 @@ import '../widgets/component_kit.dart';
 ///
 /// Rows render as their own segments — the first row carries the group's top
 /// corners, middle rows soften to 2px, the last row carries the bottom
-/// corners — separated by a tight 2px seam of scaffold (the approved
+/// corners — separated by a tight 1px seam of scaffold (the approved
 /// segmented-rows study). Rows use a neutral leading tile instead of accent
 /// decoration, so the only colour on the page belongs to state — the
 /// reminders dot.

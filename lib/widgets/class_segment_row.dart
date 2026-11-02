@@ -13,7 +13,7 @@ import 'live_pulse.dart';
 /// ambient shadow in light mode, raised fill in dark — but its corners
 /// follow its position inside the stack via [AppTheme.segmentRadiusOf]:
 /// group corners stay 16px, meeting edges soften to 2px, and consecutive
-/// classes read as one block through the 2px seams.
+/// classes read as one block through the 1px seams.
 ///
 /// The row is deliberately slimmer than the Today screen's [ClassCard]:
 /// the time moves into a fixed left column (start time only), the details

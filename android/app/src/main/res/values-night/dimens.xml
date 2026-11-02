@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Dark mode: the content-card shadow is empty on a black scaffold, so the
+    segments lift with their fill instead of casting a shadow.
+-->
+<resources>
+    <dimen name="next_class_widget_segment_gap">1dp</dimen>
+    <dimen name="next_class_widget_elevation">0dp</dimen>
+</resources>

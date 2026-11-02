@@ -3,10 +3,12 @@
     Klasify Upcoming home-screen widget — the segment stack.
 
     The old outer card is gone: every state renders as a stack of segments
-    floating on the launcher, 10dp outer corners, 2dp meeting edges, 2dp
+    floating on the launcher, 10dp outer corners, 2dp meeting edges, 1dp
     seams of wallpaper between them (AppTheme.segmentRadiusOf scaled to
-    launcher size). The raised tier (#E6E6E6 / #242424) marks a class you
-    can still catch; the quiet tier (#F4F4F4 / #181818) is everything else.
+    launcher size). Each segment carries a 2dp ambient lift in light mode;
+    dark mode drops the shadow and lets the fill carry the depth. The raised
+    tier (#E6E6E6 / #242424) marks a class you can still catch; the quiet
+    tier (#F4F4F4 / #181818) is everything else.
 
     States:
       1. container_upcoming — hero segment (tracked-caps status, Today chip
@@ -43,6 +45,7 @@
         android:id="@+id/container_upcoming"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:clipChildren="false"
         android:orientation="vertical">
 
         <!-- Hero segment: first position while later rows exist, solo
@@ -52,6 +55,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/next_class_widget_seg_hero_first"
+            android:elevation="@dimen/next_class_widget_elevation"
             android:orientation="vertical"
             android:paddingStart="14dp"
             android:paddingTop="12dp"
@@ -266,14 +270,15 @@
                 android:visibility="gone" />
         </LinearLayout>
 
-        <!-- Later-today rows: quiet segments, 2dp seams. Position radius is
+        <!-- Later-today rows: quiet segments, 1dp seams. Position radius is
              swapped at bind time (mid when row 2 shows, last when alone). -->
         <LinearLayout
             android:id="@+id/widget_later_row_1"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="@dimen/next_class_widget_segment_gap"
             android:background="@drawable/next_class_widget_seg_quiet_last"
+            android:elevation="@dimen/next_class_widget_elevation"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="14dp"
@@ -351,8 +356,9 @@
             android:id="@+id/widget_later_row_2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="@dimen/next_class_widget_segment_gap"
             android:background="@drawable/next_class_widget_seg_quiet_last"
+            android:elevation="@dimen/next_class_widget_elevation"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="14dp"
@@ -431,8 +437,9 @@
             android:id="@+id/widget_cal_panel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="@dimen/next_class_widget_segment_gap"
             android:background="@drawable/next_class_widget_seg_quiet_solo"
+            android:elevation="@dimen/next_class_widget_elevation"
             android:orientation="vertical"
             android:paddingStart="12dp"
             android:paddingTop="10dp"
@@ -454,6 +461,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"
+        android:clipChildren="false"
         android:orientation="vertical"
         android:visibility="gone">
 
@@ -462,6 +470,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/next_class_widget_seg_hero_solo"
+            android:elevation="@dimen/next_class_widget_elevation"
             android:orientation="vertical"
             android:paddingStart="14dp"
             android:paddingTop="12dp"
@@ -652,6 +661,7 @@
         android:id="@+id/container_alldone"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipChildren="false"
         android:orientation="vertical"
         android:visibility="gone">
 
@@ -668,6 +678,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/next_class_widget_seg_quiet_first"
+            android:elevation="@dimen/next_class_widget_elevation"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="14dp"
@@ -718,11 +729,11 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 2dp seam of wallpaper between the check row and the shelf. -->
+        <!-- 1dp seam of wallpaper between the check row and the shelf. -->
         <FrameLayout
             android:id="@+id/widget_alldone_seam"
             android:layout_width="match_parent"
-            android:layout_height="2dp"
+            android:layout_height="@dimen/next_class_widget_segment_gap"
             android:visibility="gone" />
 
         <LinearLayout
@@ -730,6 +741,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/next_class_widget_seg_quiet_last"
+            android:elevation="@dimen/next_class_widget_elevation"
             android:orientation="vertical"
             android:paddingStart="14dp"
             android:paddingTop="11dp"
@@ -839,6 +851,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"
         android:background="@drawable/next_class_widget_seg_hero_solo"
+        android:elevation="@dimen/next_class_widget_elevation"
         android:orientation="vertical"
         android:paddingStart="14dp"
         android:paddingTop="12dp"
@@ -898,6 +911,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"
         android:background="@drawable/next_class_widget_seg_quiet_solo"
+        android:elevation="@dimen/next_class_widget_elevation"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="14dp"

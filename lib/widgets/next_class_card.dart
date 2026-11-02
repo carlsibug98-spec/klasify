@@ -161,7 +161,7 @@ class NextClassCard extends StatelessWidget {
           : AppTheme.segmentRadiusOf(0, 1);
       segments = [
         // Top segment: the check row. Bottom segment (only when a next
-        // class exists): the shelf, flat on its own segment — the 2px seam
+        // class exists): the shelf, flat on its own segment — the 1px seam
         // of scaffold replaces the old inset box.
         _Segment(
           fill: quietFill,

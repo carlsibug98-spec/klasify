@@ -21,7 +21,7 @@ import 'weekday_tile.dart';
 ///
 /// The stacks follow the settings' A₂ language: classes with less than a
 /// [breakThreshold]-minute gap merge into one stack — first row takes the
-/// 16px top corners, meeting edges soften to 2px, and a 2px seam separates
+/// 16px top corners, meeting edges soften to 2px, and a 1px seam separates
 /// the rows — while a gap of [breakThreshold] minutes or more starts a new
 /// stack with a [CampusBreakDivider] between.
 class WeekAgendaView extends StatelessWidget {

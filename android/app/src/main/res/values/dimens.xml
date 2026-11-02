@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Next-class widget geometry. The seam is one density-independent pixel:
+    the smallest gap that still reads as a stack on a launcher, matching
+    AppTheme.segmentGap in the app.
+-->
+<resources>
+    <dimen name="next_class_widget_segment_gap">1dp</dimen>
+    <!-- Ambient lift under each segment, matching the content-card shadow. -->
+    <dimen name="next_class_widget_elevation">2dp</dimen>
+</resources>

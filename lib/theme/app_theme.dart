@@ -106,9 +106,11 @@ class AppTheme {
   // Settings rows render as their own segments: group corners stay
   // [cardRadius], the meeting edges between rows soften to [segmentSoften]
   // so junctions never read as hard cuts, and segments sit [segmentGap]
-  // apart on the scaffold with no divider lines.
+  // apart on the scaffold with no divider lines. One logical pixel is the
+  // smallest seam that still reads as a gap on a phone; the hairline on each
+  // segment keeps it from collapsing into a single block.
   static const double segmentSoften = 2;
-  static const double segmentGap = 2;
+  static const double segmentGap = 1;
 
   /// Corner logic by row position: single-row group → all [cardRadius];
   /// first → top [cardRadius] / bottom [segmentSoften]; middle → all

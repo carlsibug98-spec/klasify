@@ -304,7 +304,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // The Today list renders as the same segmented stacks the Week tab
     // shows: consecutive classes (gap under the week view's break
     // threshold) merge into one rail — 16px group corners, 2px softened
-    // meeting edges, 2px seams — and every stack boundary carries a
+    // meeting edges, 1px seams — and every stack boundary carries a
     // coffee chip.
     final stacks = <List<ClassItem>>[];
     for (final c in today) {
