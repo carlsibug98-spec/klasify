@@ -231,7 +231,7 @@ class ClassSegmentRow extends StatelessWidget {
                     ],
                     if (isDone && mark == null) ...[
                       const SizedBox(width: 10),
-                      ClassStatusPill(status: DayStatus.finished, label: 'Finished'),
+                      ClassStatusPill(status: DayStatus.finished, label: 'Done'),
                     ],
                   ],
                 ),
