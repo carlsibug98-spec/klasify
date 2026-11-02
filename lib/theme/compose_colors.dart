@@ -1,60 +1,88 @@
 import 'package:flutter/material.dart';
 
-/// The dark "compose mode" palette: the intentionally dark, focused surfaces
-/// that ignore the app theme — the class editor, its time-picker sheet, and
-/// the dark branch of the import scan/review widgets (which adapt between
-/// this palette and the active scheme).
+/// Theme-aware "compose mode" palette: the focused form surfaces used by the
+/// class editor, its time-picker sheet, and the import review widgets.
 ///
-/// Every color these surfaces use lives here so the palette has a single
-/// source of truth; previously each file hand-copied its own hexes and they
-/// drifted silently (#2A2A2A vs #2C2C2C, #3A1C1C vs #3A1D1D, a stray blue
-/// accent). Text tokens meet WCAG AA (≥ 4.5:1) on every background they are
-/// used with — see scripts/verify_contrast.py for the recomputable math.
-abstract final class ComposeColors {
-  /// Scaffold background (pure black).
-  static const Color background = Color(0xFF000000);
+/// Dark mode keeps the original intentionally-dark "compose" look; light mode
+/// mirrors it on the app's light surfaces so the editor follows the app theme
+/// instead of always being black.
+class ComposeColors {
+  ComposeColors._();
 
-  /// Section cards, sheets, and the time-picker surface on black.
-  static const Color surface = Color(0xFF141414);
+  /// Returns the palette for the current theme brightness.
+  static ComposePalette of(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? ComposePalette.dark
+          : ComposePalette.light;
+}
 
-  /// The attention/cancel sheet's near-black background.
-  static const Color bannerSurface = Color(0xFF1A1A1A);
+/// An immutable set of compose-mode color tokens.
+class ComposePalette {
+  const ComposePalette({
+    required this.background,
+    required this.surface,
+    required this.bannerSurface,
+    required this.field,
+    required this.fieldFocused,
+    required this.raised,
+    required this.grabber,
+    required this.hint,
+    required this.muted,
+    required this.error,
+    required this.errorContainer,
+    required this.onError,
+    required this.danger,
+    required this.dangerArmed,
+  });
 
-  /// Text fields, info chips, and the picker's highlight band.
-  static const Color field = Color(0xFF1F1F1F);
+  final Color background;
+  final Color surface;
+  final Color bannerSurface;
+  final Color field;
+  final Color fieldFocused;
+  final Color raised;
+  final Color grabber;
+  final Color hint;
+  final Color muted;
+  final Color error;
+  final Color errorContainer;
+  final Color onError;
+  final Color danger;
+  final Color dangerArmed;
 
-  /// Focused text field fill.
-  static const Color fieldFocused = Color(0xFF2C2C2C);
+  /// Dark "compose" palette (the original look).
+  static const ComposePalette dark = ComposePalette(
+    background: Color(0xFF000000),
+    surface: Color(0xFF141414),
+    bannerSurface: Color(0xFF1A1A1A),
+    field: Color(0xFF1F1F1F),
+    fieldFocused: Color(0xFF2C2C2C),
+    raised: Color(0xFF2A2A2A),
+    grabber: Color(0xFF6A6A6A),
+    hint: Color(0xFF979797),
+    muted: Color(0xFFA3A3A3),
+    error: Color(0xFFF28B82),
+    errorContainer: Color(0xFF3A1D1D),
+    onError: Color(0xFF1A0A0A),
+    danger: Color(0xFFE53935),
+    dangerArmed: Color(0xFFB71C1C),
+  );
 
-  /// Raised chrome on compose surfaces: chips, step circles, tracks,
-  /// secondary tiles.
-  static const Color raised = Color(0xFF2A2A2A);
-
-  /// Sheet drag handle. 3.41:1 on [surface] — above the 3:1 WCAG component
-  /// minimum (the old #4A4A4A measured 2.08:1).
-  static const Color grabber = Color(0xFF6A6A6A);
-
-  /// Placeholder hints, unselected picker values, skipped/skipped-state text.
-  /// The dimmest text token that passes WCAG AA on every fill it can appear
-  /// over — [field] (5.64:1), focused [fieldFocused] (4.78:1),
-  /// [errorContainer] (5.23:1), and [surface] (6.31:1).
-  static const Color hint = Color(0xFF979797);
-
-  /// Secondary text (labels, supporting copy).
-  static const Color muted = Color(0xFFA3A3A3);
-
-  /// Validation errors and destructive accents (soft red that reads on dark).
-  static const Color error = Color(0xFFF28B82);
-
-  /// Red-tinted fill behind error content (field error state, warning icons).
-  static const Color errorContainer = Color(0xFF3A1D1D);
-
-  /// Text and icons on [error] fills.
-  static const Color onError = Color(0xFF1A0A0A);
-
-  /// Delete button.
-  static const Color danger = Color(0xFFE53935);
-
-  /// Delete button after the first tap (armed, waiting for confirmation).
-  static const Color dangerArmed = Color(0xFFB71C1C);
+  /// Light "compose" palette (mirrors the dark one on light surfaces).
+  static const ComposePalette light = ComposePalette(
+    background: Color(0xFFFFFFFF),
+    surface: Color(0xFFF4F4F4),
+    bannerSurface: Color(0xFFFFFFFF),
+    field: Color(0xFFF4F4F4),
+    fieldFocused: Color(0xFFFFFFFF),
+    raised: Color(0xFFE6E6E6),
+    grabber: Color(0xFFC4C4C4),
+    hint: Color(0xFF6B6B6B),
+    muted: Color(0xFF4A4A4A),
+    error: Color(0xFFB3261E),
+    errorContainer: Color(0xFFFBDAD6),
+    onError: Color(0xFFFFFFFF),
+    danger: Color(0xFFE53935),
+    dangerArmed: Color(0xFFB71C1C),
+  );
 }

@@ -81,22 +81,22 @@ class _AndroidCancelConfirmationSheet extends StatelessWidget {
     // the light branch uses scheme roles, mirroring the scan card's mapping.
     final isDark = theme.brightness == Brightness.dark;
     final background = isDark
-        ? ComposeColors.bannerSurface
+        ? ComposeColors.of(context).bannerSurface
         : scheme.surfaceContainer;
     final grabberColor = isDark
-        ? ComposeColors.raised
+        ? ComposeColors.of(context).raised
         : scheme.onSurfaceVariant;
     final iconCircle = isDark
-        ? ComposeColors.errorContainer
+        ? ComposeColors.of(context).errorContainer
         : scheme.errorContainer;
-    final iconColor = isDark ? ComposeColors.error : scheme.onErrorContainer;
+    final iconColor = isDark ? ComposeColors.of(context).error : scheme.onErrorContainer;
     final titleColor = isDark ? Colors.white : scheme.onSurface;
-    final bodyColor = isDark ? ComposeColors.muted : scheme.onSurfaceVariant;
+    final bodyColor = isDark ? ComposeColors.of(context).muted : scheme.onSurfaceVariant;
     final chipColor = isDark
-        ? ComposeColors.field
+        ? ComposeColors.of(context).field
         : scheme.surfaceContainerHigh;
-    final confirmButton = isDark ? ComposeColors.error : scheme.error;
-    final onConfirmButton = isDark ? ComposeColors.onError : scheme.onError;
+    final confirmButton = isDark ? ComposeColors.of(context).error : scheme.error;
+    final onConfirmButton = isDark ? ComposeColors.of(context).onError : scheme.onError;
 
     return Container(
       decoration: BoxDecoration(
@@ -301,21 +301,21 @@ class _ImportScanProgressState extends State<ImportScanProgress> {
       AppTheme.motionStandard,
     );
     final isDark = theme.brightness == Brightness.dark;
-    final cardColor = isDark ? ComposeColors.surface : scheme.surfaceContainer;
+    final cardColor = isDark ? ComposeColors.of(context).surface : scheme.surfaceContainer;
     final fieldColor = isDark
-        ? ComposeColors.field
+        ? ComposeColors.of(context).field
         : scheme.surfaceContainerHigh;
     final raisedColor = isDark
-        ? ComposeColors.raised
+        ? ComposeColors.of(context).raised
         : scheme.surfaceContainerHighest;
     final textColor = isDark ? Colors.white : scheme.onSurface;
     final secondaryTextColor = isDark
-        ? ComposeColors.muted
+        ? ComposeColors.of(context).muted
         : scheme.onSurfaceVariant;
     // Skipped rows are text, not chrome: the old dark value (#6B6B6B) read
     // 3.09:1 on the field chips — below AA. hint is the dimmest token that
     // passes while keeping the de-emphasized hierarchy.
-    final skippedColor = isDark ? ComposeColors.hint : scheme.outline;
+    final skippedColor = isDark ? ComposeColors.of(context).hint : scheme.outline;
 
     return Container(
       margin: const EdgeInsets.only(top: 12),
@@ -721,7 +721,7 @@ class _ScanStep extends StatelessWidget {
               color: filled
                   ? (isDark ? Colors.white : scheme.primary)
                   : (isDark
-                        ? ComposeColors.raised
+                        ? ComposeColors.of(context).raised
                         : scheme.surfaceContainerHigh),
             ),
             child: Icon(
@@ -733,7 +733,7 @@ class _ScanStep extends StatelessWidget {
               size: 14,
               color: filled
                   ? (isDark ? Colors.black : scheme.onPrimary)
-                  : (isDark ? ComposeColors.muted : scheme.onSurfaceVariant),
+                  : (isDark ? ComposeColors.of(context).muted : scheme.onSurfaceVariant),
             ),
           ),
           const SizedBox(height: 6),
@@ -745,7 +745,7 @@ class _ScanStep extends StatelessWidget {
               height: 1.25,
               color: active
                   ? (isDark ? Colors.white : scheme.onSurface)
-                  : (isDark ? ComposeColors.muted : scheme.onSurfaceVariant),
+                  : (isDark ? ComposeColors.of(context).muted : scheme.onSurfaceVariant),
               fontWeight: active ? FontWeight.w800 : FontWeight.w600,
             ),
           ),

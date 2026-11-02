@@ -141,8 +141,8 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Container(
-      decoration: const BoxDecoration(
-        color: ComposeColors.surface,
+      decoration: BoxDecoration(
+        color: ComposeColors.of(context).surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
       padding: EdgeInsets.fromLTRB(16, 12, 16, bottomInset + 16),
@@ -156,7 +156,7 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: ComposeColors.grabber,
+                color: ComposeColors.of(context).grabber,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -176,10 +176,10 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     minimumSize: const Size(48, 48),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Cancel',
                     style: TextStyle(
-                      color: ComposeColors.muted,
+                      color: ComposeColors.of(context).muted,
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
                     ),
@@ -203,8 +203,8 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                     Text(
                       _previewText,
                       key: const Key('time_picker_preview'),
-                      style: const TextStyle(
-                        color: ComposeColors.muted,
+                      style: TextStyle(
+                        color: ComposeColors.of(context).muted,
                         fontSize: 15,
                         fontFeatures: [FontFeature.tabularFigures()],
                       ),
@@ -244,8 +244,8 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
               _sheetError!,
               key: const Key('time_picker_error_text'),
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: ComposeColors.error,
+              style: TextStyle(
+                color: ComposeColors.of(context).error,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -263,9 +263,9 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                 // Highlight band behind the selected row
                 Container(
                   height: 44,
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  margin: EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
-                    color: ComposeColors.field,
+                    color: ComposeColors.of(context).field,
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
@@ -314,7 +314,7 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                                       : FontWeight.normal,
                                   color: isSelected
                                       ? Colors.white
-                                      : ComposeColors.hint,
+                                      : ComposeColors.of(context).hint,
                                   fontFeatures: const [
                                     FontFeature.tabularFigures(),
                                   ],
@@ -350,7 +350,7 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                                       : FontWeight.normal,
                                   color: isSelected
                                       ? Colors.white
-                                      : ComposeColors.hint,
+                                      : ComposeColors.of(context).hint,
                                   fontFeatures: const [
                                     FontFeature.tabularFigures(),
                                   ],
@@ -386,7 +386,7 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                                       : FontWeight.normal,
                                   color: isSelected
                                       ? Colors.white
-                                      : ComposeColors.hint,
+                                      : ComposeColors.of(context).hint,
                                 ),
                               ),
                             );
