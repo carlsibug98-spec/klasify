@@ -65,7 +65,7 @@ void main() {
 
     expect(find.text('For how long'), findsOneWidget);
     expect(find.text('This class'), findsOneWidget);
-    expect(find.text('Until Sunday'), findsOneWidget);
+    expect(find.text('Until date'), findsOneWidget);
     expect(find.text('Until I clear'), findsOneWidget);
     expect(find.text('Only Tue 27 Oct.'), findsOneWidget);
     expect(find.text('Pick what happened'), findsOneWidget);
@@ -83,10 +83,10 @@ void main() {
     expect(button.onPressed, isNotNull);
 
     // Span changes update the sentence in place.
-    await tester.ensureVisible(find.text('Until Sunday'));
-    await tester.tap(find.text('Until Sunday'));
+    await tester.ensureVisible(find.text('Until date'));
+    await tester.tap(find.text('Until date'));
     await tester.pumpAndSettle();
-    expect(find.text('Tue 27 Oct through Sun 1 Nov.'), findsOneWidget);
+    expect(find.text('Tue 27 Oct through Tue 3 Nov.'), findsOneWidget);
 
     await tester.ensureVisible(find.text('Until I clear'));
     await tester.tap(find.text('Until I clear'));

@@ -92,13 +92,13 @@ void main() {
       );
     });
 
-    test('a range ending on Sunday reads "until Sun"', () {
+    test('a range ending on a custom date reads "until <date>"', () {
       expect(
         statusDurationLabel(
           entry(DayStatus.notAttending, '2026-10-23', '2026-10-25'),
           today,
         ),
-        'until Sun',
+        'until 25 Oct',
       );
     });
 

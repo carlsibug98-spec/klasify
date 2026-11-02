@@ -22,12 +22,12 @@ DayStatus dayStatusFromDb(String value) => switch (value) {
 };
 
 /// How long a status applies, as offered in the Mark class sheet.
-enum StatusSpan { thisClass, untilSunday, untilCleared }
+enum StatusSpan { thisClass, untilDate, untilCleared }
 
 extension StatusSpanDetails on StatusSpan {
   String get label => switch (this) {
     StatusSpan.thisClass => 'This class',
-    StatusSpan.untilSunday => 'Until Sunday',
+    StatusSpan.untilDate => 'Until date',
     StatusSpan.untilCleared => 'Until I clear',
   };
 }
@@ -108,9 +108,6 @@ class ClassStatusEntry {
     final end = endDate;
     if (end == null) return StatusSpan.untilCleared;
     if (end == startDate) return StatusSpan.thisClass;
-    if (end == dateKey(endOfWeekOf(parseDateKey(startDate)))) {
-      return StatusSpan.untilSunday;
-    }
     return null;
   }
 
@@ -233,7 +230,6 @@ String statusDurationLabel(ClassStatusEntry entry, DateTime today) {
   if (end == entry.startDate) {
     return entry.startDate == dateKey(today) ? 'today' : 'this day';
   }
-  if (entry.presetSpan == StatusSpan.untilSunday) return 'until Sun';
   final d = parseDateKey(end);
   return 'until ${d.day} ${shortMonthNames[d.month - 1]}';
 }

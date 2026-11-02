@@ -12,11 +12,13 @@ class _SheetChoice {
   const _SheetChoice({
     this.status,
     this.span = StatusSpan.thisClass,
+    this.customEndDate,
     this.clear = false,
   });
 
   final DayStatus? status;
   final StatusSpan span;
+  final DateTime? customEndDate;
   final bool clear;
 }
 
@@ -76,7 +78,7 @@ Future<void> showDayStatusSheet(
       classId: id,
       status: status,
       startDate: dateKey(date),
-      endDate: _endFor(choice.span, date),
+      endDate: _endFor(choice.span, date, customEnd: choice.customEndDate),
     );
     await db.setClassStatus(entry);
     final synced = await _syncReminders();
@@ -114,11 +116,12 @@ Future<bool> _syncReminders() async {
   }
 }
 
-String? _endFor(StatusSpan span, DateTime date) => switch (span) {
-  StatusSpan.thisClass => dateKey(date),
-  StatusSpan.untilSunday => dateKey(endOfWeekOf(date)),
-  StatusSpan.untilCleared => null,
-};
+String? _endFor(StatusSpan span, DateTime date, {DateTime? customEnd}) =>
+    switch (span) {
+      StatusSpan.thisClass => dateKey(date),
+      StatusSpan.untilDate => customEnd != null ? dateKey(customEnd) : null,
+      StatusSpan.untilCleared => null,
+    };
 
 /// A short result message. The mark is already saved, so there is no action.
 void _notify(
@@ -155,13 +158,23 @@ class _DayStatusSheet extends StatefulWidget {
 class _DayStatusSheetState extends State<_DayStatusSheet> {
   DayStatus? _kind;
   StatusSpan _span = StatusSpan.thisClass;
+  DateTime? _customEndDate;
 
   @override
   void initState() {
     super.initState();
     final current = widget.current;
     _kind = current?.status;
-    _span = current?.presetSpan ?? StatusSpan.thisClass;
+    final preset = current?.presetSpan;
+    if (preset != null) {
+      _span = preset;
+    } else if (current != null && current.endDate != null) {
+      // Custom end date (not a preset) → "Until date".
+      _span = StatusSpan.untilDate;
+      _customEndDate = parseDateKey(current.endDate!);
+    } else {
+      _span = StatusSpan.thisClass;
+    }
   }
 
   String get _description => switch (_kind) {
@@ -175,15 +188,26 @@ class _DayStatusSheetState extends State<_DayStatusSheet> {
     final start = shortDateLabel(widget.date);
     return switch (_span) {
       StatusSpan.thisClass => 'Only $start.',
-      StatusSpan.untilSunday =>
-        '$start through ${shortDateLabel(endOfWeekOf(widget.date))}.',
+      StatusSpan.untilDate => _customEndDate == null
+          ? 'Pick an end date.'
+          : '$start through ${shortDateLabel(_customEndDate!)}.',
       StatusSpan.untilCleared => 'From $start until you clear it.',
     };
   }
 
   void _save() {
-    Navigator.of(context).pop(_SheetChoice(status: _kind, span: _span));
+    Navigator.of(context).pop(
+      _SheetChoice(
+        status: _kind,
+        span: _span,
+        customEndDate: _customEndDate,
+      ),
+    );
   }
+
+  bool get _canSave =>
+      _kind != null &&
+      (_span != StatusSpan.untilDate || _customEndDate != null);
 
   @override
   Widget build(BuildContext context) {
@@ -376,10 +400,75 @@ class _DayStatusSheetState extends State<_DayStatusSheet> {
               enabled: hasKind,
               onChanged: (span) {
                 HapticFeedback.selectionClick();
-                setState(() => _span = span);
+                setState(() {
+                  _span = span;
+                  if (span == StatusSpan.untilDate && _customEndDate == null) {
+                    _customEndDate = widget.date.add(const Duration(days: 7));
+                  }
+                });
               },
             ),
           ),
+          if (_span == StatusSpan.untilDate) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton(
+                onPressed: hasKind
+                    ? () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _customEndDate ?? widget.date,
+                          firstDate: widget.date,
+                          lastDate: widget.date.add(const Duration(days: 365)),
+                          builder: (context, child) {
+                            // Match the sheet's surface so the picker reads as
+                            // part of the same dark compose surface.
+                            final scheme = Theme.of(context).colorScheme;
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: scheme,
+                                dialogTheme: DialogThemeData(
+                                  backgroundColor: scheme.surface,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      AppTheme.sheetRadius,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          HapticFeedback.selectionClick();
+                          setState(() => _customEndDate = picked);
+                        }
+                      }
+                    : null,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+                  ),
+                  foregroundColor: scheme.onSurface,
+                  backgroundColor: scheme.surfaceContainer,
+                  side: BorderSide.none,
+                  textStyle: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                child: Text(
+                  _customEndDate == null
+                      ? 'Choose end date'
+                      : shortDateLabel(_customEndDate!),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           Text(
             _spanSentence,
@@ -395,7 +484,7 @@ class _DayStatusSheetState extends State<_DayStatusSheet> {
             width: double.infinity,
             height: 56,
             child: FilledButton(
-              onPressed: hasKind ? _save : null,
+              onPressed: _canSave ? _save : null,
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(56),
                 shape: RoundedRectangleBorder(
