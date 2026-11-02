@@ -228,6 +228,21 @@ flutter build apk --release
 
 A ZIP/static-source review is not a substitute for running these commands on the actual Android SDK/NDK installation. The archive itself has not been claimed as build-tested unless the above commands complete successfully.
 
+## Continuous integration
+`.github/workflows/ci.yml` runs `flutter analyze` and the full `flutter test` suite on every push to `main` and every pull request, on a Windows runner with **Flutter 3.47.9** (Dart 3.13.7) and the tesseract CLI installed.
+
+Two pins are deliberate:
+
+- **Flutter 3.47.9** — the captures in `test/goldens/` are rendered by the Flutter engine. A different SDK re-rasterises the text and fails the design tests with 1-4% pixel drift even when no UI changed.
+- **Windows** — the goldens were recorded on Windows. Linux and macOS rasterise fonts differently and will report the same drift.
+
+Changing either pin means re-recording the goldens on the new toolchain and committing the new images in the same change:
+```bash
+flutter test --update-goldens test/design_capture_test.dart
+```
+
+The benchmark tests in `bench5/6/7` need the tesseract CLI and self-skip when it is missing, so CI installs it rather than silently losing that coverage.
+
 ## Importer improvements in this build
 - OCR parsing is isolated in `lib/features/schedule_import/utils/timetable_parser.dart` so it can be unit-tested without Android OCR plugins.
 - The parser accepts common abbreviated weekdays and can infer an omitted end AM/PM marker when the end time would otherwise be earlier than the start time.

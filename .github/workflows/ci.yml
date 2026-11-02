@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned, not `stable`. The captures in test/goldens are rendered by the
+  # Flutter engine, so a different SDK re-rasterises the text and fails the
+  # design tests with 1-4% pixel drift even when no UI changed.
+  FLUTTER_VERSION: '3.47.9'
+
+jobs:
+  checks:
+    name: analyze + test
+    # Windows is deliberate: the goldens were recorded on Windows. Linux and
+    # macOS use different rasterisation and report drift for the same reason a
+    # version bump does.
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Verify the pinned toolchain
+        shell: pwsh
+        run: |
+          $version = (flutter --version --machine | ConvertFrom-Json).frameworkVersion
+          if ($version -ne $env:FLUTTER_VERSION) {
+            throw "Flutter $version is not the pinned $env:FLUTTER_VERSION. Re-record test/goldens before changing this pin."
+          }
+          flutter --version
+
+      - name: Install Tesseract (OCR benchmark stand-in)
+        shell: pwsh
+        run: |
+          # bench5/6/7 shell out to the tesseract CLI because the native ONNX
+          # engine cannot run in the test VM. Without it those tests self-skip,
+          # which would drop the coverage that caught the Windows fixture-key
+          # regression in 2026-11.
+          if (-not (Get-Command tesseract -ErrorAction SilentlyContinue)) {
+            choco install tesseract --no-progress -y
+            $exe = Join-Path ${env:ProgramFiles} 'Tesseract-OCR\tesseract.exe'
+            if (-not (Test-Path $exe)) { throw 'tesseract.exe is missing after install' }
+            $dir = Split-Path $exe
+            $dir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            $env:PATH = "$dir;$env:PATH"
+          }
+          tesseract --version
+
+      - name: Resolve packages
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test --reporter expanded
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-failures
+          path: |
+            test/failures/
+            build/bench*.json
+          if-no-files-found: ignore
+          retention-days: 7
