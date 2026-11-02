@@ -106,8 +106,8 @@ class NextClassWidgetProvider : AppWidgetProvider() {
         private const val CALENDAR_MIN_HEIGHT_DP = 480
 
         // Launchers that never report OPTION_APPWIDGET_MIN_HEIGHT fall back to
-        // the widget's default 3-cell height instead of its tallest layout.
-        private const val DEFAULT_HEIGHT_DP = 190
+        // the widget's default 2-cell height instead of its tallest layout.
+        private const val DEFAULT_HEIGHT_DP = 100
 
         // Compile-time cell ids, generated alongside the layout XML
         // (scripts/make_v52_widget_layout.py emits WidgetCalendarIds.kt).
