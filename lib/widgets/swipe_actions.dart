@@ -44,9 +44,8 @@ import '../theme/app_theme.dart';
 /// haptic when the snap threshold is crossed and a medium one when the
 /// delete threshold arms — once per drag, reset on every drag start.
 ///
-/// Fallbacks stay: the card's ⋮ menu keeps Edit/Delete for people who don't
-/// discover the gesture, and the plane actions carry their own semantics
-/// labels while revealed.
+/// The plane actions carry their own semantics labels while revealed; the
+/// one-time coach tour (replayable from Settings) teaches the swipe gesture.
 class SwipeActions extends StatefulWidget {
   const SwipeActions({
     super.key,

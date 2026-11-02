@@ -155,12 +155,12 @@ class AppTheme {
     return const BorderRadius.all(soften);
   }
 
-  /// Settings group micro-label (11px tracked caps). #767676 passes WCAG AA
-  /// on the white scaffold (4.55:1); #8A8A8A passes on the black one (6.05:1).
+  /// Small tracked caps and group micro-labels. Tuned for the raised fills
+  /// (#E6E6E6 light, #242424 dark) these labels sit on, not just the scaffold.
   static Color groupLabelColorOf(ColorScheme scheme) =>
       scheme.brightness == Brightness.dark
-      ? const Color(0xFF8A8A8A)
-      : const Color(0xFF767676);
+      ? const Color(0xFFB0B0B0)
+      : const Color(0xFF5C5C5C);
 
   // ---- Status colours ----
   static const Color success = Color(0xFF1F6B4A);

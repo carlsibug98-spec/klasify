@@ -131,7 +131,7 @@ class ClassSegmentRow extends StatelessWidget {
         ?markLabel,
       ].join(', '),
       child: AnimatedOpacity(
-        opacity: (isDone || mark != null) ? 0.5 : 1.0,
+        opacity: (isDone || mark != null) ? 0.8 : 1.0,
         duration: AppTheme.motionDuration(context, AppTheme.motionStandard),
         curve: AppTheme.motionEaseOut,
         // Option C edge: the ambient shadow wraps the Material (it paints
@@ -228,6 +228,10 @@ class ClassSegmentRow extends StatelessWidget {
                     if (mark != null) ...[
                       const SizedBox(width: 10),
                       ClassStatusPill(status: mark, label: mark.label),
+                    ],
+                    if (isDone && mark == null) ...[
+                      const SizedBox(width: 10),
+                      ClassStatusPill(status: DayStatus.finished, label: 'Finished'),
                     ],
                   ],
                 ),
