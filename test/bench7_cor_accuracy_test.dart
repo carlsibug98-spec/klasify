@@ -91,7 +91,10 @@ void main() {
   final service = ScheduleOcrService();
 
   for (final fixture in fixtures) {
-    final name = fixture.split(Platform.pathSeparator).last;
+    // fixture paths mix separators: fixturesDir is OS-native, the tail is
+    // written with '/'. Split on either so truth keys (bare file names) match
+    // on Windows too.
+    final name = fixture.split(RegExp(r'[\\/]')).last;
     test('cor scan accuracy: $name', skip: benchSkip, () async {
       tesseractPlatform.calls = 0;
       final classes = (truth[name]['truth_classes'] as List)
