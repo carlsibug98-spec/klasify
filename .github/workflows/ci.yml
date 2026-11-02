@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -42,11 +42,14 @@ jobs:
       - name: Verify the pinned toolchain
         shell: pwsh
         run: |
-          $version = (flutter --version --machine | ConvertFrom-Json).frameworkVersion
-          if ($version -ne $env:FLUTTER_VERSION) {
-            throw "Flutter $version is not the pinned $env:FLUTTER_VERSION. Re-record test/goldens before changing this pin."
+          # `--machine` emits setup chatter before the JSON on a cold cache, so
+          # match the human-readable version line instead of parsing JSON.
+          $out = flutter --version 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0) { throw 'flutter --version failed' }
+          if ($out -notmatch [regex]::Escape("Flutter $env:FLUTTER_VERSION")) {
+            throw "Resolved Flutter is not the pinned $env:FLUTTER_VERSION. Re-record test/goldens before changing this pin."
           }
-          flutter --version
+          $out
 
       - name: Install Tesseract (OCR benchmark stand-in)
         shell: pwsh
@@ -76,7 +79,7 @@ jobs:
 
       - name: Upload failure artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-failures
           path: |
