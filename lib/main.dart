@@ -41,6 +41,7 @@ class ScheduleApp extends StatelessWidget {
       ],
       onGenerateRoute: AppRouter.onGenerateRoute,
       onUnknownRoute: AppRouter.onUnknownRoute,
+      navigatorObservers: [AppRouter.routeObserver],
     );
   }
 }

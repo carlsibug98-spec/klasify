@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../database/database_helper.dart';
 import '../models/class_item.dart';
+import '../routes/app_router.dart';
 import '../routes/app_routes.dart';
 import '../services/coach_tour_store.dart';
 import '../services/next_class_widget_service.dart';
@@ -41,7 +42,7 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, RouteAware {
   int _selectedIndex = 0;
   bool _quickActionsExpanded = false;
   int _selectedWeekday = DateTime.now().weekday;
@@ -75,6 +76,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   bool _coachTourActive = false;
   bool _pendingCoachTour = false;
 
+  /// True while a start attempt is inside an async gap, so a second call
+  /// can't race it into marking the tour shown twice.
+  bool _coachTourStarting = false;
+
+  /// Set once per shell mount: a user holding classes who never saw the tour
+  /// gets it on the next shell open, instead of never (a previous session can
+  /// have ended while the pending flag still waited for a Today visit).
+  bool _startupCoachArmed = false;
+
   CoachTargetKeys get _tourKeys => CoachTargetKeys(
     heroKey: _tourHeroKey,
     swipeTargetKey: _tourSwipeKey,
@@ -86,18 +96,60 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   /// The one-time coach tour trigger: the schedule just went from empty to
   /// holding a first class. Fires once, only if the tour hasn't been shown,
   /// and retires the old swipe coach hint permanently.
+  ///
+  /// The walkthrough teaches the Today screen, so it mounts only while the
+  /// shell is really showing Today: never over another tab, and never while
+  /// a route is pushed on top of this one — the import flow saves classes
+  /// under its own screen and then closes by landing on Week, and the tour
+  /// must not spotlit Week when that happens. Otherwise the attempt stays
+  /// pending and retries on the next Today landing (tab tap, route pop).
   Future<void> _maybeStartCoachTour() async {
-    if (!_pendingCoachTour) return;
-    if (_coachTourActive || await CoachTourStore.isShown()) return;
-    _pendingCoachTour = false;
-    await CoachTourStore.markShown();
-    unawaited(SwipeHintStore.dismiss());
-    if (!mounted) return;
-    setState(() => _coachTourActive = true);
+    if (!_pendingCoachTour || _coachTourActive || _coachTourStarting) return;
+    if (_selectedIndex != MainNavigationScreen.todayTab) return;
+    if (ModalRoute.of(context)?.isCurrent == false) return;
+    _coachTourStarting = true;
+    try {
+      final shown = await CoachTourStore.isShown();
+      if (shown) {
+        _pendingCoachTour = false;
+        return;
+      }
+      if (!mounted || _coachTourActive) return;
+      // The prefs read can race with a tab change or a route push (the
+      // import flow switches this shell to Week before it pops itself).
+      // Stay pending; the next Today landing retries.
+      if (_selectedIndex != MainNavigationScreen.todayTab) return;
+      if (ModalRoute.of(context)?.isCurrent == false) return;
+      await CoachTourStore.markShown();
+      unawaited(SwipeHintStore.dismiss());
+      if (!mounted) return;
+      _pendingCoachTour = false;
+      setState(() => _coachTourActive = true);
+    } finally {
+      _coachTourStarting = false;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      AppRouter.routeObserver.subscribe(this, route);
+    }
+  }
+
+  /// A pushed screen (the class editor, the import flow) popped back to this
+  /// shell: if a tour is still pending and the shell is on Today, play it now.
+  @override
+  void didPopNext() {
+    super.didPopNext();
+    unawaited(_maybeStartCoachTour());
   }
 
   void _endCoachTour() {
     _tourSwipeDemo.value = false;
+    _pendingCoachTour = false;
     if (!mounted) return;
     setState(() => _coachTourActive = false);
   }
@@ -139,6 +191,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
   @override
   void dispose() {
+    AppRouter.routeObserver.unsubscribe(this);
     _database.removeListener(_onScheduleChanged);
     ReminderService.instance.removeListener(_onReminderSettingsChanged);
     MainNavigationScreen.tabRequest.removeListener(_onTabRequested);
@@ -194,6 +247,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
       _classes = classes;
       _recountToday();
       await NextClassWidgetService.sync(classes, statuses: statuses);
+      // The shell always opens on Today: a user holding classes who somehow
+      // never saw the tour (an earlier session ended before it could play)
+      // gets it here, exactly once per mount, still one-shot via the store.
+      if (!mounted) return;
+      if (!_startupCoachArmed && classes.isNotEmpty) {
+        _startupCoachArmed = true;
+        _pendingCoachTour = true;
+        unawaited(_maybeStartCoachTour());
+      }
     } catch (error, stackTrace) {
       debugPrint(
         'Could not load classes for the launcher widget: $error\n$stackTrace',
@@ -407,9 +469,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
             tourSwipeDemo: _tourSwipeDemo,
             onScheduleBecameNonEmpty: () {
               _pendingCoachTour = true;
-              if (_selectedIndex == MainNavigationScreen.todayTab) {
-                unawaited(_maybeStartCoachTour());
-              }
+              // The attempt itself decides whether Today is actually on
+              // screen (a pushed import or editor route defers the mount).
+              unawaited(_maybeStartCoachTour());
             },
             onPeekWeek: () => _selectDestination(MainNavigationScreen.weekTab),
             onJumpToDay: (day) =>

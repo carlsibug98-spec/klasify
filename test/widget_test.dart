@@ -24,7 +24,14 @@ void main() {
   });
 
   setUp(() {
-    SharedPreferences.setMockInitialValues({'onboarding_completed': true});
+    // The shell's one-time coach tour would otherwise mount over these
+    // tests' Today view (the last test leaves a class in the shared DB);
+    // pin them to the already-shown behavior they were written against.
+    SharedPreferences.setMockInitialValues({
+      'onboarding_completed': true,
+      'coach_tour_shown': true,
+      'first_class_coach_dismissed': true,
+    });
   });
 
   testWidgets('Klasify app opens', (WidgetTester tester) async {

@@ -13,6 +13,12 @@ import 'app_routes.dart';
 class AppRouter {
   AppRouter._();
 
+  /// Navigator observer that tells the route-aware shell (main navigation
+  /// screen) when a pushed screen — the import flow, the class editor —
+  /// pops back on top of it.
+  static final RouteObserver<PageRoute<dynamic>> routeObserver =
+      RouteObserver<PageRoute<dynamic>>();
+
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
       case AppRoutes.importSchedule:
