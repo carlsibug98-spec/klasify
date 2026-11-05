@@ -3,6 +3,7 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import '../models/class_item.dart';
 import '../models/class_status.dart';
+import '../models/event_item.dart';
 
 class DatabaseHelper extends ChangeNotifier {
   DatabaseHelper._();
@@ -21,7 +22,7 @@ class DatabaseHelper extends ChangeNotifier {
     final path = join(await getDatabasesPath(), databaseName);
     return openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE classes (
@@ -43,6 +44,7 @@ class DatabaseHelper extends ChangeNotifier {
         ''');
         await _createValidationTriggers(db);
         await _createClassStatusTable(db);
+        await _createEventTable(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         // Do not rebuild or delete the existing table: users' saved classes
@@ -65,8 +67,44 @@ class DatabaseHelper extends ChangeNotifier {
         if (oldVersion < 5) {
           await _rebuildClassStatusTable(db);
         }
+        // Version 6: school events, phone-local until accounts arrive.
+        // A new table, so no existing data can be touched.
+        if (oldVersion < 6) {
+          await _createEventTable(db);
+        }
       },
     );
+  }
+
+  /// Test-only: forget the cached connection so a suite can point the
+  /// singleton at a different file. Production code never calls this.
+  @visibleForTesting
+  Future<void> resetForTesting() async {
+    final db = _db;
+    _db = null;
+    await db?.close();
+  }
+
+  /// The events table. CHECK constraints carry validation for fresh and
+  /// upgraded databases alike — event rows exist only since version 6, so
+  /// there is no legacy data for triggers to police.
+  Future<void> _createEventTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        venue TEXT NOT NULL DEFAULT '',
+        date TEXT NOT NULL,
+        start_minutes INTEGER NOT NULL,
+        reminder_enabled INTEGER NOT NULL DEFAULT 1,
+        lead_minutes INTEGER NOT NULL DEFAULT 30,
+        CHECK (length(trim(title)) >= 2),
+        CHECK (length(date) = 10),
+        CHECK (start_minutes BETWEEN 0 AND 1439),
+        CHECK (reminder_enabled IN (0, 1)),
+        CHECK (lead_minutes IN (5, 10, 15, 30))
+      )
+    ''');
   }
 
   static String _classStatusSchema(String table) =>
@@ -460,6 +498,89 @@ class DatabaseHelper extends ChangeNotifier {
       whereArgs: [id],
     );
     await db.delete('class_status', where: 'class_id = ?', whereArgs: [id]);
+    if (deleted > 0) notifyListeners();
+    return deleted;
+  }
+
+  // ---- Events ----
+
+  static void validateEvent(EventItem e) {
+    if (e.title.trim().length < 2) {
+      throw ArgumentError('Event name must contain at least 2 characters.');
+    }
+    // A malformed key must round-trip to itself: SQLite stores the string,
+    // so "2026-02-30" would live on despite never being a real date.
+    var dated = false;
+    try {
+      dated = dateKeyForEvent(e.date) == e.date;
+    } catch (_) {
+      dated = false;
+    }
+    if (!dated) throw ArgumentError('Event date is invalid.');
+    if (e.startMinutes < 0 || e.startMinutes >= 1440) {
+      throw ArgumentError('Event time is invalid.');
+    }
+    if (!eventLeadChoices.contains(e.leadMinutes)) {
+      throw ArgumentError('Event lead time is invalid.');
+    }
+  }
+
+  /// Parsed-with-validation equivalent of [dateKey]: throws on shape it
+  /// cannot fully round-trip, because DateTime parses overflow silently
+  /// ("2026-02-30" becomes March 2).
+  static String dateKeyForEvent(String date) {
+    final d = parseDateKey(date);
+    return dateKey(d);
+  }
+
+  Future<List<EventItem>> getAllEvents() async {
+    final db = await _database;
+    final rows = await db.query('events', orderBy: 'date, start_minutes');
+    return rows.map(EventItem.fromMap).toList();
+  }
+
+  /// Inserts one event. Returns its new id.
+  Future<int> insertEvent(EventItem e) async {
+    validateEvent(e);
+    final db = await _database;
+    final id = await db.insert('events', e.toMap());
+    notifyListeners();
+    return id;
+  }
+
+  Future<int> updateEvent(EventItem e) async {
+    validateEvent(e);
+    if (e.id == null) {
+      throw ArgumentError('Cannot update an event without an ID.');
+    }
+    final db = await _database;
+    final changed = await db.update(
+      'events',
+      e.toMap(),
+      where: 'id = ?',
+      whereArgs: [e.id],
+    );
+    if (changed > 0) notifyListeners();
+    return changed;
+  }
+
+  /// Restores a recently deleted event with its original ID.
+  Future<int> restoreDeletedEvent(EventItem e) async {
+    validateEvent(e);
+    if (e.id == null) {
+      throw ArgumentError('Cannot restore an event without its original ID.');
+    }
+    final db = await _database;
+    final restored = await db.insert('events', e.toMap());
+    notifyListeners();
+    return restored;
+  }
+
+  /// Removes one event. Returns rows affected. Events have no dependents
+  /// (unlike classes and their marks), so there is nothing else to clean up.
+  Future<int> deleteEvent(int id) async {
+    final db = await _database;
+    final deleted = await db.delete('events', where: 'id = ?', whereArgs: [id]);
     if (deleted > 0) notifyListeners();
     return deleted;
   }

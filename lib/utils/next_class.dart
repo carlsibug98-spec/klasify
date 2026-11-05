@@ -72,8 +72,28 @@ NextClass? findNextClass(
     }
   }
 
+  return findUpcomingClass(classes, now, statuses: statuses);
+}
+
+/// The soonest upcoming class, ignoring any class that is live right now.
+/// Powers the "next up" echo card under the live hero: the hero already
+/// covers the class in progress, so the echo shows what follows it.
+NextClass? findUpcomingClass(
+  List<ClassItem> classes,
+  DateTime now, {
+  ClassStatuses statuses = const {},
+}) {
+  final nowMin = now.hour * 60 + now.minute;
+  final today = DateTime(now.year, now.month, now.day);
+
   NextClass? best;
   for (final c in classes) {
+    // A class in progress is the hero's job; it never plays "next up".
+    final isLive =
+        c.day == now.weekday &&
+        c.startMinutes <= nowMin &&
+        nowMin < c.endMinutes;
+    if (isLive && activeDayStatus(statuses, c.id, today) == null) continue;
     var dayDiff = (c.day - now.weekday + 7) % 7;
     var until = dayDiff * 1440 + c.startMinutes - nowMin;
     if (until <= 0) {

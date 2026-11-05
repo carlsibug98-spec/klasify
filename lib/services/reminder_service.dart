@@ -8,6 +8,7 @@ import 'package:timezone/timezone.dart' as tz;
 import '../database/database_helper.dart';
 import '../models/class_item.dart';
 import '../models/class_status.dart';
+import '../models/event_item.dart';
 
 /// Pending reminder IDs that the current schedule no longer uses.
 @visibleForTesting
@@ -173,6 +174,7 @@ class ReminderService extends ChangeNotifier {
     // current reminders stay in place.
     final statuses = await DatabaseHelper.instance.getClassStatuses();
     final classes = await DatabaseHelper.instance.getAll();
+    final events = await DatabaseHelper.instance.getAllEvents();
     final previousIds = (await _plugin.pendingNotificationRequests())
         .map((request) => request.id)
         .toList();
@@ -260,6 +262,28 @@ class ReminderService extends ChangeNotifier {
         );
       }
     }
+
+    // Events: one-off alarms, independent of the weekly class cycle. Their
+    // per-event switch is a second gate on top of [_enabledKey]; events keep
+    // their setting when reminders are off, so turning the master switch
+    // back on restores them without editing each event.
+    for (final e in events) {
+      if (!e.remindMe) continue;
+      final reminderMinutes = e.startMinutes >= e.leadMinutes
+          ? e.startMinutes - e.leadMinutes
+          : e.startMinutes;
+      final when = _at(parseDateKey(e.date), reminderMinutes);
+      // Events already past (or due this instant) stay silent — no pitfall
+      // alarm for "the fair started 20 seconds ago".
+      if (!when.isAfter(now)) continue;
+      await _scheduleEventAt(
+        id: _eventReminderId(e),
+        scheduledIds: scheduledIds,
+        event: e,
+        when: when,
+        exact: exactAlarmsAvailable,
+      );
+    }
     } finally {
       // Runs even if scheduling failed, so a skipped or deleted class never
       // keeps an old reminder.
@@ -281,6 +305,24 @@ class ReminderService extends ChangeNotifier {
     if (firstError != null) throw firstError;
   }
 
+  /// Notification details every reminder posts with, class or event.
+  static const NotificationDetails _notificationDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      _channelId,
+      'Upcoming classes',
+      channelDescription: _channelDescription,
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+    ),
+    iOS: DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    ),
+  );
+
   Future<void> _scheduleAt({
     required int id,
     required Set<int> scheduledIds,
@@ -296,22 +338,7 @@ class ReminderService extends ChangeNotifier {
       title: 'Class starting soon',
       body: _reminderBody(c, leadMinutes: leadMinutes),
       scheduledDate: when,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          _channelId,
-          'Upcoming classes',
-          channelDescription: _channelDescription,
-          importance: Importance.high,
-           priority: Priority.high,
-           playSound: true,
-           enableVibration: true,
-         ),
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
-      ),
+      notificationDetails: _notificationDetails,
       androidScheduleMode: exact
           ? AndroidScheduleMode.exactAllowWhileIdle
           : AndroidScheduleMode.inexactAllowWhileIdle,
@@ -320,6 +347,44 @@ class ReminderService extends ChangeNotifier {
           : null,
       payload: 'class:${c.id ?? _stableId(c)}',
     );
+  }
+
+  /// One-off event alarm: fires once at the chosen lead time, then the
+  /// schedule has no use for the ID ([_pruneStale] drops it).
+  Future<void> _scheduleEventAt({
+    required int id,
+    required Set<int> scheduledIds,
+    required EventItem event,
+    required tz.TZDateTime when,
+    required bool exact,
+  }) async {
+    scheduledIds.add(id);
+    await _plugin.zonedSchedule(
+      id: id,
+      title: 'Event starting soon',
+      body: _eventReminderBody(event),
+      scheduledDate: when,
+      notificationDetails: _notificationDetails,
+      androidScheduleMode: exact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle,
+      payload: 'event:${event.id}',
+    );
+  }
+
+  /// Deterministic per-row ID: editing any field re-posts the same row, yet
+  /// a reminder survives an unrelated edit elsewhere. The `event:` prefix
+  /// keeps its hash space disjoint from the class ID strings.
+  int _eventReminderId(EventItem e) => 'event:${e.id}'.hashCode & 0x7fffffff;
+
+  /// The class body's voice, for events: venue named, lead time spelled out,
+  /// and "venue to confirm" when nothing was recorded.
+  String _eventReminderBody(EventItem e) {
+    final venue = e.venue.trim();
+    return venue.isEmpty
+        ? '${e.title}, venue to confirm. Starts in ${e.leadMinutes} minutes.'
+        : '${e.title} · ${formatRoom(venue)}. '
+            'Starts in ${e.leadMinutes} minutes.';
   }
 
   /// Id of a class's weekly repeat. Different from any single-date id.

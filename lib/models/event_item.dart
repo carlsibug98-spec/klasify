@@ -1,0 +1,124 @@
+import 'class_item.dart' show formatMinutes, formatRoom;
+import 'class_status.dart' show dateKey, parseDateKey, shortMonthNames;
+
+/// Lead-time choices for event reminders. Same set as the class engine's,
+/// so one memory shape covers both.
+const List<int> eventLeadChoices = [5, 10, 15, 30];
+
+/// Events default to a longer heads-up than classes: they are one-off
+/// whole-school affairs that people plan a block of time around, not a
+/// five-minute walk across campus.
+const int eventDefaultLeadMinutes = 30;
+
+/// "Sat" for the event date block and sheet kicker (uppercase'd per use).
+const List<String> shortWeekdayNames = [
+  'Mon',
+  'Tue',
+  'Wed',
+  'Thu',
+  'Fri',
+  'Sat',
+  'Sun',
+];
+
+String shortWeekdayLabel(DateTime d) => shortWeekdayNames[d.weekday - 1];
+
+/// yyyy-MM-dd date, minutes-since-midnight time. One-off school events
+/// opposite the weekly [ClassItem]s.
+class EventItem {
+  final int? id;
+
+  /// Event name ("Culture Day"). At least 2 characters, mirroring classes.
+  final String title;
+
+  /// Where it happens ("Gymnasium"). Optional: events without a venue
+  /// recorded yet read "venue to confirm" in copy, like classes do.
+  final String venue;
+
+  /// Event day as yyyy-MM-dd (the [dateKey] convention, which sorts as text).
+  final String date;
+
+  /// Start time in minutes since midnight. Events have no end time — the
+  /// whole-school list treats them as "starts at" moments, not intervals.
+  final int startMinutes;
+
+  /// Per-event "Remind me" switch. The global reminders switch gates
+  /// all reminders on top of this, exactly as for classes.
+  final bool remindMe;
+
+  /// How long before the start the reminder fires; one of [eventLeadChoices].
+  final int leadMinutes;
+
+  const EventItem({
+    this.id,
+    required this.title,
+    required this.venue,
+    required this.date,
+    required this.startMinutes,
+    this.remindMe = true,
+    this.leadMinutes = eventDefaultLeadMinutes,
+  });
+
+  /// The event's day as [DateTime] (midnight, no time component).
+  DateTime get day => parseDateKey(date);
+
+  /// "9:00 AM"
+  String get timeLabel => formatMinutes(startMinutes);
+
+  /// "Gymnasium · 9:00 AM", or just the time when no venue is recorded.
+  String get whenAndWhereLabel =>
+      venue.trim().isEmpty ? timeLabel : '${formatRoom(venue)} · $timeLabel';
+
+  /// "30 minutes before" for the alert picker and the reminder copy.
+  String get leadLabel => '$leadMinutes minutes before';
+
+  /// The reminder fire time in minutes since midnight, mirroring the
+  /// reminder engine: a lead longer than the gap slides to the start
+  /// minute itself, never before midnight.
+  int get reminderFireMinutes =>
+      startMinutes >= leadMinutes ? startMinutes - leadMinutes : startMinutes;
+
+  /// The fire time label ("8:30 AM") for the reminder pill and copies.
+  String get reminderFireLabel => formatMinutes(reminderFireMinutes);
+
+  /// True when this event's alarm would fire at or after [now]'s minute —
+  /// i.e. the pill can still show the concrete fire time.
+  bool reminderStillFiresOn(DateTime now) {
+    final todayKey = dateKey(DateTime(now.year, now.month, now.day));
+    if (date.compareTo(todayKey) != 0) return true;
+    return reminderFireMinutes > now.hour * 60 + now.minute;
+  }
+
+  /// True when this event has not started yet on [now]'s calendar day.
+  bool isUpcomingOn(DateTime now) {
+    final todayKey = dateKey(DateTime(now.year, now.month, now.day));
+    if (date.compareTo(todayKey) < 0) return false;
+    if (date.compareTo(todayKey) > 0) return true;
+    return startMinutes > now.hour * 60 + now.minute;
+  }
+
+  Map<String, Object?> toMap() => {
+    if (id != null) 'id': id,
+    'title': title,
+    'venue': venue,
+    'date': date,
+    'start_minutes': startMinutes,
+    'reminder_enabled': remindMe ? 1 : 0,
+    'lead_minutes': leadMinutes,
+  };
+
+  factory EventItem.fromMap(Map<String, Object?> m) => EventItem(
+    id: m['id'] as int?,
+    title: m['title'] as String,
+    venue: m['venue'] as String? ?? '',
+    date: m['date'] as String,
+    startMinutes: m['start_minutes'] as int,
+    remindMe: (m['reminder_enabled'] as int? ?? 1) != 0,
+    leadMinutes: m['lead_minutes'] as int? ?? eventDefaultLeadMinutes,
+  );
+}
+
+/// "Sat, Nov 7" — the sheet kicker. The month names come from
+/// [shortMonthNames] so the sheet and the settings copy stay in one voice.
+String eventKickLabel(DateTime d) =>
+    '${shortWeekdayLabel(d)}, ${shortMonthNames[d.month - 1]} ${d.day}';

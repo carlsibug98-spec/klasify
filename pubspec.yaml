@@ -1,7 +1,7 @@
 name: klasify
 description: A local-first weekly class timetable with offline OCR import, class reminders, and an Android home-screen widget.
 publish_to: 'none'
-version: 1.4.3+13
+version: 1.4.4+14
 
 environment:
   # paddle_ocr_native requires Dart 3.12 and Flutter 3.44 or newer.

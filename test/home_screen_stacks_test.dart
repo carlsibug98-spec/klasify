@@ -49,6 +49,14 @@ void main() {
     WidgetTester tester,
     List<ClassItem> classes,
   ) async {
+    // A live first class summons the "Next up" echo card under the hero,
+    // which pushes the last stack past the default test viewport's initial
+    // build range (the list is lazy; real devices just scroll). Size the
+    // window so every stack is built — same surface pattern widget_test
+    // uses — then reset so nothing leaks between cases.
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 2400);
+    addTearDown(tester.view.reset);
     final db = DatabaseHelper.instance;
     await tester.runAsync(() async {
       await db.replaceAll([]);

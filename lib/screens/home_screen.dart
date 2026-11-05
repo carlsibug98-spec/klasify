@@ -6,6 +6,7 @@ import '../database/database_helper.dart';
 import '../routes/app_routes.dart';
 import '../models/class_item.dart';
 import '../models/class_status.dart';
+import '../models/event_item.dart';
 import '../widgets/day_status_sheet.dart';
 import '../utils/next_class.dart';
 import '../widgets/app_notification.dart';
@@ -14,8 +15,11 @@ import '../widgets/class_card.dart';
 import '../widgets/class_delete_undo.dart';
 import '../widgets/class_segment_row.dart';
 import '../widgets/error_view.dart';
+import '../widgets/event_sheet.dart';
+import '../widgets/event_tile.dart';
 import '../widgets/first_run_options.dart';
 import '../widgets/next_class_card.dart';
+import '../widgets/next_up_echo_card.dart';
 import '../services/first_class_coach_store.dart';
 import '../services/reminder_service.dart';
 import '../services/coach_tour_store.dart';
@@ -73,6 +77,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final _db = DatabaseHelper.instance;
   List<ClassItem> _classes = [];
   ClassStatuses _statuses = {};
+  List<EventItem> _events = [];
   bool _loading = true;
   String? _error;
   int _loadVersion = 0;
@@ -168,6 +173,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
         return <int, List<ClassStatusEntry>>{};
       });
+      final events = await _db.getAllEvents().catchError((
+        Object error,
+        StackTrace stackTrace,
+      ) {
+        // Events are this section's own data; losing them shouldn't take
+        // the schedule down with the failure.
+        debugPrint('Events failed to load: $error\n$stackTrace');
+        if (mounted) {
+          showAppNotification(
+            context,
+            'Your events could not be loaded. Showing without them.',
+            kind: AppNotificationKind.warning,
+          );
+        }
+        return <EventItem>[];
+      });
       if (!mounted || version != _loadVersion) return;
       // First class lands: the one-time coach tour trigger.
       final scheduleWasEmpty = _scheduleWasEmpty;
@@ -178,6 +199,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       setState(() {
         _classes = list;
         _statuses = statuses;
+        _events = events;
         _loading = false;
         _error = null;
       });
@@ -285,6 +307,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final now = DateTime.now();
     final nowMinutes = now.hour * 60 + now.minute;
     final next = findNextClass(_classes, now, statuses: _statuses);
+    // The echo card's class: what follows the one in progress. It is only
+    // ever shown under a live hero — when the hero is a countdown,
+    // "next up" is already its subject, and an echo would say it twice.
+    final echo = findUpcomingClass(_classes, now, statuses: _statuses);
+    // The Events list shows this moment forward; started and past events
+    // drop out (the minute ticker re-renders the list exactly then).
+    final upcomingEvents = _events.where((e) => e.isUpcomingOn(now)).toList();
     final today = _classes.where((c) => c.day == now.weekday).toList()
       ..sort((a, b) => a.startMinutes.compareTo(b.startMinutes));
     final hasTodayClasses = today.isNotEmpty;
@@ -536,6 +565,147 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     ),
                             ),
                           ),
+                        // The echo card under a live hero: what follows the
+                        // class in progress — the mockup's "2:30 PM · NEXT
+                        // UP" line. Never shown under a countdown hero, where
+                        // the hero already is the next-up class (it holds the
+                        // same visual language as the list rows).
+                        if (next != null && next.isNow && echo != null)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppTheme.pageInset,
+                              0,
+                              AppTheme.pageInset,
+                              12,
+                            ),
+                            child: NextUpEchoCard(item: echo.item, now: now),
+                          ),
+                        // Whole-school events live between the hero and the
+                        // day's classes (approved mockup frame 01): a count
+                        // chip, an Add entry, and date-block rows. The
+                        // section header stays even with zero events so the
+                        // entry point never disappears under updates.
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppTheme.pageInset,
+                            AppTheme.sectionGap,
+                            AppTheme.pageInset,
+                            12,
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Events',
+                                  style:
+                                      Theme.of(context).textTheme.titleLarge,
+                                ),
+                              ),
+                              if (upcomingEvents.isNotEmpty)
+                                Semantics(
+                                  button: false,
+                                  label:
+                                      '${upcomingEvents.length} upcoming '
+                                      'event${upcomingEvents.length == 1 ? '' : 's'}',
+                                  excludeSemantics: true,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceContainerHigh,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      '${upcomingEvents.length}',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelLarge
+                                          ?.copyWith(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
+                                            fontFeatures: const [
+                                              FontFeature.tabularFigures(),
+                                            ],
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                              Semantics(
+                                button: true,
+                                label: 'Add event',
+                                excludeSemantics: true,
+                                child: InkWell(
+                                  key: const ValueKey('events-add'),
+                                  onTap: () => showEventSheet(context),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      'Add',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelLarge
+                                          ?.copyWith(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // The events stack: segmented rows like the class
+                        // stacks, nearest first wearing the inverted date
+                        // block.
+                        for (final (eventIndex, event)
+                            in upcomingEvents.indexed)
+                          Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              AppTheme.pageInset,
+                              0,
+                              AppTheme.pageInset,
+                              eventIndex < upcomingEvents.length - 1
+                                  ? AppTheme.segmentGap
+                                  : 0,
+                            ),
+                            child: KeyedSubtree(
+                              key: ValueKey(
+                                'event-home-${event.id ?? Object.hash(event.title, event.date, event.startMinutes)}',
+                              ),
+                              child: EventTile(
+                                event: event,
+                                now: now,
+                                radius: AppTheme.segmentRadiusOf(
+                                  eventIndex,
+                                  upcomingEvents.length,
+                                ),
+                                inverted: eventIndex == 0,
+                                onTap: () =>
+                                    showEventSheet(context, initial: event),
+                                onLongPress: () =>
+                                    deleteEventWithUndo(context, event),
+                              ),
+                            ),
+                          ),
                         Padding(
                           padding: const EdgeInsets.fromLTRB(
                             AppTheme.pageInset,
@@ -550,7 +720,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               Expanded(
                                 child: Text(
                                   "Today's classes",
-                                  style: Theme.of(context).textTheme.titleLarge,
+                                  style:
+                                      Theme.of(context).textTheme.titleLarge,
                                 ),
                               ),
                               if (hasTodayClasses)

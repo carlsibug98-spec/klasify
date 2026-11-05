@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klasify/models/class_item.dart';
+import 'package:klasify/models/class_status.dart';
 import 'package:klasify/utils/next_class.dart';
 
 // Reference dates (2026): Wed Oct 14, Thu Oct 15, Sun Oct 18.
@@ -142,6 +143,75 @@ void main() {
       final now = DateTime(2026, 10, 16, 18); // Friday (5)
       final next = NextClass(cls('Math', 1, 8, 10), false, 3720); // Monday (1)
       expect(next.dayPillText(now), 'MONDAY');
+    });
+  });
+
+  group('findUpcomingClass (the echo card under a live hero)', () {
+    test('skips the live class and shows its same-day follower', () {
+      // 9:54 inside Wednesday's 9–11 live block.
+      final r = findUpcomingClass(
+        [cls('Live', wed, 9, 11), cls('Follower', wed, 13, 15)],
+        DateTime(2026, 10, 14, 9, 54),
+      );
+      expect(r!.item.subject, 'Follower');
+      expect(r.isNow, isFalse);
+      expect(r.minutesUntil, 186);
+    });
+
+    test('a lone live class yields no echo (never "next week" of itself)', () {
+      final r = findUpcomingClass(
+        [cls('Live', wed, 9, 11)],
+        DateTime(2026, 10, 14, 9, 54),
+      );
+      expect(r, isNull);
+    });
+
+    test('a live class with nothing after it still yields a next-day echo', () {
+      final r = findUpcomingClass(
+        [cls('Live', wed, 9, 11), cls('Tomorrow', thu, 8, 10)],
+        DateTime(2026, 10, 14, 9, 54),
+      );
+      expect(r!.item.subject, 'Tomorrow');
+      expect(r.minutesUntil, 1326);
+    });
+
+    test('a not-attending mark on the follower skips to nothing', () {
+      // The follower carries its own id so its mark cannot touch the live
+      // class: one cancelled occurrence is skipped, the live class stays
+      // the hero's job, and no echo remains.
+      const follower = ClassItem(
+        id: 2,
+        subject: 'Follower',
+        room: '101',
+        professor: 'Prof. Cruz',
+        day: 3,
+        startMinutes: 13 * 60,
+        endMinutes: 15 * 60,
+      );
+      final r = findUpcomingClass(
+        [cls('Live', wed, 9, 11), follower],
+        DateTime(2026, 10, 14, 9, 54),
+        statuses: {
+          2: [
+            const ClassStatusEntry(
+              classId: 2,
+              status: DayStatus.notAttending,
+              startDate: '2026-10-14',
+              endDate: '2026-10-14',
+            ),
+          ],
+        },
+      );
+      expect(r, isNull);
+    });
+
+    test('echo does not appear while the hero is a countdown, by data', () {
+      // No live class: findNextClass returns the same class as
+      // findUpcomingClass, so the Today screen shows it as the hero once.
+      final classes = [cls('Next', thu, 8, 10)];
+      final hero = findNextClass(classes, DateTime(2026, 10, 14, 9, 54));
+      final echo = findUpcomingClass(classes, DateTime(2026, 10, 14, 9, 54));
+      expect(hero!.item.subject, echo!.item.subject);
     });
   });
 }
