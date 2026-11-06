@@ -81,13 +81,13 @@ jobs:
         run: flutter test --reporter expanded
 
       - name: Build APK
-        run: flutter build apk --debug
+        run: flutter build apk --profile
 
       - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
-          name: app-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          name: app-profile-apk
+          path: build/app/outputs/flutter-apk/app-profile.apk
           if-no-files-found: error
           retention-days: 30
 
@@ -96,7 +96,7 @@ jobs:
         with:
           tag_name: build-${{ github.run_number }}
           name: "Build ${{ github.run_number }}"
-          files: build/app/outputs/flutter-apk/app-debug.apk
+          files: build/app/outputs/flutter-apk/app-profile.apk
           draft: false
           prerelease: true
         env:
