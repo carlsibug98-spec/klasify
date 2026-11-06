@@ -123,6 +123,8 @@ class _EventSheetState extends State<EventSheet> {
   late bool _remindMe;
   late int _lead;
   bool _saving = false;
+  final FocusNode _titleFocus = FocusNode();
+  bool _titleFocusScheduled = false;
 
   @override
   void initState() {
@@ -160,7 +162,31 @@ class _EventSheetState extends State<EventSheet> {
   void dispose() {
     _title.dispose();
     _venue.dispose();
+    _titleFocus.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Request focus only once the sheet's entry animation has finished: the
+    // keyboard and the slide-up animation no longer compete for the same
+    // frame, which is what made the sheet stutter on low-end phones.
+    if (_titleFocusScheduled || widget.initial != null) return;
+    final route = ModalRoute.of(context);
+    final animation = route?.animation;
+    if (animation == null) return;
+    if (animation.status == AnimationStatus.completed) {
+      _titleFocusScheduled = true;
+      _titleFocus.requestFocus();
+      return;
+    }
+    _titleFocusScheduled = true;
+    animation.addStatusListener((status) {
+      if (status == AnimationStatus.completed && mounted) {
+        _titleFocus.requestFocus();
+      }
+    });
   }
 
   bool get _nameValid => _title.text.trim().length >= 2;
@@ -285,10 +311,11 @@ class _EventSheetState extends State<EventSheet> {
     return Padding(
       // Keyboard clearance: the sheet scrolls above it instead of clipping.
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: ListView(
-        shrinkWrap: true,
-        padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
-        children: [
+      child: RepaintBoundary(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+          children: [
           Text(
             (editing
                     ? 'Event · ${eventKickLabel(widget.initial!.day)}'
@@ -307,7 +334,9 @@ class _EventSheetState extends State<EventSheet> {
           // UI beyond the two-character floor.
           TextField(
             controller: _title,
-            autofocus: !editing,
+            focusNode: _titleFocus,
+            // autofocus is handled in didChangeDependencies so the keyboard
+            // waits for the sheet's entry animation (no animation jank).
             maxLength: 60,
             textCapitalization: TextCapitalization.sentences,
             inputFormatters: [
@@ -449,6 +478,7 @@ class _EventSheetState extends State<EventSheet> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

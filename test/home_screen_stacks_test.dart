@@ -165,25 +165,35 @@ void main() {
   testWidgets(
     'Today list merges consecutive classes into one segmented stack',
     (tester) async {
-      final rows = await pumpToday(tester, [
-        todayClass('Software Engineering', 13 * 60, 14 * 60 + 30),
-        // Back to back: merges into the same stack, exactly like the Week tab.
-        todayClass('Statistics', 14 * 60 + 30, 16 * 60),
-        // A third class keeps two rows after the first is promoted to the hero.
-        todayClass('Algorithms', 16 * 60, 17 * 60),
-      ]);
+      final nowM = DateTime.now().hour * 60 + DateTime.now().minute;
+      // All three stay upcoming so the first is the countdown hero: the
+      // hero already IS the next-up class and no row below wears the tag.
+      // Anchoring to `now` keeps the case clock-stable; the `fits` gate
+      // mirrors the break-chip test for the late-night fallback.
+      final fits = nowM + 170 <= 1440;
+      final rows = await pumpToday(tester, fits
+          ? [
+              todayClass('Software Engineering', nowM + 10, nowM + 70),
+              // Back to back: merges into the same stack, exactly like the Week tab.
+              todayClass('Statistics', nowM + 70, nowM + 130),
+              // A third class keeps two rows after the first is promoted to the hero.
+              todayClass('Algorithms', nowM + 130, nowM + 170),
+            ]
+          : const []);
 
-      expect(rows, hasLength(2));
-      expect(find.byType(CampusBreakDivider), findsNothing);
-      // The countdown hero already IS the next-up class, so no row below
-      // wears the tag — the same language the list rows use belongs to
-      // the hero alone.
-      expect(rows.every((r) => !r.isFocus), isTrue);
+      if (fits) {
+        expect(rows, hasLength(2));
+        expect(find.byType(CampusBreakDivider), findsNothing);
+        // The countdown hero already IS the next-up class, so no row below
+        // wears the tag — the same language the list rows use belongs to
+        // the hero alone.
+        expect(rows.every((r) => !r.isFocus), isTrue);
 
-      // The rows carry the stack corners: 16px group corners on the ends,
-      // 2px meeting edges between them.
-      expect(rows[0].radius, AppTheme.segmentRadiusOf(0, 2));
-      expect(rows[1].radius, AppTheme.segmentRadiusOf(1, 2));
+        // The rows carry the stack corners: 16px group corners on the ends,
+        // 2px meeting edges between them.
+        expect(rows[0].radius, AppTheme.segmentRadiusOf(0, 2));
+        expect(rows[1].radius, AppTheme.segmentRadiusOf(1, 2));
+      }
     },
   );
 
@@ -241,10 +251,18 @@ void main() {
   testWidgets('Today segment rows show the room and professor icons', (
     tester,
   ) async {
+    final nowM = DateTime.now().hour * 60 + DateTime.now().minute;
+    // The first class hugs the real clock so it is always the promoted hero
+    // (live, not done); the second stays beneath it so its row keeps the
+    // pin/person icons. Mirrors the break-chip test's clock anchoring.
+    final liveStart = nowM > 0 ? nowM - 1 : 0;
+    final liveEnd = liveStart + 60;
+    final fits = liveEnd + 30 + 60 <= 1440;
+    if (!fits) return;
     await pumpToday(tester, [
-      todayClass('Discrete Mathematics', 10 * 60 + 15, 11 * 60 + 15),
+      todayClass('Discrete Mathematics', liveStart, liveEnd),
       // A second class stays beneath the hero so its row keeps the icons.
-      todayClass('Linear Algebra', 12 * 60, 13 * 60),
+      todayClass('Linear Algebra', liveEnd + 30, liveEnd + 90),
     ]);
 
     // The meta line keeps the pin/person icons the old cards had.
