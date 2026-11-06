@@ -134,6 +134,160 @@ class TimetableGridScanner {
   /// When [stats] is provided, it is filled with what the scan read, so the
   /// caller can judge whether rotated rescans (a purely ORIENTATION fix) could
   /// still add anything.
+  /// Weekday tokens for gating the rotated band sweep.
+  static const _rotatedWeekdayTokens = <String, int>{
+    'mon': 1, 'monday': 1,
+    'tue': 2, 'tues': 2, 'tuesday': 2,
+    'wed': 3, 'wednesday': 3,
+    'thu': 4, 'thur': 4, 'thurs': 4, 'thursday': 4,
+    'fri': 5, 'friday': 5,
+    'sat': 6, 'saturday': 6,
+    'sun': 7, 'sunday': 7,
+  };
+
+  /// Re-OCRs the frame rotated 90° in slim horizontal band windows and maps
+  /// weekday print back to page coordinates.
+  ///
+  /// Real timetables sometimes set the weekday titles vertically (rotated
+  /// inside the header band); horizontal OCR cannot read those. The windows
+  /// must tightly wrap the title band: wider or offset windows swallow the
+  /// first cell row and sparse OCR stops reading the small labels (verified
+  /// against raster probes). The remap is the exact inverse of the canvas
+  /// rotation, so found weekday boxes line up with the printed columns like
+  /// any horizontal header hit. Only callers that found too few weekday
+  /// candidates pay the extra OCR passes; ordinary grids unaffected.
+  Future<(List<_SpatialText>, List<File>)> _collectRotatedWeekdayLines({
+    required ui.Image bitmap,
+    required int pageWidth,
+    required int pageHeight,
+  }) async {
+    final found = <_SpatialText>[];
+    final files = <File>[];
+    final temp = await getTemporaryDirectory();
+
+    int distinctDays() {
+      final seen = <int>{};
+      for (final b in found) {
+        final key = b.text.toLowerCase().replaceAll(
+              RegExp(r'[^a-z]'),
+              '',
+            );
+        final day = _rotatedWeekdayTokens[key];
+        if (day != null) seen.add(day);
+      }
+      return seen.length;
+    }
+
+    // Band thickness -> sweeping top offsets.
+    final windowPlans = <({int windowLen, List<double> tops})>[
+      (
+        windowLen: (pageHeight * .14).round(),
+        tops: const [0.0, .04, .08, .12, .16, .20, .24],
+      ),
+      (
+        windowLen: (pageHeight * .20).round(),
+        tops: const [0.0, .05, .10, .15],
+      ),
+    ];
+
+    for (final clockwise in [true, false]) {
+      if (distinctDays() >= 2) break;
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      if (clockwise) {
+        canvas.translate(pageHeight.toDouble(), 0);
+        canvas.rotate(math.pi / 2);
+      } else {
+        canvas.translate(0, pageWidth.toDouble());
+        canvas.rotate(-math.pi / 2);
+      }
+      canvas.drawImageRect(
+        bitmap,
+        ui.Rect.fromLTWH(0, 0, pageWidth.toDouble(), pageHeight.toDouble()),
+        ui.Rect.fromLTWH(0, 0, pageWidth.toDouble(), pageHeight.toDouble()),
+        Paint()..filterQuality = FilterQuality.high,
+      );
+      final ui.Image rotated = await recorder
+          .endRecording()
+          .toImage(pageHeight, pageWidth);
+      try {
+        for (final (:windowLen, :tops) in windowPlans) {
+          for (final topFrac in tops) {
+            final offY = (pageHeight * topFrac).round();
+            if (offY + windowLen > pageHeight) continue;
+            final x0 = clockwise ? pageHeight - offY - windowLen : offY;
+            final windowRecorder = ui.PictureRecorder();
+            final windowCanvas = Canvas(windowRecorder);
+            // Pure crop: no interpolation could bend the axis mapping.
+            windowCanvas.drawImageRect(
+              rotated,
+              ui.Rect.fromLTWH(
+                x0.toDouble(),
+                0,
+                windowLen.toDouble(),
+                pageWidth.toDouble(),
+              ),
+              ui.Rect.fromLTWH(
+                0,
+                0,
+                windowLen.toDouble(),
+                pageWidth.toDouble(),
+              ),
+              Paint()..filterQuality = FilterQuality.none,
+            );
+            final png = await windowRecorder
+                .endRecording()
+                .toImage(windowLen, pageWidth)
+                .then((image) => image.toByteData(
+                      format: ui.ImageByteFormat.png,
+                    ));
+            final pngBytes = png?.buffer.asUint8List();
+            if (pngBytes == null) continue;
+            final tempFile = File(
+              p.join(
+                temp.path,
+                'schedule_ocr_band_${clockwise ? 'cw' : 'ccw'}_'
+                '${offY}_${DateTime.now().microsecondsSinceEpoch}.png',
+              ),
+            );
+            try {
+              await tempFile.writeAsBytes(pngBytes, flush: true);
+              files.add(tempFile);
+              final result = await recognize(tempFile.path);
+              for (final region in result.results) {
+                final text = region.text.trim();
+                if (text.isEmpty) continue;
+                final box = region.boundingBox;
+                if (box.isEmpty) continue;
+                // Window space -> rotated frame -> page space.
+                final rotCenter = ui.Offset(
+                  x0 + box.center.dx,
+                  box.center.dy,
+                );
+                final pageCenter = clockwise
+                    ? ui.Offset(rotCenter.dy, pageHeight - rotCenter.dx)
+                    : ui.Offset(pageWidth - rotCenter.dy, rotCenter.dx);
+                final pageBox = ui.Rect.fromCenter(
+                  center: pageCenter,
+                  width: box.height,
+                  height: box.width,
+                );
+                found.add(_SpatialText(text, pageBox, region.confidence));
+              }
+              if (distinctDays() >= 2) break;
+            } catch (e) {
+              debugPrint('Rotated band OCR sweep failed: $e');
+            }
+          }
+          if (distinctDays() >= 2) break;
+        }
+      } finally {
+        rotated.dispose();
+      }
+    }
+    return (found, files);
+  }
+
   Future<List<ParsedTimetableRow>> scan(
     String path, {
     required void Function(double progress, String detail) onProgress,
@@ -443,6 +597,21 @@ class TimetableGridScanner {
       for (final b in lines) {
         final d = dayOf(b.text);
         if (d != null) dayCandidates[b] = d;
+      }
+      if (dayCandidates.length < 2) {
+        // Vertically printed weekday titles are unreadable to horizontal
+        // OCR. Retry the frame rotated both ways and merge any weekday
+        // boxes back into page space before the header-row clustering.
+        final (rotated, rotatedFiles) = await _collectRotatedWeekdayLines(
+          bitmap: bitmap,
+          pageWidth: w,
+          pageHeight: h,
+        );
+        columnOcrFiles.addAll(rotatedFiles);
+        for (final b in rotated) {
+          final d = dayOf(b.text);
+          if (d != null) dayCandidates[b] = d;
+        }
       }
       for (final e in dayCandidates.entries) {
         if (norm(e.key.text) == 't' && shortTHeaders.length == 2) continue;
