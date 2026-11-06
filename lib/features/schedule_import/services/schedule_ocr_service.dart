@@ -347,7 +347,8 @@ class ScheduleOcrService {
         if (cancelled()) return '';
       }
 
-      if (!strongEnough()) {
+      if (!strongEnough() &&
+          candidates.any((c) => TimetableParser.parse(c.text).isEmpty)) {
         final inverted = await _preprocessor.prepare(
           path,
           invertDarkBackground: true,
