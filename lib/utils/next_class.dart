@@ -76,8 +76,9 @@ NextClass? findNextClass(
 }
 
 /// The soonest upcoming class, ignoring any class that is live right now.
-/// Powers the "next up" echo card under the live hero: the hero already
-/// covers the class in progress, so the echo shows what follows it.
+/// Fills [findNextClass]'s countdown when nothing is in progress, and is
+/// the data behind the "next up" emphasis the live hero passes to the
+/// row beneath it.
 NextClass? findUpcomingClass(
   List<ClassItem> classes,
   DateTime now, {

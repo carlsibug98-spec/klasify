@@ -13,7 +13,7 @@ class AppInfo {
   static const String version = '1.4.4';
 
   /// Release build number, mirrors the `+<build>` part of pubspec.yaml.
-  static const int build = 14;
+  static const int build = 15;
 
   /// The label Settings shows, e.g. "Version 1.4.0 (build 10)".
   static const String versionLabel = 'Version $version (build $build)';

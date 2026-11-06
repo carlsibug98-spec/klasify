@@ -5,7 +5,6 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:klasify/database/database_helper.dart';
 import 'package:klasify/models/class_item.dart';
-import 'package:klasify/models/class_status.dart';
 import 'package:klasify/routes/app_router.dart';
 import 'package:klasify/screens/home_screen.dart';
 import 'package:klasify/theme/app_theme.dart';
@@ -321,51 +320,6 @@ void main() {
       expect(jumpedTo, tomorrowWeekday);
     });
 
-    testWidgets('the done counter peeks the week when tapped', (tester) async {
-      final db = DatabaseHelper.instance;
-      final now = DateTime.now();
-      var peeked = false;
-      await tester.runAsync(() async {
-        await db.replaceAll([]);
-        final id = await db.insert(
-          ClassItem(
-            subject: 'Finished Physics',
-            room: 'Room 1',
-            professor: 'Dr. Past',
-            day: now.weekday,
-            startMinutes: 480,
-            endMinutes: 540,
-          ),
-        );
-        // Mark it finished for today instead of relying on a past time:
-        // the counter then reads "1 of 1 done" even before 08:00, when no
-        // class of the day can have ended yet.
-        await db.setClassStatus(
-          ClassStatusEntry(
-            classId: id,
-            status: DayStatus.finished,
-            startDate: dateKey(now),
-            endDate: dateKey(now),
-          ),
-        );
-      });
-
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light(),
-          home: HomeScreen(onPeekWeek: () => peeked = true),
-        ),
-      );
-      await tester.runAsync(() async {
-        await Future.delayed(const Duration(milliseconds: 100));
-      });
-      await tester.pump();
-
-      expect(find.text('1 of 1 done'), findsOneWidget);
-      await tester.tap(find.text('1 of 1 done'));
-      await tester.pump();
-      expect(peeked, isTrue);
-    });
 
     testWidgets('the in-class hero carries the 6px elapsed bar', (
       tester,

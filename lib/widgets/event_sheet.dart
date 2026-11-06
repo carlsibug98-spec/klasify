@@ -9,6 +9,8 @@ import '../models/event_item.dart'
 import '../services/reminder_service.dart';
 import '../theme/app_theme.dart';
 import 'app_notification.dart';
+import 'edit_class_time_picker_sheet.dart';
+import 'event_date_picker_sheet.dart';
 
 /// Deletes one event immediately and offers a five-second undo action, the
 /// same arrangement as deleteClassWithUndo. Events have no dependent rows,
@@ -165,7 +167,7 @@ class _EventSheetState extends State<EventSheet> {
 
   Future<void> _pickDate() async {
     FocusScope.of(context).unfocus();
-    final picked = await showDatePicker(
+    final picked = await showEventDatePickerSheet(
       context: context,
       initialDate: _date,
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
@@ -176,15 +178,16 @@ class _EventSheetState extends State<EventSheet> {
 
   Future<void> _pickTime() async {
     FocusScope.of(context).unfocus();
-    final picked = await showTimePicker(
+    // The class editor's wheel picker, without the class start/end
+    // pairing (an event carries a single start minute).
+    final result = await showEditClassTimePickerSheet(
       context: context,
-      initialTime: TimeOfDay(
-        hour: _startMinutes ~/ 60,
-        minute: _startMinutes % 60,
-      ),
+      title: 'Event time',
+      initialMinutes: _startMinutes,
+      isStart: true,
     );
-    if (picked != null) {
-      setState(() => _startMinutes = picked.hour * 60 + picked.minute);
+    if (result != null) {
+      setState(() => _startMinutes = result.minutes);
     }
   }
 
@@ -312,7 +315,7 @@ class _EventSheetState extends State<EventSheet> {
               FilteringTextInputFormatter.singleLineFormatter,
             ],
             style: textTheme.titleLarge?.copyWith(
-              fontSize: 18,
+              fontSize: 20,
               height: 1.25,
             ),
             decoration: InputDecoration(
@@ -348,12 +351,12 @@ class _EventSheetState extends State<EventSheet> {
             value: formatMinutes(_startMinutes),
             onTap: _pickTime,
           ),
-          // A plain row: ListTile's trailing slot cannot host a full-width
-          // editable field (Expanded is Flex-only), so the venue field lives
-          // beside the label instead of inside a tile's trailing side.
+          // The venue is its own full-width filled field: one line, roomy
+          // touch target, hint naming it optional.
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
+            padding: const EdgeInsets.fromLTRB(0, 10, 0, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Where',
@@ -364,30 +367,38 @@ class _EventSheetState extends State<EventSheet> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    controller: _venue,
-                    maxLength: 60,
-                    textAlign: TextAlign.end,
-                    textCapitalization: TextCapitalization.words,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.singleLineFormatter,
-                    ],
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontSize: 13,
-                      height: 1.3,
-                      fontWeight: FontWeight.w600,
+                const SizedBox(height: 8),
+                TextField(
+                  key: const Key('event-sheet-venue'),
+                  controller: _venue,
+                  maxLength: 60,
+                  textCapitalization: TextCapitalization.words,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.singleLineFormatter,
+                  ],
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: scheme.onSurface,
+                    fontSize: 16,
+                    height: 1.3,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  decoration: InputDecoration(
+                    counterText: '',
+                    hintText: 'Venue (optional)',
+                    hintStyle: TextStyle(
+                      color: scheme.outline,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w400,
                     ),
-                    decoration: InputDecoration(
-                      counterText: '',
-                      border: InputBorder.none,
-                      filled: false,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                      hintStyle: TextStyle(color: scheme.outline),
-                      errorStyle: const TextStyle(height: 0.05),
+                    filled: true,
+                    fillColor: scheme.surfaceContainerHigh,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 14,
                     ),
                   ),
                 ),
@@ -408,15 +419,23 @@ class _EventSheetState extends State<EventSheet> {
             disabled: !_remindMe,
           ),
           const SizedBox(height: 18),
-          FilledButton(
-            onPressed: _saving ? null : _save,
-            child: const Text('Save reminder'),
+          SizedBox(
+            // Roomy primary action: a 52-tall full-width button, above the
+            // 48px touch floor like the editor's own save.
+            height: 52,
+            child: FilledButton(
+              onPressed: _saving ? null : _save,
+              child: const Text('Save reminder'),
+            ),
           ),
           if (editing) ...[
             const SizedBox(height: 10),
-            TextButton(
-              onPressed: _delete,
-              child: const Text('Delete event'),
+            SizedBox(
+              height: 48,
+              child: TextButton(
+                onPressed: _delete,
+                child: const Text('Delete event'),
+              ),
             ),
           ],
           const SizedBox(height: 6),
@@ -460,12 +479,12 @@ class _SheetRow extends StatelessWidget {
       child: ListTile(
         onTap: tappable ? onTap : null,
         contentPadding: EdgeInsets.zero,
-        minVerticalPadding: 10,
+        minVerticalPadding: 14,
         title: Text(
           label,
           style: textTheme.bodyLarge?.copyWith(
             color: scheme.onSurface,
-            fontSize: 15,
+            fontSize: 16,
             height: 1.3,
             fontWeight: FontWeight.w700,
           ),
@@ -481,7 +500,7 @@ class _SheetRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: textTheme.bodyMedium?.copyWith(
                     color: valueColor,
-                    fontSize: 13,
+                    fontSize: 15,
                     height: 1.3,
                     fontWeight: FontWeight.w600,
                     fontFeatures: const [FontFeature.tabularFigures()],
@@ -495,7 +514,7 @@ class _SheetRow extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 2),
                 child: Icon(
                   Icons.chevron_right_rounded,
-                  size: 16,
+                  size: 20,
                   color: valueColor,
                 ),
               ),

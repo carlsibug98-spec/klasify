@@ -139,6 +139,7 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
 
     return Container(
       decoration: BoxDecoration(
@@ -193,8 +194,11 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                     Text(
                       widget.title,
                       key: const Key('time_picker_title'),
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        // Theme-aware: white pops on the dark compose
+                        // surface, ink on the mirrored light one. The old
+                        // hard white vanished on light surfaces.
+                        color: onSurface,
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
                       ),
@@ -221,14 +225,12 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     minimumSize: const Size(48, 48),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Done',
-                    // White, not the stray blue this sheet used to carry:
-                    // the editor's affirmation color IS white-on-black (its
-                    // save button), so the sheet's confirm action speaks the
-                    // same language. #85B7EB belonged to no palette.
+                    // Theme-aware like the title: white-on-black in dark,
+                    // ink in light (the old hard white vanished).
                     style: TextStyle(
-                      color: Colors.white,
+                      color: onSurface,
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),
@@ -308,12 +310,13 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                               child: Text(
                                 '$h',
                                 style: TextStyle(
+                                  fontFamily: 'Roboto',
                                   fontSize: 20,
                                   fontWeight: isSelected
                                       ? FontWeight.w600
                                       : FontWeight.normal,
                                   color: isSelected
-                                      ? Colors.white
+                                      ? onSurface
                                       : ComposeColors.of(context).hint,
                                   fontFeatures: const [
                                     FontFeature.tabularFigures(),
@@ -344,12 +347,13 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                               child: Text(
                                 i.toString().padLeft(2, '0'),
                                 style: TextStyle(
+                                  fontFamily: 'Roboto',
                                   fontSize: 20,
                                   fontWeight: isSelected
                                       ? FontWeight.w600
                                       : FontWeight.normal,
                                   color: isSelected
-                                      ? Colors.white
+                                      ? onSurface
                                       : ComposeColors.of(context).hint,
                                   fontFeatures: const [
                                     FontFeature.tabularFigures(),
@@ -380,12 +384,13 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                               child: Text(
                                 p,
                                 style: TextStyle(
+                                  fontFamily: 'Roboto',
                                   fontSize: 20,
                                   fontWeight: isSelected
                                       ? FontWeight.w600
                                       : FontWeight.normal,
                                   color: isSelected
-                                      ? Colors.white
+                                      ? onSurface
                                       : ComposeColors.of(context).hint,
                                 ),
                               ),

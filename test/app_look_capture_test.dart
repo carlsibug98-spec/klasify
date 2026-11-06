@@ -6,6 +6,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klasify/database/database_helper.dart';
 import 'package:klasify/models/class_item.dart';
+import 'package:klasify/models/class_status.dart';
+import 'package:klasify/models/event_item.dart';
 import 'package:klasify/screens/main_navigation_screen.dart';
 import 'package:klasify/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -262,11 +264,49 @@ void main() {
     ].where((c) => c.day != today).toList();
     final week = <ClassItem>[...todays, ...extras];
 
+    // Whole-school events around the seeded day: one this afternoon plus
+    // two further out, so the Events section under the classes renders
+    // with real rows (count chip, inverted date block, tiles).
+    final events = [
+      EventItem(
+        title: 'Foundation Day Assembly',
+        venue: 'Main Grounds',
+        date: dateKey(now),
+        startMinutes: 15 * 60,
+        remindMe: false,
+        leadMinutes: 30,
+      ),
+      EventItem(
+        title: 'Midterm Examinations',
+        venue: 'Testing Center',
+        date: dateKey(now.add(const Duration(days: 5))),
+        startMinutes: 8 * 60,
+        remindMe: true,
+        leadMinutes: 30,
+      ),
+      EventItem(
+        title: 'Campus Sports Fest',
+        venue: 'Gymnasium',
+        date: dateKey(now.add(const Duration(days: 12))),
+        startMinutes: 13 * 60,
+        remindMe: true,
+        leadMinutes: 30,
+      ),
+    ];
+
     final db = DatabaseHelper.instance;
     await tester.runAsync(() async {
       await db.replaceAll([]);
       for (final c in week) {
         await db.insert(c);
+      }
+      // Events own their own table: clear what other suites left behind,
+      // then seed the look-book rows.
+      for (final e in await db.getAllEvents()) {
+        await db.deleteEvent(e.id!);
+      }
+      for (final e in events) {
+        await db.insertEvent(e);
       }
     });
 

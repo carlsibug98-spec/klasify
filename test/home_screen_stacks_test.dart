@@ -5,6 +5,7 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:klasify/database/database_helper.dart';
 import 'package:klasify/models/class_item.dart';
+import 'package:klasify/models/class_status.dart';
 import 'package:klasify/screens/home_screen.dart';
 import 'package:klasify/theme/app_theme.dart';
 import 'package:klasify/widgets/campus_break_divider.dart';
@@ -49,8 +50,8 @@ void main() {
     WidgetTester tester,
     List<ClassItem> classes,
   ) async {
-    // A live first class summons the "Next up" echo card under the hero,
-    // which pushes the last stack past the default test viewport's initial
+    // A live hero keeps the next-up row focused beneath it, which used to
+    // push the last stack past the default test viewport's initial
     // build range (the list is lazy; real devices just scroll). Size the
     // window so every stack is built — same surface pattern widget_test
     // uses — then reset so nothing leaks between cases.
@@ -76,6 +77,91 @@ void main() {
         .toList();
   }
 
+  testWidgets('a live hero leaves the next-up emphasis on the row below it', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 2400);
+    addTearDown(tester.view.reset);
+    final db = DatabaseHelper.instance;
+    final now = DateTime.now();
+    final nowM = now.hour * 60 + now.minute;
+    // The chain (done -> live -> upcoming) must fit before midnight. The
+    // live window always hugs the real clock; the upcoming row only
+    // exists while there is room for it, and the last-hour runs instead
+    // assert the day-end fallback (live hero, no next-up row below).
+    final liveStart = nowM > 0 ? nowM - 1 : 0;
+    final liveEnd = (liveStart + 90 > 1440 ? 1440 : liveStart + 90);
+    final bool roomForNextUp = liveEnd + 40 <= 1440;
+    await tester.runAsync(() async {
+      await db.replaceAll([]);
+      final doneId = await db.insert(
+        todayClass(
+          'Data Structures',
+          7 * 60,
+          8 * 60,
+          room: '301',
+          professor: 'Prof. Reyes',
+        ),
+      );
+      // Marked finished for the day: done rendering without relying on
+      // the wall clock being past 08:00.
+      await db.setClassStatus(
+        ClassStatusEntry(
+          classId: doneId,
+          status: DayStatus.finished,
+          startDate: dateKey(now),
+          endDate: dateKey(now),
+        ),
+      );
+      await db.insert(
+        todayClass(
+          'Advanced Mathematics',
+          liveStart,
+          liveEnd,
+          room: '304',
+          professor: 'Prof. Chen',
+        ),
+      );
+      if (roomForNextUp) {
+        await db.insert(
+          todayClass(
+            'Software Engineering',
+            liveEnd + 40,
+            liveEnd + 100,
+            room: '302',
+            professor: 'Prof. Turing',
+          ),
+        );
+      }
+    });
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light(), home: const HomeScreen()),
+    );
+    await tester.runAsync(() async {
+      await Future.delayed(const Duration(milliseconds: 100));
+    });
+    await tester.pump();
+    final rows = tester
+        .widgetList<ClassSegmentRow>(find.byType(ClassSegmentRow))
+        .toList();
+
+    // The queue: the finished class is gone from Today (its done state
+    // lives on the weekly schedule), the live hero is promoted out of the
+    // list, and the upcoming class queues beneath wearing "next up".
+    //
+    // The live hero is promoted out of the list: its subject appears only
+    // in the hero card, and the rows below are the other classes in order.
+    expect(find.text('Advanced Mathematics'), findsOneWidget);
+    expect(find.text('Data Structures'), findsNothing);
+    expect(rows, hasLength(roomForNextUp ? 1 : 0));
+
+    expect(find.text('Next up'), findsNWidgets(roomForNextUp ? 1 : 0));
+    if (roomForNextUp) {
+      expect(rows.where((r) => r.isFocus), hasLength(1));
+    }
+  });
+
   testWidgets(
     'Today list merges consecutive classes into one segmented stack',
     (tester) async {
@@ -83,10 +169,16 @@ void main() {
         todayClass('Software Engineering', 13 * 60, 14 * 60 + 30),
         // Back to back: merges into the same stack, exactly like the Week tab.
         todayClass('Statistics', 14 * 60 + 30, 16 * 60),
+        // A third class keeps two rows after the first is promoted to the hero.
+        todayClass('Algorithms', 16 * 60, 17 * 60),
       ]);
 
       expect(rows, hasLength(2));
       expect(find.byType(CampusBreakDivider), findsNothing);
+      // The countdown hero already IS the next-up class, so no row below
+      // wears the tag — the same language the list rows use belongs to
+      // the hero alone.
+      expect(rows.every((r) => !r.isFocus), isTrue);
 
       // The rows carry the stack corners: 16px group corners on the ends,
       // 2px meeting edges between them.
@@ -98,19 +190,52 @@ void main() {
   testWidgets('Today list splits stacks with a break chip on a real gap', (
     tester,
   ) async {
-    final rows = await pumpToday(tester, [
-      todayClass('Algorithms', 9 * 60, 10 * 60 + 30),
-      // 90 minutes after: its own stack with a coffee chip between.
-      todayClass('Database Systems', 12 * 60, 14 * 60),
-    ]);
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 2400);
+    addTearDown(tester.view.reset);
+    final db = DatabaseHelper.instance;
+    final now = DateTime.now();
+    final nowM = now.hour * 60 + now.minute;
+    // The live class hugs the real clock (so it is always the promoted
+    // hero) and the two remaining classes follow it, split by a fixed
+    // 90-minute gap. The day-end runs (no room for both after the live
+    // window) only assert the fallback: no chip, no rows below.
+    final liveStart = nowM > 0 ? nowM - 1 : 0;
+    final liveEnd = (liveStart + 40 > 1440 ? 1440 : liveStart + 40);
+    final bool fits = liveEnd + 50 + 60 + 90 + 60 <= 1440;
+    await tester.runAsync(() async {
+      await db.replaceAll([]);
+      await db.insert(
+        todayClass('Algorithms', liveStart, liveEnd),
+      );
+      if (fits) {
+        await db.insert(
+          todayClass('Database Systems', liveEnd + 50, liveEnd + 110),
+        );
+        await db.insert(
+          todayClass('Networks', liveEnd + 200, liveEnd + 260),
+        );
+      }
+    });
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light(), home: const HomeScreen()),
+    );
+    await tester.runAsync(() async {
+      await Future.delayed(const Duration(milliseconds: 100));
+    });
+    await tester.pump();
+    final rows = tester
+        .widgetList<ClassSegmentRow>(find.byType(ClassSegmentRow))
+        .toList();
 
-    expect(rows, hasLength(2));
-    expect(find.byType(CampusBreakDivider), findsOneWidget);
-    expect(find.text('1h 30m break'), findsOneWidget);
-
-    // Both rows are single-row stacks: full 16px corners.
-    expect(rows[0].radius, AppTheme.segmentRadiusOf(0, 1));
-    expect(rows[1].radius, AppTheme.segmentRadiusOf(0, 1));
+    expect(find.byType(CampusBreakDivider), findsNWidgets(fits ? 1 : 0));
+    expect(find.text('1h 30m break'), findsNWidgets(fits ? 1 : 0));
+    if (fits) {
+      expect(rows, hasLength(2));
+      // Both rows are single-row stacks: full 16px corners.
+      expect(rows[0].radius, AppTheme.segmentRadiusOf(0, 1));
+      expect(rows[1].radius, AppTheme.segmentRadiusOf(0, 1));
+    }
   });
 
   testWidgets('Today segment rows show the room and professor icons', (
@@ -118,6 +243,8 @@ void main() {
   ) async {
     await pumpToday(tester, [
       todayClass('Discrete Mathematics', 10 * 60 + 15, 11 * 60 + 15),
+      // A second class stays beneath the hero so its row keeps the icons.
+      todayClass('Linear Algebra', 12 * 60, 13 * 60),
     ]);
 
     // The meta line keeps the pin/person icons the old cards had.

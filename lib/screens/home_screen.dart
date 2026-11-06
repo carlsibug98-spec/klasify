@@ -19,7 +19,6 @@ import '../widgets/event_sheet.dart';
 import '../widgets/event_tile.dart';
 import '../widgets/first_run_options.dart';
 import '../widgets/next_class_card.dart';
-import '../widgets/next_up_echo_card.dart';
 import '../services/first_class_coach_store.dart';
 import '../services/reminder_service.dart';
 import '../services/coach_tour_store.dart';
@@ -307,17 +306,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final now = DateTime.now();
     final nowMinutes = now.hour * 60 + now.minute;
     final next = findNextClass(_classes, now, statuses: _statuses);
-    // The echo card's class: what follows the one in progress. It is only
-    // ever shown under a live hero — when the hero is a countdown,
-    // "next up" is already its subject, and an echo would say it twice.
-    final echo = findUpcomingClass(_classes, now, statuses: _statuses);
     // The Events list shows this moment forward; started and past events
     // drop out (the minute ticker re-renders the list exactly then).
     final upcomingEvents = _events.where((e) => e.isUpcomingOn(now)).toList();
     final today = _classes.where((c) => c.day == now.weekday).toList()
       ..sort((a, b) => a.startMinutes.compareTo(b.startMinutes));
     final hasTodayClasses = today.isNotEmpty;
-    final nextId = next?.item.id;
     final doneCount = today
         .where(
           (c) =>
@@ -347,12 +341,57 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     }
 
+    // The Today list is a QUEUE. Classes that already ended — or were
+    // resolved on the day-status sheet — leave the Today screen entirely;
+    // their done state lives on the weekly schedule instead. What remains
+    // is what hasn't run yet: the live/next class is promoted into the
+    // hero and the rest queue beneath it.
+    bool resolvedForToday(ClassItem c) =>
+        classStatusAt(c, nowMinutes) == ClassStatus.done ||
+        activeDayStatus(_statuses, c.id, now) != null;
+    final int promotedKey = next == null
+        ? -1
+        : (next.item.id ??
+            Object.hash(next.item.subject, next.item.day, next.item.startMinutes));
+    final remaining = today
+        .where(
+          (c) =>
+              next == null ||
+              (c.id ?? Object.hash(c.subject, c.day, c.startMinutes)) !=
+                  promotedKey,
+        )
+        .where((c) => !resolvedForToday(c))
+        .toList();
+    final hasRemainingClasses = remaining.isNotEmpty;
+    final remainingStacks = <List<ClassItem>>[];
+    for (final c in remaining) {
+      final previous = remainingStacks.isEmpty
+          ? null
+          : remainingStacks.last.last;
+      if (previous != null &&
+          c.startMinutes - previous.endMinutes <
+              WeekAgendaView.breakThreshold) {
+        remainingStacks.last.add(c);
+      } else {
+        remainingStacks.add([c]);
+      }
+    }
+    // Under a live hero the first queued card is the next-up one. A
+    // countdown hero already is the next-up class, so no row below wears
+    // the tag then.
+    int? nextRemainingKey;
+    if (next != null && next.isNow && remaining.isNotEmpty) {
+      nextRemainingKey = remaining.first.id ??
+          Object.hash(remaining.first.subject, remaining.first.day,
+              remaining.first.startMinutes);
+    }
+
     // One slot of the Today list: the keyed segment row inside its swipe
     // plane, seams riding on the plane's padding so they collapse with the
     // row on delete. The first slot of the day is the coach tour's swipe
     // demo target: the tour holds its actions plane open while step 2 is
     // showing.
-    Widget todayRow(ClassItem c, int rowIndex, int stackLength) {
+    Widget classRow(ClassItem c, int rowIndex, int stackLength) {
       final radius = AppTheme.segmentRadiusOf(rowIndex, stackLength);
       final isSeam = rowIndex < stackLength - 1;
       final padding = EdgeInsets.fromLTRB(
@@ -368,7 +407,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         statusEntry: activeStatusEntry(_statuses, c.id, now),
         // The orange time follows the hero: the class in progress, or the
         // next one once the current is marked.
-        isFocus: nextId != null && c.id == nextId && !isCelebration,
+        isFocus:
+            nextRemainingKey != null &&
+            (c.id ??
+                    Object.hash(c.subject, c.day, c.startMinutes)) ==
+                nextRemainingKey,
         onTap: () => showDayStatusSheet(
           context,
           item: c,
@@ -377,7 +420,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         onLongPress: () => _deleteClass(c),
       );
-      final plane = identical(c, stacks.first.first)
+      final plane = identical(c, remainingStacks.first.first)
           ? ValueListenableBuilder<bool>(
               valueListenable: widget.tourSwipeDemo ?? HomeScreen.swipeDemoOff,
               builder: (context, demo, row) => SwipeActions(
@@ -565,26 +608,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     ),
                             ),
                           ),
-                        // The echo card under a live hero: what follows the
-                        // class in progress — the mockup's "2:30 PM · NEXT
-                        // UP" line. Never shown under a countdown hero, where
-                        // the hero already is the next-up class (it holds the
-                        // same visual language as the list rows).
-                        if (next != null && next.isNow && echo != null)
+                        // Classes beneath the hero (moved up from below Events):
+                        // the day's classes except the one promoted into the
+                        // hero, segmented stacks with break chips. The first
+                        // remaining card is marked "next up".
+                        if (hasTodayClasses && hasRemainingClasses)
+                          for (final (stackIndex, stack)
+                              in remainingStacks.indexed) ...[
+                            for (final (rowIndex, c) in stack.indexed)
+                              classRow(c, rowIndex, stack.length),
+                            if (stackIndex < remainingStacks.length - 1)
+                              CampusBreakDivider(
+                                breakMinutes:
+                                    remainingStacks[stackIndex + 1]
+                                            .first
+                                            .startMinutes -
+                                        stack.last.endMinutes,
+                              ),
+                          ],
+                        if (!hasTodayClasses)
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppTheme.pageInset,
-                              0,
-                              AppTheme.pageInset,
-                              12,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppTheme.pageInset,
                             ),
-                            child: NextUpEchoCard(item: echo.item, now: now),
+                            child: _TodayEmptyState(
+                              hasSchedule: _classes.isNotEmpty,
+                              tilesKey: widget.firstRunTilesKey,
+                            ),
                           ),
-                        // Whole-school events live between the hero and the
-                        // day's classes (approved mockup frame 01): a count
-                        // chip, an Add entry, and date-block rows. The
-                        // section header stays even with zero events so the
-                        // entry point never disappears under updates.
+                        // Whole-school events: a count chip, an Add entry, and
+                        // date-block rows. The section header stays even with
+                        // zero events so the entry point never disappears under
+                        // updates.
                         Padding(
                           padding: const EdgeInsets.fromLTRB(
                             AppTheme.pageInset,
@@ -637,9 +692,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     ),
                                   ),
                                 ),
-                              Semantics(
-                                button: true,
-                                label: 'Add event',
+                                const SizedBox(width: 8),
+                                Semantics(
+                                  button: true,
+                                  label: 'Add event',
                                 excludeSemantics: true,
                                 child: InkWell(
                                   key: const ValueKey('events-add'),
@@ -706,87 +762,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               ),
                             ),
                           ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppTheme.pageInset,
-                            AppTheme.sectionGap,
-                            AppTheme.pageInset,
-                            12,
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  "Today's classes",
-                                  style:
-                                      Theme.of(context).textTheme.titleLarge,
-                                ),
-                              ),
-                              if (hasTodayClasses)
-                                Semantics(
-                                  button: widget.onPeekWeek != null,
-                                  enabled: widget.onPeekWeek != null,
-                                  label: 'View week',
-                                  excludeSemantics: true,
-                                  child: InkWell(
-                                    onTap: widget.onPeekWeek,
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.surfaceContainerHigh,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        '$doneCount of ${today.length} done',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelLarge
-                                            ?.copyWith(
-                                              color: Theme.of(
-                                                context,
-                                              ).colorScheme.onSurfaceVariant,
-                                              fontFeatures: const [
-                                                FontFeature.tabularFigures(),
-                                              ],
-                                            ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        if (!hasTodayClasses)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppTheme.pageInset,
-                            ),
-                            child: _TodayEmptyState(
-                              hasSchedule: _classes.isNotEmpty,
-                              tilesKey: widget.firstRunTilesKey,
-                            ),
-                          )
-                        else
-                          // The same segmented stacks the Week tab shows,
-                          // with a coffee chip between stacks.
-                          for (final (stackIndex, stack) in stacks.indexed) ...[
-                            for (final (rowIndex, c) in stack.indexed)
-                              todayRow(c, rowIndex, stack.length),
-                            if (stackIndex < stacks.length - 1)
-                              CampusBreakDivider(
-                                breakMinutes:
-                                    stacks[stackIndex + 1].first.startMinutes -
-                                    stack.last.endMinutes,
-                              ),
-                          ],
                       ],
                     ),
                   ),
