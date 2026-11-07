@@ -45,7 +45,7 @@ void main() {
   testWidgets('Settings has an About group that opens the about sheet', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 844);
+    tester.view.physicalSize = const Size(390, 1200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 

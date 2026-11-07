@@ -137,14 +137,26 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('events-add')));
     await tester.pumpAndSettle();
 
-    // The new-event sheet: headline kicker, save, and the sync footnote —
-    // and nothing pre-filled from any sample data.
+    // The new-event sheet: headline kicker and save up top, and the sync
+    // footnote at the very bottom — which sits past the fold on this test
+    // surface, so scroll the sheet to it, assert, then scroll back to
+    // keep the form editable.
     expect(find.text('NEW EVENT'), findsOneWidget);
     expect(find.text('Save reminder'), findsOneWidget);
+    await tester.dragFrom(
+      tester.getCenter(find.text('NEW EVENT')),
+      const Offset(0, -200),
+    );
+    await tester.pump();
     expect(
       find.text('Saved on this phone · syncs when account sync turns on'),
       findsOneWidget,
     );
+    await tester.dragFrom(
+      tester.getCenter(find.text('Save reminder')),
+      const Offset(0, 200),
+    );
+    await tester.pump();
 
     await tester.enterText(find.byType(TextField).first, 'Test Culture Day');
     await tester.pump(const Duration(milliseconds: 100));
@@ -177,6 +189,14 @@ void main() {
     expect(find.text('Remind me'), findsOneWidget);
     expect(find.text('Alert'), findsOneWidget);
     expect(find.text('30 minutes before'), findsOneWidget);
+
+    // The Delete action sits past the fold on this test surface: scroll
+    // the sheet down to reach it.
+    await tester.dragFrom(
+      tester.getCenter(find.textContaining('EVENT · ')),
+      const Offset(0, -200),
+    );
+    await tester.pump();
     expect(find.text('Delete event'), findsOneWidget);
 
     // Close without touching: the sheet pops back to Today. The test

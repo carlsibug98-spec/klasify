@@ -27,7 +27,9 @@ void main() {
   testWidgets('groups settings by task and shows reminder state', (
     tester,
   ) async {
-    await pumpSettings(tester);
+    // The page grew an extra row (account sign-in): a tall surface keeps
+    // every group built instead of leaving ABOUT past the fold.
+    await pumpSettings(tester, size: const Size(390, 1200));
     await tester.pump();
 
     expect(find.text('SCHEDULE'), findsOneWidget);
@@ -162,10 +164,12 @@ void main() {
     testWidgets('every row renders inside its own shadowed segment Material', (
       tester,
     ) async {
-      await pumpSettings(tester);
+      // A tall surface keeps every segment built: the page's bottom group
+      // would otherwise fall past the fold of a phone-sized viewport.
+      await pumpSettings(tester, size: const Size(390, 1200));
       await tester.pump();
 
-      // Seven rows → seven segments. Each wraps a Material whose shape
+      // Eight rows → eight segments. Each wraps a Material whose shape
       // carries the hairline side; the ambient shadow wraps the Material.
       final segments = find.byWidgetPredicate(
         (w) =>
@@ -173,7 +177,7 @@ void main() {
             w.shape is RoundedRectangleBorder &&
             (w.shape as RoundedRectangleBorder).side != BorderSide.none,
       );
-      expect(segments, findsNWidgets(7));
+      expect(segments, findsNWidgets(8));
     });
   });
 }

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart' as sqflite;
@@ -6,9 +8,17 @@ import 'package:klasify/database/database_helper.dart';
 import 'package:klasify/models/class_item.dart';
 
 void main() {
-  setUpAll(() {
+  setUpAll(() async {
     sqfliteFfiInit();
     sqflite.databaseFactory = databaseFactoryFfi;
+    // Fresh directory per run: the fixture database starts empty, so no
+    // leftover row from an aborted earlier run (a crash between the insert
+    // and the final delete) can collide with what this test inserts.
+    // Without this, the overlap validator correctly rejects an insert whose
+    // slot a run from a previous day is still occupying.
+    final dir = await Directory.systemTemp.createTemp('klasify_crud_db_');
+    await sqflite.databaseFactory.setDatabasesPath(dir.path);
+    await DatabaseHelper.instance.resetForTesting();
   });
 
   test(
