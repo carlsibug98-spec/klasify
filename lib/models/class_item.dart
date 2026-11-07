@@ -45,6 +45,10 @@ String formatTimeRange(int startMinutes, int endMinutes) {
 
 class ClassItem {
   final int? id;
+
+  /// Server-side id, set after a successful sync push. Null until then.
+  final int? serverId;
+
   final String subject;
   final String room;
   final String professor;
@@ -52,14 +56,25 @@ class ClassItem {
   final int startMinutes;
   final int endMinutes;
 
+  /// Soft-delete flag for sync. Locally deleted rows are kept with
+  /// deleted=true until the server confirms the deletion.
+  final bool deleted;
+
+  /// Last modification time (UTC). Used for last-write-wins conflict
+  /// resolution during sync.
+  final DateTime? updatedAt;
+
   const ClassItem({
     this.id,
+    this.serverId,
     required this.subject,
     required this.room,
     required this.professor,
     required this.day,
     required this.startMinutes,
     required this.endMinutes,
+    this.deleted = false,
+    this.updatedAt,
   });
 
   String get dayName => dayNames[day - 1];
@@ -74,15 +89,23 @@ class ClassItem {
     'day': day,
     'start_minutes': startMinutes,
     'end_minutes': endMinutes,
+    'deleted': deleted ? 1 : 0,
+    if (updatedAt != null) 'updated_at': updatedAt!.toIso8601String(),
+    if (serverId != null) 'server_id': serverId,
   };
 
   factory ClassItem.fromMap(Map<String, Object?> m) => ClassItem(
     id: m['id'] as int?,
+    serverId: m['server_id'] as int?,
     subject: m['subject'] as String,
     room: m['room'] as String,
     professor: m['professor'] as String,
     day: m['day'] as int,
     startMinutes: m['start_minutes'] as int,
     endMinutes: m['end_minutes'] as int,
+    deleted: (m['deleted'] as int? ?? 0) != 0,
+    updatedAt: m['updated_at'] != null
+        ? DateTime.tryParse(m['updated_at'] as String)
+        : null,
   );
 }

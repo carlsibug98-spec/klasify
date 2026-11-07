@@ -88,12 +88,22 @@ class ClassStatusEntry {
   final String startDate; // yyyy-MM-dd, inclusive
   final String? endDate; // yyyy-MM-dd, inclusive; null = until cleared
 
+  /// Sync bookkeeping. Null serverId means the row was never pushed;
+  /// [deleted] keeps local tombstones until the server confirms them;
+  /// [updatedAt] is stamped on every local mutation (see DatabaseHelper).
+  final int? serverId;
+  final bool deleted;
+  final DateTime? updatedAt;
+
   const ClassStatusEntry({
     this.id,
     required this.classId,
     required this.status,
     required this.startDate,
     this.endDate,
+    this.serverId,
+    this.deleted = false,
+    this.updatedAt,
   });
 
   bool isActiveOn(DateTime date) {
@@ -111,13 +121,22 @@ class ClassStatusEntry {
     return null;
   }
 
-  ClassStatusEntry copyWith({String? startDate, String? endDate}) =>
+  ClassStatusEntry copyWith({
+    String? startDate,
+    String? endDate,
+    int? serverId,
+    bool? deleted,
+    DateTime? updatedAt,
+  }) =>
       ClassStatusEntry(
         id: id,
         classId: classId,
         status: status,
         startDate: startDate ?? this.startDate,
         endDate: endDate ?? this.endDate,
+        serverId: serverId ?? this.serverId,
+        deleted: deleted ?? this.deleted,
+        updatedAt: updatedAt ?? this.updatedAt,
       );
 
   Map<String, Object?> toMap() => {
@@ -126,6 +145,9 @@ class ClassStatusEntry {
     'status': status.dbValue,
     'start_date': startDate,
     'end_date': endDate,
+    if (serverId != null) 'server_id': serverId,
+    if (deleted) 'deleted': 1,
+    if (updatedAt != null) 'updated_at': updatedAt!.toIso8601String(),
   };
 
   factory ClassStatusEntry.fromMap(Map<String, Object?> m) => ClassStatusEntry(
@@ -134,6 +156,12 @@ class ClassStatusEntry {
     status: dayStatusFromDb(m['status'] as String),
     startDate: m['start_date'] as String,
     endDate: m['end_date'] as String?,
+    serverId: m['server_id'] as int?,
+    deleted: (m['deleted'] as int? ?? 0) != 0,
+    updatedAt:
+        m['updated_at'] != null
+            ? DateTime.tryParse(m['updated_at'] as String)
+            : null,
   );
 }
 

@@ -10,4 +10,6 @@ class AppRoutes {
   static const backup = '/backup';
   static const reminders = '/reminders';
   static const editClass = '/edit-class';
+  static const login = '/login';
+  static const signup = '/signup';
 }

@@ -23,6 +23,9 @@ dependencies:
   timezone: 0.11.2
   flutter_timezone: ^5.0.0
   paddle_ocr_native: 0.1.1
+  # Network + secure storage for the optional sync backend (Phase 1).
+  http: ^1.2.0
+  flutter_secure_storage: ^11.2.0
   # Opt-in crash reporting: inactive unless a DSN is compiled in with
   # --dart-define=KLASIFY_SENTRY_DSN=... (see lib/services/crash_reporting.dart).
   sentry_flutter: ^10.2.0

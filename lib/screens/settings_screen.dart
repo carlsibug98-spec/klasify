@@ -101,6 +101,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
               const SizedBox(height: AppTheme.sectionGap),
+              const _SettingsGroup(
+                title: 'ACCOUNT',
+                rows: [
+                  _SettingsRowData(
+                    icon: Icons.person_outline_rounded,
+                    title: 'Sign in / Sync',
+                    subtitle: 'Sync your schedule across devices',
+                    route: AppRoutes.login,
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppTheme.sectionGap),
               _SettingsGroup(
                 title: 'HELP',
                 onReplayCoachTour: widget.onReplayCoachTour,

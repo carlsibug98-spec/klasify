@@ -7,6 +7,8 @@ import '../screens/main_navigation_screen.dart';
 import '../features/schedule_import/import_schedule_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/schedule_screen.dart';
+import '../screens/auth/login_screen.dart';
+import '../screens/auth/signup_screen.dart';
 import 'app_routes.dart';
 
 /// The ONLY file that lists every screen.
@@ -67,6 +69,10 @@ class AppRouter {
       case AppRoutes.editClass:
         final item = settings.arguments as ClassItem;
         return _page(EditClassScreen(classItem: item), settings);
+      case AppRoutes.login:
+        return _page(const LoginScreen(), settings);
+      case AppRoutes.signup:
+        return _page(const SignupScreen(), settings);
       default:
         return onUnknownRoute(settings);
     }

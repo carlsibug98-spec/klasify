@@ -5,7 +5,7 @@ import '../database/database_helper.dart';
 import '../models/class_item.dart' show formatMinutes;
 import '../models/class_status.dart' show dateKey, shortDateLabel;
 import '../models/event_item.dart'
-    show EventItem, eventDefaultLeadMinutes, eventLeadChoices, eventKickLabel;
+    show EventItem, eventDefaultLeadMinutes, eventLeadChoices, eventKickLabel, EventCategory;
 import '../services/reminder_service.dart';
 import '../theme/app_theme.dart';
 import 'app_notification.dart';
@@ -122,6 +122,7 @@ class _EventSheetState extends State<EventSheet> {
   late int _startMinutes;
   late bool _remindMe;
   late int _lead;
+  late EventCategory _category;
   bool _saving = false;
   final FocusNode _titleFocus = FocusNode();
   bool _titleFocusScheduled = false;
@@ -137,6 +138,7 @@ class _EventSheetState extends State<EventSheet> {
       _startMinutes = initial.startMinutes;
       _remindMe = initial.remindMe;
       _lead = initial.leadMinutes;
+      _category = initial.category;
     } else {
       // A fresh form never opens with a default already in the past:
       // today at 9:00 while morning, else the next half-hour, else
@@ -155,6 +157,7 @@ class _EventSheetState extends State<EventSheet> {
       }
       _remindMe = true;
       _lead = eventDefaultLeadMinutes;
+      _category = EventCategory.personal;
     }
   }
 
@@ -258,6 +261,7 @@ class _EventSheetState extends State<EventSheet> {
       startMinutes: _startMinutes,
       remindMe: _remindMe,
       leadMinutes: _lead,
+      category: _category,
     );
     try {
       if (widget.initial == null) {
@@ -379,6 +383,36 @@ class _EventSheetState extends State<EventSheet> {
             label: 'Time',
             value: formatMinutes(_startMinutes),
             onTap: _pickTime,
+          ),
+          // Category picker: personal vs school event.
+          _SheetRow(
+            label: 'Category',
+            value: _category == EventCategory.school ? 'School event' : 'Personal',
+            onTap: () async {
+              final picked = await showModalBottomSheet<EventCategory>(
+                context: context,
+                showDragHandle: true,
+                builder: (ctx) => SafeArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final cat in EventCategory.values)
+                        ListTile(
+                          title: Text(
+                            cat == EventCategory.school ? 'School event' : 'Personal',
+                          ),
+                          trailing: cat == _category
+                              ? const Icon(Icons.check_rounded)
+                              : null,
+                          onTap: () => Navigator.pop(ctx, cat),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+              if (picked != null) setState(() => _category = picked);
+            },
           ),
           // The venue is its own full-width filled field: one line, roomy
           // touch target, hint naming it optional.

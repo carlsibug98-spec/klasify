@@ -23,10 +23,17 @@ const List<String> shortWeekdayNames = [
 
 String shortWeekdayLabel(DateTime d) => shortWeekdayNames[d.weekday - 1];
 
+/// Event categories. School events are whole-school affairs (assemblies,
+/// exams, holidays) that everyone sees; personal events are the user's own.
+enum EventCategory { personal, school }
+
 /// yyyy-MM-dd date, minutes-since-midnight time. One-off school events
 /// opposite the weekly [ClassItem]s.
 class EventItem {
   final int? id;
+
+  /// Server-side id, set after a successful sync push. Null until then.
+  final int? serverId;
 
   /// Event name ("Culture Day"). At least 2 characters, mirroring classes.
   final String title;
@@ -49,14 +56,29 @@ class EventItem {
   /// How long before the start the reminder fires; one of [eventLeadChoices].
   final int leadMinutes;
 
+  /// Whether this is a personal event or a school-wide event.
+  final EventCategory category;
+
+  /// Soft-delete flag for sync. Locally deleted rows are kept with
+  /// deleted=true until the server confirms the deletion.
+  final bool deleted;
+
+  /// Last modification time (UTC). Used for last-write-wins conflict
+  /// resolution during sync.
+  final DateTime? updatedAt;
+
   const EventItem({
     this.id,
+    this.serverId,
     required this.title,
     required this.venue,
     required this.date,
     required this.startMinutes,
     this.remindMe = true,
     this.leadMinutes = eventDefaultLeadMinutes,
+    this.category = EventCategory.personal,
+    this.deleted = false,
+    this.updatedAt,
   });
 
   /// The event's day as [DateTime] (midnight, no time component).
@@ -105,16 +127,29 @@ class EventItem {
     'start_minutes': startMinutes,
     'reminder_enabled': remindMe ? 1 : 0,
     'lead_minutes': leadMinutes,
+    'category': category.name,
+    'deleted': deleted ? 1 : 0,
+    if (updatedAt != null) 'updated_at': updatedAt!.toIso8601String(),
+    if (serverId != null) 'server_id': serverId,
   };
 
   factory EventItem.fromMap(Map<String, Object?> m) => EventItem(
     id: m['id'] as int?,
+    serverId: m['server_id'] as int?,
     title: m['title'] as String,
     venue: m['venue'] as String? ?? '',
     date: m['date'] as String,
     startMinutes: m['start_minutes'] as int,
     remindMe: (m['reminder_enabled'] as int? ?? 1) != 0,
     leadMinutes: m['lead_minutes'] as int? ?? eventDefaultLeadMinutes,
+    category: EventCategory.values.firstWhere(
+      (c) => c.name == (m['category'] as String? ?? 'personal'),
+      orElse: () => EventCategory.personal,
+    ),
+    deleted: (m['deleted'] as int? ?? 0) != 0,
+    updatedAt: m['updated_at'] != null
+        ? DateTime.tryParse(m['updated_at'] as String)
+        : null,
   );
 }
 
