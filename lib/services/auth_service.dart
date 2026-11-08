@@ -144,6 +144,9 @@ class AuthService extends ChangeNotifier {
         defaultValue: '',
       ),
     );
+    // Force the account picker every time — without this, google_sign_in
+    // silently re-uses the last account and there's no way to switch or merge.
+    await googleSignIn.signOut();
     final account = await googleSignIn.signIn();
     if (account == null) {
       throw const AuthApiException(
