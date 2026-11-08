@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'routes/app_router.dart';
 import 'routes/app_routes.dart';
+import 'services/auth_service.dart';
 import 'services/auto_backup_service.dart';
 import 'services/crash_reporting.dart';
 import 'services/onboarding_store.dart';
@@ -11,6 +12,13 @@ import 'theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initCrashReporting(() async {
+    // A saved session should survive a cold start so sync keeps working
+    // without another sign-in. A keystore failure must never block launch.
+    try {
+      await AuthService.instance.restoreSession();
+    } catch (e) {
+      debugPrint('Session restore failed: $e');
+    }
     // The quiet backup follows schedule changes for the whole session; it
     // starts async so launch never waits on disk or prefs.
     unawaited(AutoBackupService.instance.attach());

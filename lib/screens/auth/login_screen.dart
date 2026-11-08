@@ -50,6 +50,15 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _openSignup() async {
+    final created = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const SignupScreen()),
+    );
+    // Signup signs the user in, so bubble success up to Settings, which
+    // triggers the first sync for the new account.
+    if (created == true && mounted) Navigator.of(context).pop(true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -197,9 +206,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 32),
               Center(
                 child: TextButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SignupScreen()),
-                  ),
+                  onPressed: _openSignup,
                   child: RichText(
                     text: TextSpan(
                       style: textTheme.bodyMedium?.copyWith(

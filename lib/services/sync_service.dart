@@ -18,21 +18,10 @@ class SyncService {
 
   static const _lastPushKey = 'klasify_last_push_at';
   static const _lastPullKey = 'klasify_last_pull_at';
-  static const _syncEnabledKey = 'klasify_sync_enabled';
   static const _deviceIdKey = 'klasify_device_id';
 
   bool _syncing = false;
   bool get syncing => _syncing;
-
-  Future<bool> get isEnabled async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_syncEnabledKey) ?? false;
-  }
-
-  Future<void> setEnabled(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_syncEnabledKey, value);
-  }
 
   Future<String> get _deviceId async {
     final prefs = await SharedPreferences.getInstance();
@@ -58,7 +47,6 @@ class SyncService {
 
   /// Push local changes to the server. Returns true on success.
   Future<bool> push() async {
-    if (!await isEnabled) return false;
     final token = await _token;
     if (token == null) return false;
 
@@ -161,17 +149,20 @@ class SyncService {
 
   /// Pull server changes since last pull. Returns true on success.
   Future<bool> pull() async {
-    if (!await isEnabled) return false;
     final token = await _token;
     if (token == null) return false;
 
     _syncing = true;
     try {
+      final deviceId = await _deviceId;
       final lastPull = await lastPullAt;
       final since = lastPull?.toUtc().toIso8601String() ?? '1970-01-01T00:00:00.000Z';
 
       final res = await http.get(
-        Uri.parse('$baseUrl/sync/pull?since=$since'),
+        Uri.parse(
+          '$baseUrl/sync/pull?since=$since'
+          '&device_id=${Uri.encodeQueryComponent(deviceId)}',
+        ),
         headers: {'Authorization': 'Bearer $token'},
       );
 
