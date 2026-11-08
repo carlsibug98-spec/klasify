@@ -224,18 +224,25 @@ class WeekAgendaView extends StatelessWidget {
                                    ).pushNamed<void>(AppRoutes.importSchedule),
                                    onAdd: () => onAddClassForDay(selectedDay),
                                  )
-                               : EmptyStateCard(
-                                  icon: Icons.event_available_outlined,
-                                  title: 'Nothing scheduled',
-                                  message: 'Enjoy your open space.',
-                                  actions: [
-                                    FilledButton.icon(
-                                      onPressed: () =>
-                                          onAddClassForDay(selectedDay),
-                                      icon: const Icon(Icons.add_rounded),
-                                      label: Text(
-                                        'Add a class for ${dayNames[selectedDay - 1]}',
+                               : Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    const EmptyStateCard(
+                                      icon: Icons.event_available_outlined,
+                                      title: 'Nothing scheduled',
+                                      message: 'Enjoy your open space.',
+                                    ),
+                                    const SizedBox(height: 18),
+                                    FirstRunOptions(
+                                      onScan: () => Navigator.of(
+                                        context,
+                                        rootNavigator: true,
+                                      ).pushNamed<void>(
+                                        AppRoutes.importSchedule,
                                       ),
+                                      onAdd: () =>
+                                          onAddClassForDay(selectedDay),
                                     ),
                                   ],
                                 ),
