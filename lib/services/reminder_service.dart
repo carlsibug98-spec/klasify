@@ -392,7 +392,9 @@ class ReminderService extends ChangeNotifier {
     scheduledIds.add(id);
     await _plugin.zonedSchedule(
       id: id,
-      title: 'Event starting soon',
+      title: event.category == EventCategory.school
+          ? 'School event starting soon'
+          : 'Event starting soon',
       body: _eventReminderBody(event),
       scheduledDate: when,
       notificationDetails: _notificationDetails,
@@ -412,9 +414,10 @@ class ReminderService extends ChangeNotifier {
   /// and "venue to confirm" when nothing was recorded.
   String _eventReminderBody(EventItem e) {
     final venue = e.venue.trim();
+    final prefix = e.category == EventCategory.school ? 'School event: ' : '';
     return venue.isEmpty
-        ? '${e.title}, venue to confirm. Starts in ${e.leadMinutes} minutes.'
-        : '${e.title} · ${formatRoom(venue)}. '
+        ? '$prefix${e.title}, venue to confirm. Starts in ${e.leadMinutes} minutes.'
+        : '$prefix${e.title} · ${formatRoom(venue)}. '
             'Starts in ${e.leadMinutes} minutes.';
   }
 

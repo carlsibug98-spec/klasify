@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../services/reminder_service.dart';
+import '../../services/sync_service.dart';
 import '../../services/theme_mode_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_notification.dart';
 import 'profile_shared.dart';
 import 'profile_sheets.dart';
 
@@ -26,6 +28,7 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
 
   bool? _classEnabled;
   bool? _eventsEnabled;
+  bool _syncing = false;
 
   @override
   void initState() {
@@ -41,6 +44,20 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
   }
 
   void _onReminderSettingsChanged() => unawaited(_loadReminderState());
+
+  Future<void> _syncNow() async {
+    if (_syncing) return;
+    setState(() => _syncing = true);
+    final ok = await SyncService.instance.syncNow();
+    if (mounted) {
+      setState(() => _syncing = false);
+      showAppNotification(
+        context,
+        ok ? 'Synced.' : 'Sync failed. Try again later.',
+        kind: ok ? AppNotificationKind.success : AppNotificationKind.error,
+      );
+    }
+  }
 
   Future<void> _loadReminderState() async {
     final classEnabled = await ReminderService.instance.isEnabled;
@@ -116,6 +133,19 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
                           title: 'Sync & devices',
                           subtitle: 'Syncs after you sign in',
                           trailing: StatusPill(on: true),
+                        ),
+                        ProfileRow(
+                          icon: Icons.sync_rounded,
+                          title: 'Sync now',
+                          subtitle: _syncing ? 'Syncing…' : 'Push and pull changes',
+                          trailing: _syncing
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : null,
+                          onTap: _syncing ? null : () => unawaited(_syncNow()),
                         ),
                       ],
                     ),
