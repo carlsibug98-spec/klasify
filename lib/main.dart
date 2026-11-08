@@ -7,6 +7,7 @@ import 'services/auth_service.dart';
 import 'services/auto_backup_service.dart';
 import 'services/crash_reporting.dart';
 import 'services/onboarding_store.dart';
+import 'services/theme_mode_service.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -23,6 +24,7 @@ Future<void> main() async {
     // starts async so launch never waits on disk or prefs.
     unawaited(AutoBackupService.instance.attach());
     final seenOnboarding = await OnboardingStore.isCompleted();
+    unawaited(ThemeModeService.instance.load());
     runApp(ScheduleApp(showOnboarding: !seenOnboarding));
   });
 }
@@ -35,21 +37,32 @@ class ScheduleApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Klasify',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.system,
-      initialRoute: showOnboarding ? AppRoutes.onboarding : AppRoutes.home,
-      // Build ONLY the initial route. The default would also stack the home
-      // screen underneath '/onboarding'.
-      onGenerateInitialRoutes: (name) => [
-        AppRouter.onGenerateRoute(RouteSettings(name: name)),
-      ],
-      onGenerateRoute: AppRouter.onGenerateRoute,
-      onUnknownRoute: AppRouter.onUnknownRoute,
-      navigatorObservers: [AppRouter.routeObserver],
+    return ListenableBuilder(
+      listenable: ThemeModeService.instance,
+      builder: (context, _) {
+        final selected = ThemeModeService.instance.mode;
+        final themeMode = switch (selected) {
+          KlasifyThemeMode.light => ThemeMode.light,
+          KlasifyThemeMode.dark => ThemeMode.dark,
+          KlasifyThemeMode.system => ThemeMode.system,
+        };
+        return MaterialApp(
+          title: 'Klasify',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
+          themeMode: themeMode,
+          initialRoute: showOnboarding ? AppRoutes.onboarding : AppRoutes.home,
+          // Build ONLY the initial route. The default would also stack the
+          // home screen underneath '/onboarding'.
+          onGenerateInitialRoutes: (name) => [
+            AppRouter.onGenerateRoute(RouteSettings(name: name)),
+          ],
+          onGenerateRoute: AppRouter.onGenerateRoute,
+          onUnknownRoute: AppRouter.onUnknownRoute,
+          navigatorObservers: [AppRouter.routeObserver],
+        );
+      },
     );
   }
 }

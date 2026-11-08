@@ -61,7 +61,7 @@ void main() {
     expect(find.bySemanticsLabel('Today'), findsOneWidget);
     expect(find.bySemanticsLabel('Week'), findsOneWidget);
     expect(find.text('Import'), findsNothing);
-    expect(find.bySemanticsLabel('Settings'), findsOneWidget);
+    expect(find.bySemanticsLabel('Profile'), findsOneWidget);
     expect(find.byType(BottomNavigationItem), findsNWidgets(3));
     expect(find.byType(NavigationRail), findsNothing);
 
@@ -83,7 +83,7 @@ void main() {
     // The quick-actions FAB replaced the dedicated Add-class FAB.
     expect(find.byTooltip('Open class actions'), findsOneWidget);
 
-    await tester.tap(find.bySemanticsLabel('Settings'));
+    await tester.tap(find.bySemanticsLabel('Profile'));
     await tester.pump(const Duration(milliseconds: 500));
     // Settings is a reading surface: the add-class action steps aside (the
     // FAB stays in the tree but is faded out and ignores pointer input).
@@ -104,7 +104,7 @@ void main() {
 
     expect(find.text('Class reminders'), findsOneWidget);
     expect(find.text('Backup and restore'), findsOneWidget);
-    expect(find.text('How Klasify works'), findsOneWidget);
+    expect(find.text('How Klasify works'), findsNothing);
 
     await tester.tap(find.bySemanticsLabel('Today'));
     await tester.pump(const Duration(milliseconds: 500));

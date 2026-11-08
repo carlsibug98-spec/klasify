@@ -1,0 +1,240 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+
+import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
+import '../../services/reminder_service.dart';
+import '../../theme/app_theme.dart';
+import 'profile_screen.dart' show ProfileDarkModeRow;
+import 'profile_shared.dart';
+import 'profile_sheets.dart';
+
+/// Settings & privacy (mockup v9, frame 3): the hub the gear on Profile
+/// opens. Same row language as the tab, but the hub carries the gray group
+/// descriptions — that pattern belongs to hub screens only.
+class SettingsPrivacyScreen extends StatefulWidget {
+  const SettingsPrivacyScreen({super.key});
+
+  @override
+  State<SettingsPrivacyScreen> createState() => _SettingsPrivacyScreenState();
+}
+
+class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
+  /// Narrower than the schedule surfaces: the hub reads as a column.
+  static const double _contentMaxWidth = 680;
+
+  bool? _classEnabled;
+  bool? _eventsEnabled;
+
+  @override
+  void initState() {
+    super.initState();
+    ReminderService.instance.addListener(_onReminderSettingsChanged);
+    unawaited(_loadReminderState());
+  }
+
+  @override
+  void dispose() {
+    ReminderService.instance.removeListener(_onReminderSettingsChanged);
+    super.dispose();
+  }
+
+  void _onReminderSettingsChanged() => unawaited(_loadReminderState());
+
+  Future<void> _loadReminderState() async {
+    final classEnabled = await ReminderService.instance.isEnabled;
+    final eventsEnabled = await ReminderService.instance.eventsEnabled;
+    if (!mounted ||
+        (classEnabled == _classEnabled && eventsEnabled == _eventsEnabled)) {
+      return;
+    }
+    setState(() {
+      _classEnabled = classEnabled;
+      _eventsEnabled = eventsEnabled;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    final onReplayCoachTour = args is VoidCallback ? args : null;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
+        child: ListenableBuilder(
+          listenable: AuthService.instance,
+          builder: (context, _) {
+            final auth = AuthService.instance;
+            final name = auth.displayName?.trim();
+            final email = auth.userEmail;
+            final contact = [
+              if (name != null && name.isNotEmpty) name,
+              if (email != null && email.isNotEmpty) email,
+            ].join(' · ');
+            // The hub pill reads the real gate: anything giving you a
+            // reminder right now — class or event — lights the pill.
+            final notificationsOn =
+                (_classEnabled ?? false) || (_eventsEnabled ?? true);
+            return Scaffold(
+              appBar: ProfileTitleBar(parent: 'Profile'),
+              body: ListView(
+                padding: AppTheme.pagePadding,
+                children: [
+                  const ProfileSubhead(
+                    title: 'Settings & privacy',
+                    tagline: 'Account, preferences, legal and support.',
+                  ),
+                  ProfileGroup(
+                    label: 'MY SCHEDULE',
+                    description: 'Bring your schedule in and keep it safe.',
+                    rows: [
+                      ProfileRow(
+                        icon: Icons.document_scanner_outlined,
+                        title: 'Import schedule',
+                        subtitle: 'From a photo or PDF',
+                        onTap: () => unawaited(
+                          Navigator.of(context)
+                              .pushNamed(AppRoutes.importSchedule),
+                        ),
+                      ),
+                      ProfileRow(
+                        icon: Icons.settings_backup_restore_rounded,
+                        title: 'Backup and restore',
+                        subtitle: 'Saves automatically after every change',
+                        onTap: () => unawaited(
+                          Navigator.of(context).pushNamed(AppRoutes.backup),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppTheme.sectionGap),
+                  // ACCOUNT is a signed-in group: without a session there
+                  // are no account details to manage, so the hub shows the
+                  // schedule, preferences and legal worlds only.
+                  if (auth.isLoggedIn) ...[
+                    ProfileGroup(
+                      label: 'ACCOUNT',
+                      description: 'Your details, password and sync.',
+                      rows: [
+                        ProfileRow(
+                          icon: Icons.person_outline_rounded,
+                          title: 'Personal details',
+                          subtitle:
+                              contact.isEmpty ? 'Name and email' : contact,
+                          onTap: () => unawaited(
+                            Navigator.of(context)
+                                .pushNamed(AppRoutes.personalDetails),
+                          ),
+                        ),
+                        ProfileRow(
+                          icon: Icons.lock_outline_rounded,
+                          title: 'Password & security',
+                          subtitle: 'Password and signed-in devices',
+                          onTap: () => unawaited(
+                            Navigator.of(context)
+                                .pushNamed(AppRoutes.passwordSecurity),
+                          ),
+                        ),
+                        const ProfileRow(
+                          icon: Icons.sync_rounded,
+                          title: 'Sync & devices',
+                          subtitle: 'Syncs after you sign in',
+                          trailing: StatusPill(on: true),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppTheme.sectionGap),
+                  ],
+                  ProfileGroup(
+                    label: 'PREFERENCES',
+                    description: 'Reminders and appearance.',
+                    rows: [
+                      ProfileRow(
+                        icon: Icons.notifications_none_rounded,
+                        title: 'Notifications',
+                        subtitle: 'Class reminders · event alerts',
+                        trailing: StatusPill(on: notificationsOn),
+                        onTap: () => unawaited(
+                          Navigator.of(context).pushNamed(AppRoutes.reminders),
+                        ),
+                      ),
+                      const _HubDarkModeRow(),
+                    ],
+                  ),
+                  const SizedBox(height: AppTheme.sectionGap),
+                  ProfileGroup(
+                    label: 'COMMUNITY STANDARDS & LEGAL',
+                    description: 'The policies that govern Klasify.',
+                    rows: [
+                      ProfileRow(
+                        icon: Icons.description_outlined,
+                        title: 'Terms of Service',
+                        onTap: () => unawaited(
+                          Navigator.of(context).pushNamed(AppRoutes.legalTerms),
+                        ),
+                      ),
+                      ProfileRow(
+                        icon: Icons.shield_outlined,
+                        title: 'Privacy Policy',
+                        subtitle: 'What is stored on each device',
+                        onTap: () => unawaited(
+                          Navigator.of(context)
+                              .pushNamed(AppRoutes.legalPrivacy),
+                        ),
+                      ),
+                      ProfileRow(
+                        icon: Icons.groups_2_outlined,
+                        title: 'Community standards',
+                        onTap: () => unawaited(
+                          Navigator.of(context)
+                              .pushNamed(AppRoutes.legalStandards),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppTheme.sectionGap),
+                  ProfileGroup(
+                    label: 'HELP & SUPPORT',
+                    description: 'Guides and answers.',
+                    rows: [
+                      ProfileRow(
+                        icon: Icons.help_outline_rounded,
+                        title: 'Help centre',
+                        subtitle: 'Guides and common questions',
+                        onTap: () =>
+                            unawaited(showProfileHelpCentreSheet(context)),
+                      ),
+                      ProfileRow(
+                        icon: Icons.mail_outline_rounded,
+                        title: 'Contact support',
+                        subtitle: 'Send a problem report',
+                        onTap: () =>
+                            unawaited(showProfileContactSupportSheet(context)),
+                      ),
+                      ProfileRow(
+                        icon: Icons.tour_outlined,
+                        title: 'Replay the coach tour',
+                        subtitle: 'The guided walkthrough of every screen',
+                        onTap: onReplayCoachTour,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// Hub's dark-mode row — same switch, same copy as the Profile tab's row.
+class _HubDarkModeRow extends StatelessWidget {
+  const _HubDarkModeRow();
+
+  @override
+  Widget build(BuildContext context) => const ProfileDarkModeRow();
+}

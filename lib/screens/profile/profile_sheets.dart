@@ -1,404 +1,16 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import '../routes/app_routes.dart';
-import '../services/app_info.dart';
-import '../services/reminder_service.dart';
-import '../services/sync_service.dart';
-import '../theme/app_theme.dart';
-import '../widgets/component_kit.dart';
+import '../../services/app_info.dart';
+import '../../theme/app_theme.dart';
 
-/// Settings: one calm surface per task.
-///
-/// Rows render as their own segments — the first row carries the group's top
-/// corners, middle rows soften to 2px, the last row carries the bottom
-/// corners — separated by a tight 1px seam of scaffold (the approved
-/// segmented-rows study). Rows use a neutral leading tile instead of accent
-/// decoration, so the only colour on the page belongs to state — the
-/// reminders dot.
-class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key, this.onReplayCoachTour});
+/// The bottom sheets the Profile world opens. The About and widget-help
+/// sheets carried over unchanged from the old Settings screen; the Help
+/// centre and Contact support sheets are new,ɘ answering the two rows the
+/// Security-and-privacy hub gained in mockup v9. All answers stay factual
+/// to how the app actually works.
 
-  /// The one-time coach tour lives in the shell; Settings only asks for a
-  /// replay across this callback. Null keeps the row inert (tests).
-  final VoidCallback? onReplayCoachTour;
-
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends State<SettingsScreen> {
-  /// Narrower than the schedule surfaces: settings read as a column, not a grid.
-  static const double _contentMaxWidth = 680;
-
-  bool? _remindersEnabled;
-
-  @override
-  void initState() {
-    super.initState();
-    ReminderService.instance.addListener(_onReminderSettingsChanged);
-    _loadReminderState();
-  }
-
-  @override
-  void dispose() {
-    ReminderService.instance.removeListener(_onReminderSettingsChanged);
-    super.dispose();
-  }
-
-  void _onReminderSettingsChanged() => _loadReminderState();
-
-  Future<void> _loadReminderState() async {
-    final enabled = await ReminderService.instance.isEnabled;
-    if (!mounted || enabled == _remindersEnabled) return;
-    setState(() => _remindersEnabled = enabled);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
-        child: Scaffold(
-          appBar: AppBar(
-            automaticallyImplyLeading: false,
-            title: const Text('Settings'),
-          ),
-          body: ListView(
-            padding: AppTheme.pagePadding,
-            children: [
-              const _SettingsGroup(
-                title: 'SCHEDULE',
-                rows: [
-                  _SettingsRowData(
-                    icon: Icons.document_scanner_outlined,
-                    title: 'Import schedule',
-                    subtitle: 'From a photo or PDF',
-                    route: AppRoutes.importSchedule,
-                  ),
-                  _SettingsRowData(
-                    icon: Icons.settings_backup_restore_rounded,
-                    title: 'Backup and restore',
-                    subtitle: 'Saves automatically after every change',
-                    route: AppRoutes.backup,
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppTheme.sectionGap),
-              _SettingsGroup(
-                title: 'NOTIFICATIONS',
-                rows: [
-                  _SettingsRowData(
-                    icon: Icons.notifications_none_rounded,
-                    title: 'Class reminders',
-                    subtitle: switch (_remindersEnabled) {
-                      null => 'Checking status…',
-                      true => 'Alerts before each class',
-                      false => 'No alerts scheduled',
-                    },
-                    status: _remindersEnabled,
-                    route: AppRoutes.reminders,
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppTheme.sectionGap),
-              const _SettingsGroup(
-                title: 'ACCOUNT',
-                rows: [
-                  _SettingsRowData(
-                    icon: Icons.person_outline_rounded,
-                    title: 'Sign in / Sync',
-                    subtitle: 'Sync your schedule across devices',
-                    route: AppRoutes.login,
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppTheme.sectionGap),
-              _SettingsGroup(
-                title: 'HELP',
-                onReplayCoachTour: widget.onReplayCoachTour,
-                rows: const [
-                  _SettingsRowData(
-                    icon: Icons.menu_book_outlined,
-                    title: 'How Klasify works',
-                    subtitle: 'A quick tour of the basics',
-                    route: AppRoutes.onboarding,
-                    arguments: true,
-                  ),
-                  _SettingsRowData(
-                    icon: Icons.tour_outlined,
-                    title: 'Replay the coach tour',
-                    subtitle: 'The guided walkthrough of every screen',
-                    action: _SettingsRowAction.coachTour,
-                  ),
-                  _SettingsRowData(
-                    icon: Icons.widgets_outlined,
-                    title: 'Home-screen widget',
-                    subtitle: 'Your next class at a glance',
-                    action: _SettingsRowAction.widgetHelp,
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppTheme.sectionGap),
-              const _SettingsGroup(
-                title: 'ABOUT',
-                rows: [
-                  _SettingsRowData(
-                    icon: Icons.info_outline_rounded,
-                    title: 'About Klasify',
-                    subtitle: AppInfo.versionLabel,
-                    action: _SettingsRowAction.about,
-                  ),
-                ],
-              ),
-              const _PrivacyFooter(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-enum _SettingsRowAction { route, about, widgetHelp, coachTour }
-
-class _SettingsRowData {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String route;
-  final Object? arguments;
-
-  /// Reminder state shown as an On/Off pill; null keeps the row neutral.
-  final bool? status;
-  final _SettingsRowAction action;
-
-  const _SettingsRowData({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.route = '',
-    this.arguments,
-    this.status,
-    this.action = _SettingsRowAction.route,
-  });
-}
-
-/// A labelled group of row segments. Each row is its own segment with a
-/// position-dependent radius (see [AppTheme.segmentRadiusOf]); segments sit
-/// [AppTheme.segmentGap] apart with no divider lines.
-class _SettingsGroup extends StatelessWidget {
-  const _SettingsGroup({
-    required this.title,
-    required this.rows,
-    this.onReplayCoachTour,
-  });
-
-  final String title;
-  final List<_SettingsRowData> rows;
-
-  /// Fired by the coach-tour row; null (tests) counts taps, does nothing.
-  final VoidCallback? onReplayCoachTour;
-
-  /// The state label (when set) followed by the disclosure chevron.
-  Widget _rowTrailing(BuildContext context, _SettingsRowData row) {
-    final scheme = Theme.of(context).colorScheme;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (row.status != null) ...[
-          _StatusPill(on: row.status!),
-          const SizedBox(width: 8),
-        ],
-        Icon(Icons.chevron_right_rounded, size: 20, color: scheme.outline),
-      ],
-    );
-  }
-
-  void _openRow(BuildContext context, _SettingsRowData row) {
-    switch (row.action) {
-      case _SettingsRowAction.about:
-        _showAboutSheet(context);
-      case _SettingsRowAction.widgetHelp:
-        _showWidgetHelpSheet(context);
-      case _SettingsRowAction.coachTour:
-        onReplayCoachTour?.call();
-      case _SettingsRowAction.route:
-        unawaited(_openRoute(context, row));
-    }
-  }
-
-  /// Pushes the row's route; when returning from sign-in or sign-up with a
-  /// positive result, the first cloud sync fires immediately so the account
-  /// and its data are live without needing another toggle. Failures are
-  /// silent-by-design here: the next sync attempt covers them.
-  Future<void> _openRoute(BuildContext context, _SettingsRowData row) async {
-    final result = await Navigator.pushNamed(
-      context,
-      row.route,
-      arguments: row.arguments,
-    );
-    final isAuth =
-        row.route == AppRoutes.login || row.route == AppRoutes.signup;
-    if (isAuth && result == true) {
-      await SyncService.instance.syncNow();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8, left: 2),
-          child: Text(
-            title,
-            style: theme.textTheme.labelMedium?.copyWith(
-              fontSize: 11,
-              height: 1.2,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.3,
-              color: AppTheme.groupLabelColorOf(scheme),
-            ),
-          ),
-        ),
-        for (var i = 0; i < rows.length; i++) ...[
-          if (i > 0) const SizedBox(height: AppTheme.segmentGap),
-          _SettingsSegment(
-            radius: AppTheme.segmentRadiusOf(i, rows.length),
-            child: SettingsRow(
-              compact: true,
-              icon: rows[i].icon,
-              title: rows[i].title,
-              subtitle: rows[i].subtitle,
-              trailing: _rowTrailing(context, rows[i]),
-              onTap: () => _openRow(context, rows[i]),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-/// One settings row as its own segment — the approved segmented-rows study.
-///
-/// The ambient shadow wraps the Material (it paints behind the segment and
-/// must not be clipped); the hairline rides on the Material's shape so it
-/// follows the segment's radius. Same edge language as the class cards.
-class _SettingsSegment extends StatelessWidget {
-  const _SettingsSegment({required this.radius, required this.child});
-
-  final BorderRadius radius;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        boxShadow: AppTheme.cardShadowsOf(scheme),
-      ),
-      child: Material(
-        color: AppTheme.cardFillColorOf(scheme),
-        shape: RoundedRectangleBorder(
-          borderRadius: radius,
-          side: AppTheme.cardBorderSideOf(scheme),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: child,
-      ),
-    );
-  }
-}
-
-/// A quiet state pill: a dot carries the colour, the word carries the state.
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.on});
-
-  final bool on;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: on
-                  ? AppTheme.successForegroundFor(scheme)
-                  : scheme.outline,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            on ? 'On' : 'Off',
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontSize: 11,
-              height: 1.1,
-              fontWeight: FontWeight.w700,
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The one identity note on the page: the app keeps the schedule on-device.
-class _PrivacyFooter extends StatelessWidget {
-  const _PrivacyFooter();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(top: 28, bottom: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.lock_outline_rounded,
-            size: 14,
-            color: scheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              AppInfo.tagline,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontSize: 12,
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-Future<void> _showAboutSheet(BuildContext context) {
+Future<void> showProfileAboutSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -408,11 +20,11 @@ Future<void> _showAboutSheet(BuildContext context) {
         top: Radius.circular(AppTheme.sheetRadius),
       ),
     ),
-    builder: (_) => const _AboutSheet(),
+    builder: (_) => const ProfileAboutSheet(),
   );
 }
 
-Future<void> _showWidgetHelpSheet(BuildContext context) {
+Future<void> showProfileWidgetHelpSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -422,20 +34,49 @@ Future<void> _showWidgetHelpSheet(BuildContext context) {
         top: Radius.circular(AppTheme.sheetRadius),
       ),
     ),
-    builder: (_) => const _WidgetHelpSheet(),
+    builder: (_) => const ProfileWidgetHelpSheet(),
+  );
+}
+
+Future<void> showProfileHelpCentreSheet(BuildContext context) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(AppTheme.sheetRadius),
+      ),
+    ),
+    builder: (_) => const ProfileHelpCentreSheet(),
+  );
+}
+
+Future<void> showProfileContactSupportSheet(BuildContext context) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(AppTheme.sheetRadius),
+      ),
+    ),
+    builder: (_) => const ProfileContactSupportSheet(),
   );
 }
 
 /// The About bottom sheet: the app's identity, version, and its defining
 /// fact, with the licenses one tap away. Same layout idiom as the day
 /// status sheet (icon block + title + subtitle on a single quiet surface).
-class _AboutSheet extends StatelessWidget {
-  const _AboutSheet();
+class ProfileAboutSheet extends StatelessWidget {
+  const ProfileAboutSheet();
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
     return SingleChildScrollView(
       child: Center(
         child: ConstrainedBox(
@@ -456,11 +97,11 @@ class _AboutSheet extends StatelessWidget {
                     Container(
                       width: 44,
                       height: 44,
-                       decoration: BoxDecoration(
-                         color: scheme.surfaceContainer,
-                         borderRadius: BorderRadius.circular(14),
-                         border: Border.all(color: scheme.outlineVariant),
-                       ),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainer,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: scheme.outlineVariant),
+                      ),
                       clipBehavior: Clip.antiAlias,
                       child: Image.asset(
                         'assets/klasify_logo.png',
@@ -513,8 +154,8 @@ class _AboutSheet extends StatelessWidget {
                     context: context,
                     applicationName: AppInfo.name,
                     applicationVersion: '${AppInfo.version} (${AppInfo.build})',
-                    applicationIcon: const ImageIcon(
-                      AssetImage('assets/klasify_logo.png'),
+                    applicationIcon: ImageIcon(
+                      const AssetImage('assets/klasify_logo.png'),
                       size: 44,
                     ),
                     applicationLegalese: AppInfo.tagline,
@@ -559,8 +200,8 @@ class _AboutSheet extends StatelessWidget {
 
 /// How to place the native home-screen widget. Widgets live in the launcher,
 /// not inside the app, so the steps name the launcher's own vocabulary.
-class _WidgetHelpSheet extends StatelessWidget {
-  const _WidgetHelpSheet();
+class ProfileWidgetHelpSheet extends StatelessWidget {
+  const ProfileWidgetHelpSheet();
 
   @override
   Widget build(BuildContext context) {
@@ -667,6 +308,234 @@ class _WidgetHelpSheet extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The Help centre sheet: the questions the app can answer from its own
+/// behaviour, written from how things actually work.
+class ProfileHelpCentreSheet extends StatelessWidget {
+  const ProfileHelpCentreSheet();
+
+  static const List<(String, String)> _answers = [
+    (
+      'Where does my schedule live?',
+      'On this phone. Klasify is offline-first: your classes, events and '
+          'marks all work with no account at all.',
+    ),
+    (
+      'When does sync happen?',
+      'Automatically. Right after you sign in, then again after every '
+          'change and whenever you reopen the app. There is no Sync now '
+          'button — it just keeps up.',
+    ),
+    (
+      'How do I move my schedule to a new phone?',
+      'Profile → My schedule → Backup and restore makes a backup file, '
+          'and the same screen brings it back on the new phone.',
+    ),
+    (
+      'Reminders don’t arrive on time.',
+      'Check Android settings: Klasify needs Notifications, and '
+          '“Alarms & reminders” for on-time alerts. Do Not Disturb still '
+          'applies.',
+    ),
+    (
+      'How do I remove my account?',
+      'Personal details → Delete account. The server copies disappear '
+          'with it; local data on this phone stays until you remove it.',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.8,
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.help_outline_rounded,
+                    size: 22,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: AppTheme.itemGap),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Help centre',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Guides and common questions',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            for (final (question, answer) in _answers) ...[
+              Text(
+                question,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                answer,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Contact support without an email backend: the sheet tells the user what
+/// a useful report contains and copies the app's fingerprint to the
+/// clipboard so it can be pasted wherever they reach the developer.
+class ProfileContactSupportSheet extends StatelessWidget {
+  const ProfileContactSupportSheet();
+
+  static String get _report =>
+      'Klasify ${AppInfo.version} (build ${AppInfo.build})';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  Icons.mail_outline_rounded,
+                  size: 22,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: AppTheme.itemGap),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Contact support',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Send a problem report',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Write down what you expected and what happened instead. Paste '
+            'the app details below into your message when you send it to '
+            'the developer — it makes the report reproducible.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.fromBorderSide(AppTheme.cardBorderSideOf(scheme)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _report,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    await Clipboard.setData(
+                      ClipboardData(text: _report),
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Copied. Paste it into your report.'),
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text('Copy'),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

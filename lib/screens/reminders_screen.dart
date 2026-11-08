@@ -1,23 +1,25 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import '../services/reminder_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/status_banner.dart';
 import '../widgets/app_state_transition.dart';
+import 'profile/profile_shared.dart';
 
 class RemindersScreen extends StatefulWidget {
   const RemindersScreen({super.key});
+
   @override
   State<RemindersScreen> createState() => _RemindersScreenState();
 }
-
-enum _StatusKind { neutral, warning, error }
 
 class _RemindersScreenState extends State<RemindersScreen> {
   bool _loading = true;
   bool _enabled = false;
   int _leadMinutes = ReminderService.defaultLeadMinutes;
+  bool _eventsEnabled = true;
   bool _exactAlarmsAvailable = true;
   String? _status;
   _StatusKind _statusKind = _StatusKind.neutral;
@@ -35,8 +37,6 @@ class _RemindersScreenState extends State<RemindersScreen> {
     super.dispose();
   }
 
-  /// The service notifies when reminders are enabled, disabled, or their
-  /// lead time changes; reload everything from the source of truth.
   void _onReminderSettingsChanged() {
     unawaited(_load());
   }
@@ -45,11 +45,13 @@ class _RemindersScreenState extends State<RemindersScreen> {
     try {
       final enabled = await ReminderService.instance.isEnabled;
       final leadMinutes = await ReminderService.instance.leadMinutes;
+      final eventsEnabled = await ReminderService.instance.eventsEnabled;
       final exactAlarmsAvailable =
           await ReminderService.instance.exactAlarmsAvailable;
       if (!mounted) return;
       if (enabled == _enabled &&
           leadMinutes == _leadMinutes &&
+          eventsEnabled == _eventsEnabled &&
           exactAlarmsAvailable == _exactAlarmsAvailable &&
           !_loading) {
         return;
@@ -57,6 +59,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
       setState(() {
         _enabled = enabled;
         _leadMinutes = leadMinutes;
+        _eventsEnabled = eventsEnabled;
         _exactAlarmsAvailable = exactAlarmsAvailable;
         _loading = false;
         if (enabled && !exactAlarmsAvailable) {
@@ -151,6 +154,27 @@ class _RemindersScreenState extends State<RemindersScreen> {
     }
   }
 
+  Future<void> _setEventsEnabled(bool value) async {
+    // Turning events ON while class reminders are off requires the master
+    // gate to be enabled first, then the events gate on top.
+    if (value && !_enabled) {
+      await _toggle(true);
+      if (!mounted || !_enabled) return;
+    }
+    try {
+      await ReminderService.instance.setEventsEnabled(value);
+      if (!mounted) return;
+      setState(() => _eventsEnabled = value);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _statusKind = _StatusKind.error;
+        _status = 'Could not update event reminders.';
+      });
+      unawaited(_load());
+    }
+  }
+
   Future<void> _requestExactAlarmsAccess() async {
     setState(() {
       _loading = true;
@@ -183,39 +207,81 @@ class _RemindersScreenState extends State<RemindersScreen> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Class reminders')),
+      appBar: ProfileTitleBar(parent: 'Settings & privacy'),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: AppTheme.pageContentMaxWidth,
-          ),
+          constraints: const BoxConstraints(maxWidth: 680),
           child: ListView(
             padding: AppTheme.pagePadding,
             children: [
-              Text('Leave on time', style: theme.textTheme.headlineSmall),
-              const SizedBox(height: 8),
-              Text(
-                'Get a reminder $_leadMinutes minutes before each class, every week, even when the app is closed.',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
+              const ProfileSubhead(
+                title: 'Notifications',
+                tagline: 'How early you get warned before class.',
               ),
-              const SizedBox(height: AppTheme.itemGap),
-              Text(
-                'Allow notifications and “Alarms & reminders” on your phone. Do Not Disturb still applies.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
+              ProfileGroup(
+                label: 'CLASS REMINDERS',
+                rows: [
+                  ProfileRow(
+                    icon: Icons.notifications_none_rounded,
+                    title: 'Class reminders',
+                    subtitle: switch (_enabled) {
+                      true => 'Alerts before each class',
+                      false => 'No alerts scheduled',
+                    },
+                    trailing: MiniSwitch(
+                      value: _enabled,
+                      semanticsLabel: 'Class reminders',
+                      onChanged: _loading ? null : _toggle,
+                    ),
+                  ),
+                  // Chips row: icon + full-width title, then chips below.
+                  ProfileRow(
+                    icon: Icons.schedule_rounded,
+                    title: 'Remind me before class',
+                    trailing: const SizedBox.shrink(),
+                    footer: Padding(
+                      padding: const EdgeInsets.only(left: 48, top: 8),
+                      child: Opacity(
+                        opacity: _enabled ? 1 : 0.45,
+                        child: Wrap(
+                          spacing: 7,
+                          runSpacing: 7,
+                          children: [
+                            for (final lead in const [10, 30, 60])
+                              _LeadPill(
+                                minutes: lead,
+                                selected: _leadMinutes == lead,
+                                enabled: _enabled,
+                                scheme: scheme,
+                                textTheme: theme.textTheme,
+                                onTap: _enabled
+                                    ? () => unawaited(_setLeadMinutes(lead))
+                                    : null,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 24),
-              _ReminderSettings(
-                scheme: scheme,
-                textTheme: theme.textTheme,
-                enabled: _enabled,
-                leadMinutes: _leadMinutes,
-                loading: _loading,
-                onToggle: _toggle,
-                onLeadSelected: _setLeadMinutes,
+              const SizedBox(height: AppTheme.sectionGap),
+              ProfileGroup(
+                label: 'EVENT REMINDERS',
+                rows: [
+                  ProfileRow(
+                    icon: Icons.event_outlined,
+                    title: 'Event reminders',
+                    subtitle: 'Alerts before your added events',
+                    trailing: MiniSwitch(
+                      value: _eventsEnabled,
+                      semanticsLabel: 'Event reminders',
+                      onChanged: _loading
+                          ? null
+                          : (v) => unawaited(_setEventsEnabled(v)),
+                    ),
+                  ),
+                ],
               ),
               if (_loading)
                 const Padding(
@@ -255,219 +321,52 @@ class _RemindersScreenState extends State<RemindersScreen> {
   }
 }
 
-/// The live reminder settings: the toggle row and the 5/10/15/30-minute
-/// chips, rendered directly on the page with no card or tray behind them.
-class _ReminderSettings extends StatelessWidget {
-  const _ReminderSettings({
-    required this.scheme,
-    required this.textTheme,
-    required this.enabled,
-    required this.leadMinutes,
-    required this.loading,
-    required this.onToggle,
-    required this.onLeadSelected,
-  });
+enum _StatusKind { neutral, warning, error }
 
-  final ColorScheme scheme;
-  final TextTheme textTheme;
-  final bool enabled;
-  final int leadMinutes;
-  final bool loading;
-  final ValueChanged<bool> onToggle;
-  final ValueChanged<int> onLeadSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.notifications_none_rounded,
-              size: 24,
-              color: scheme.onSurface,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Remind me before class',
-                    style: textTheme.bodyLarge?.copyWith(
-                      color: scheme.onSurface,
-                      fontSize: 15,
-                      height: 1.3,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    'Weekly, on your class days',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontSize: 13,
-                      height: 1.38,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            _ReminderToggle(
-              value: enabled,
-              onChanged: loading ? null : onToggle,
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        Row(
-          children: [
-            for (final (i, lead) in const [5, 10, 15, 30].indexed)
-              _LeadChip(
-                minutes: lead,
-                isLast: i == 3,
-                selected: leadMinutes == lead,
-                scheme: scheme,
-                textTheme: textTheme,
-                onTap: () => onLeadSelected(lead),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-/// The 48×28 switch from the design. Material's Switch is 52×32 with a
-/// 60×48 tap target, which pushes the card's first row taller than the mock;
-/// this keeps the exact visual size while the InkWell box carries the full
-/// 48×48 Material minimum target (the visual rides centered inside it) and
-/// supplies focus and keyboard activation.
-class _ReminderToggle extends StatelessWidget {
-  const _ReminderToggle({required this.value, required this.onChanged});
-
-  final bool value;
-  final ValueChanged<bool>? onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final enabled = onChanged != null;
-    final duration = AppTheme.motionDuration(
-      context,
-      AppTheme.motionToggle,
-    );
-    final trackColor = value ? scheme.primary : scheme.surfaceContainerHighest;
-    final knobColor = value ? scheme.onPrimary : scheme.surface;
-    return Semantics(
-      toggled: value,
-      enabled: enabled,
-      label: 'Remind me before class',
-      onTap: enabled ? () => onChanged!(!value) : null,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: enabled ? () => onChanged!(!value) : null,
-          excludeFromSemantics: true,
-          customBorder: const StadiumBorder(),
-          splashFactory: NoSplash.splashFactory,
-          highlightColor: Colors.transparent,
-          focusColor: scheme.primary.withValues(alpha: 0.12),
-          hoverColor: scheme.primary.withValues(alpha: 0.08),
-          child: Opacity(
-            opacity: enabled ? 1 : 0.55,
-            // 48×48 hit area (Material minimum); the 48×28 visual is
-            // centered so the mock's row silhouette is preserved.
-            child: SizedBox(
-              width: 48,
-              height: 48,
-              child: Center(
-                child: SizedBox(
-                  width: 48,
-                  height: 28,
-                  child: AnimatedContainer(
-                    duration: duration,
-                    curve: AppTheme.motionEaseOut,
-                    decoration: BoxDecoration(
-                      color: trackColor,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: AnimatedAlign(
-                      duration: duration,
-                      curve: AppTheme.motionEaseOut,
-                      alignment: value
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Padding(
-                        padding: const EdgeInsets.all(3),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: knobColor,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const SizedBox.square(dimension: 22),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// One lead-time chip: 36px tall, equal width, black when selected.
-class _LeadChip extends StatelessWidget {
-  const _LeadChip({
+class _LeadPill extends StatelessWidget {
+  const _LeadPill({
     required this.minutes,
-    required this.isLast,
     required this.selected,
+    required this.enabled,
     required this.scheme,
     required this.textTheme,
     required this.onTap,
   });
 
   final int minutes;
-  final bool isLast;
   final bool selected;
+  final bool enabled;
   final ColorScheme scheme;
   final TextTheme textTheme;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+
+  String get _label {
+    if (minutes == 60) return '1 hour';
+    return '$minutes min';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Padding(
-        padding: EdgeInsets.only(right: isLast ? 0 : 8),
-        child: Semantics(
-          button: true,
-          selected: selected,
-          label: '$minutes minutes before class',
-          child: Material(
-            color: selected ? scheme.primary : scheme.surfaceContainer,
-            borderRadius: BorderRadius.circular(12),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                height: 36,
-                child: Center(
-                  child: Text(
-                    '$minutes min',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: selected ? scheme.onPrimary : scheme.onSurface,
-                      fontSize: 13,
-                      height: 1.2,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                    ),
-                  ),
-                ),
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$minutes minutes before class',
+      child: Material(
+        color: selected ? scheme.primary : scheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(999),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+            child: Text(
+              _label,
+              style: textTheme.bodySmall?.copyWith(
+                fontSize: 12.5,
+                height: 1.2,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
               ),
             ),
           ),

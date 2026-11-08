@@ -108,6 +108,21 @@ CREATE TABLE class_statuses (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
+-- Password reset codes (6-digit, 15-minute codes for the forgot flow)
+-- ---------------------------------------------------------------------------
+CREATE TABLE password_resets (
+  id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id    BIGINT UNSIGNED NOT NULL,
+  code_hash  VARCHAR(255) NOT NULL,             -- bcrypt of the 6-digit code
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  expires_at DATETIME(3) NOT NULL,              -- created_at + 15 minutes
+  used_at    DATETIME(3) NULL,
+
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  KEY idx_pr_user (user_id)
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------------
 -- Sync metadata (per-user, per-device cursor)
 -- ---------------------------------------------------------------------------
 CREATE TABLE sync_cursors (

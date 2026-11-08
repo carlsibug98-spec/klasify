@@ -374,8 +374,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 600));
       await shootTab('look_week_$suffix');
 
-      // Settings tab.
-      await tester.tap(find.text('Settings').last, warnIfMissed: false);
+      // Profile tab.
+      await tester.tap(find.text('Profile').last, warnIfMissed: false);
       await tester.runAsync(() async {
         await Future.delayed(const Duration(milliseconds: 100));
       });
@@ -385,7 +385,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 400));
-      await shootTab('look_settings_$suffix');
+      await shootTab('look_profile_$suffix');
 
       debugDisableShadows = true;
     }

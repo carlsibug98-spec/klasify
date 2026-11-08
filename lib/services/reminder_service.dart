@@ -21,10 +21,20 @@ class ReminderService extends ChangeNotifier {
   static final ReminderService instance = ReminderService._();
   static const _enabledKey = 'class_reminders_enabled';
 
+  /// Master gate for one-off event alarms. The per-event switch stays the
+  /// second gate on top of it (see sync()); events keep their per-event
+  /// setting while this gate is off, so turning it back on restores them
+  /// without editing each event.
+  static const _eventsEnabledKey = 'event_reminders_enabled';
+
   /// Lead time in minutes before each class; one of [_leadChoices].
   static const _leadKey = 'class_reminders_lead_minutes';
   static const defaultLeadMinutes = 10;
-  static const _leadChoices = [5, 10, 15, 30];
+
+  /// The Notifications screen's chip choices (mockup v9 frame 7):
+  /// 10 min · 30 min · 1 hour. Legacy values outside this list fall back
+  /// to the default on the next read.
+  static const _leadChoices = [10, 30, 60];
   // Android keeps a channel's description from its first creation, so the ID
   // is bumped to pick up the corrected description on existing installs.
   static const _channelId = 'class_schedule_reminders_v5';
@@ -106,6 +116,26 @@ class ReminderService extends ChangeNotifier {
 
   Future<bool> get isEnabled async =>
       (await SharedPreferences.getInstance()).getBool(_enabledKey) ?? false;
+
+  /// The event-reminders master gate. false silences every one-off event
+  /// alarm on the next sync while weekly class reminders keep working.
+  Future<bool> get eventsEnabled async =>
+      (await SharedPreferences.getInstance()).getBool(_eventsEnabledKey) ??
+      true;
+
+  /// Persists the event gate and re-syncs so the pending alarms match:
+  /// turning it off prunes the event reminders, turning it on schedules
+  /// the ones per-event switches still ask for.
+  Future<void> setEventsEnabled(bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_eventsEnabledKey, value);
+    } catch (_) {
+      // Non-critical: worst case the toggle reads back its old value.
+    }
+    notifyListeners();
+    if (await isEnabled) await sync();
+  }
 
   Future<bool> enable() async {
     await initialize();
@@ -263,12 +293,13 @@ class ReminderService extends ChangeNotifier {
       }
     }
 
-    // Events: one-off alarms, independent of the weekly class cycle. Their
-    // per-event switch is a second gate on top of [_enabledKey]; events keep
-    // their setting when reminders are off, so turning the master switch
-    // back on restores them without editing each event.
+    // Events: one-off alarms, independent of the weekly class cycle. Two
+    // gates before an alarm books: this screen's event-reminders gate and
+    // the per-event switch. Both are respected when the master switch is
+    // turned back on, without editing each event.
+    final eventsOn = await eventsEnabled;
     for (final e in events) {
-      if (!e.remindMe) continue;
+      if (!eventsOn || !e.remindMe) continue;
       final reminderMinutes = e.startMinutes >= e.leadMinutes
           ? e.startMinutes - e.leadMinutes
           : e.startMinutes;

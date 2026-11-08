@@ -218,9 +218,10 @@ class SyncService {
   }
 
   Future<String?> get _token async {
-    // Read from secure storage via AuthService's token.
-    // For now, return null if not logged in.
     if (!AuthService.instance.isLoggedIn) return null;
-    return AuthService.instance.currentUser?['token'] as String?;
+    // Silent refresh when the JWT is expired or close to it, so the request
+    // doesn't bounce on TOKEN_EXPIRED.
+    await AuthService.instance.ensureFreshToken();
+    return AuthService.instance.token;
   }
 }

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:klasify/screens/settings_screen.dart';
+import 'package:klasify/screens/profile/profile_screen.dart';
 import 'package:klasify/services/app_info.dart';
 import 'package:klasify/theme/app_theme.dart';
 
@@ -42,7 +42,7 @@ void main() {
     });
   });
 
-  testWidgets('Settings has an About group that opens the about sheet', (
+  testWidgets('Profile has a version line that opens the about sheet', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 1200);
@@ -50,31 +50,29 @@ void main() {
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light(), home: const SettingsScreen()),
+      MaterialApp(theme: AppTheme.light(), home: const ProfileScreen()),
     );
     await tester.pump();
 
-    // The group header (tracked caps since the segmented settings redesign)
-    // and its single row, with the version as the subtitle.
-    expect(find.text('ABOUT'), findsOneWidget);
-    expect(find.text('About Klasify'), findsOneWidget);
-    expect(find.text(AppInfo.versionLabel), findsOneWidget);
-    // The privacy footer states the tagline once on the page. It sits below
-    // the fold on a phone, so bring it into the built range first.
-    await tester.scrollUntilVisible(find.text(AppInfo.tagline), 200);
-    expect(find.text(AppInfo.tagline), findsOneWidget);
+    // The version line sits at the bottom of the page.
+    expect(
+      find.text('Klasify ${AppInfo.version} (build ${AppInfo.build})'),
+      findsOneWidget,
+    );
 
-    await tester.ensureVisible(find.text('About Klasify'));
+    await tester.ensureVisible(
+      find.text('Klasify ${AppInfo.version} (build ${AppInfo.build})'),
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('About Klasify'));
+    await tester.tap(
+      find.text('Klasify ${AppInfo.version} (build ${AppInfo.build})'),
+    );
     await tester.pumpAndSettle();
 
-    // The sheet states the app's identity and its defining fact. The
-    // version label appears twice now: row subtitle behind the barrier,
-    // and the sheet's own version line.
+    // The sheet states the app's identity and its defining fact.
     expect(find.text('Klasify'), findsOneWidget);
-    expect(find.text(AppInfo.versionLabel), findsNWidgets(2));
-    expect(find.text(AppInfo.tagline), findsNWidgets(2));
+    expect(find.text(AppInfo.versionLabel), findsOneWidget);
+    expect(find.text(AppInfo.tagline), findsOneWidget);
     expect(find.text('Open-source licenses'), findsOneWidget);
   });
 }

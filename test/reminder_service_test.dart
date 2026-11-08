@@ -11,8 +11,8 @@ void main() {
 
       expect(await service.leadMinutes, ReminderService.defaultLeadMinutes);
 
-      await service.setLeadMinutes(15);
-      expect(await service.leadMinutes, 15);
+      await service.setLeadMinutes(60);
+      expect(await service.leadMinutes, 60);
 
       await service.setLeadMinutes(30);
       expect(await service.leadMinutes, 30);

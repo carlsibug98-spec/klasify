@@ -33,6 +33,60 @@ Authorization: Bearer <expired_jwt>
 { "token": "<new_jwt>", "expires_at": "..." }
 ```
 
+### PATCH /auth/me
+Partial profile edit. Send `display_name` and/or `email`.
+
+```json
+// Request (Authorization required)
+{ "display_name": "Clarisse", "email": "clarisse.sync@test.com" }
+
+// Response 200
+{ "user": { "id": 1, "email": "clarisse.sync@test.com", "display_name": "Clarisse" } }
+```
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| EMAIL_EXISTS | 409 | Another account already uses the email |
+| VALIDATION_ERROR | 422 | Empty name, bad email, or empty body |
+
+### POST /auth/change-password
+```json
+// Request (Authorization required)
+{ "current_password": "...", "new_password": "min8chars" }
+
+// Response 204
+```
+
+Wrong current password: 401 `INVALID_CREDENTIALS`. Short new password: 422 `VALIDATION_ERROR`.
+
+### POST /auth/forgot-password
+Always responds `200 { "ok": true }` — never reveals whether the email is registered.
+Creates a 6-digit code that lives 15 minutes (one active code per account).
+
+```json
+// Request
+{ "email": "user@example.com" }
+
+// Response 200
+{ "ok": true }
+```
+
+Max 5 requests per email per hour, then 429 `RATE_LIMITED`. Email delivery requires SMTP in
+production; while no mailer is configured the code is written to the server log
+(`docker logs klasify-api`) so the flow stays testable in development.
+
+### POST /auth/reset-password
+```json
+// Request
+{ "email": "user@example.com", "code": "123456", "new_password": "min8chars" }
+
+// Response 204
+```
+
+The code is single-use. Invalid code, unknown email, expired code, or short password:
+422 `VALIDATION_ERROR` ("The reset code is invalid or expired" / validation message).
+Sign in normally with the new password afterwards.
+
 ### DELETE /auth/account
 Deletes the user and all their data (cascade). Returns 204.
 
@@ -101,10 +155,13 @@ The client applies these to local SQLite (upsert by server_id mapping, or insert
 - Soft-deleted rows are included in pull responses so clients can delete locally.
 
 ## Sync flow (client side)
-1. On app start (if sync enabled): pull since last_pull_at
-2. After any local write: schedule a debounced push (5s delay)
-3. On "Sync now" button: push then pull immediately
+1. On sign-in: push then pull, so every device starts consistent
+2. On app start (if signed in): pull since last_pull_at
+3. After any local write: schedule a debounced push (5s delay)
 4. On app resume: pull since last_pull_at
+
+(There is no manual "Sync now" button — sync runs automatically at
+sign-in and on the schedule above.)
 
 ## Error responses
 All errors return JSON: `{ "error": "message", "code": "ERROR_CODE" }`

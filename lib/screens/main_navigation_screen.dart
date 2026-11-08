@@ -18,15 +18,17 @@ import '../widgets/quick_action_menu.dart';
 import '../widgets/quick_actions_button.dart';
 import 'home_screen.dart';
 import 'schedule_screen.dart';
-import 'settings_screen.dart';
+import 'profile/profile_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
 
   /// Tab indexes, so other screens can ask for one without magic numbers.
-  static const todayTab = 0;
+static const todayTab = 0;
   static const weekTab = 1;
-  static const settingsTab = 2;
+  static const profileTab = 2;
+  @Deprecated('renamed to profileTab')
+  static const settingsTab = profileTab;
 
   /// Pages pushed on top of this shell (e.g. timetable import) set this to ask
   /// for a tab once they close. The shell switches to it and clears the value.
@@ -276,7 +278,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     }
   }
 
-  static const _destinations =
+static const _destinations =
       <({IconData icon, IconData selectedIcon, String label})>[
         (
           icon: Icons.calendar_today_outlined,
@@ -289,9 +291,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
           label: 'Week',
         ),
         (
-          icon: Icons.settings_outlined,
-          selectedIcon: Icons.settings_rounded,
-          label: 'Settings',
+          icon: Icons.person_outline_rounded,
+          selectedIcon: Icons.person_rounded,
+          label: 'Profile',
         ),
       ];
 
@@ -381,7 +383,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
   Widget _mobileNavigationBar() {
     final scheme = Theme.of(context).colorScheme;
-    final showQuickActions = _selectedIndex != MainNavigationScreen.settingsTab;
+    final showQuickActions = _selectedIndex != MainNavigationScreen.profileTab;
     return SafeArea(
       top: false,
       child: Padding(
@@ -422,7 +424,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
                               ? '$_todayRemaining'
                               : null,
                           showDot:
-                              i == MainNavigationScreen.settingsTab &&
+                              i == MainNavigationScreen.profileTab &&
                               !_remindersEnabled,
                           onTap: () => _selectDestination(i),
                         ),
@@ -460,7 +462,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
       builder: (context, constraints) {
         final expanded = constraints.maxWidth >= 600;
         final showQuickActions =
-            _selectedIndex != MainNavigationScreen.settingsTab;
+            _selectedIndex != MainNavigationScreen.profileTab;
         final screens = <Widget>[
           HomeScreen(
             heroKey: _tourHeroKey,
@@ -481,7 +483,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
             onSelectedDayChanged: _onWeekdaySelected,
             dayRequest: MainNavigationScreen.weekDayRequest,
           ),
-          SettingsScreen(onReplayCoachTour: _replayCoachTour),
+          ProfileScreen(onReplayCoachTour: _replayCoachTour),
         ];
         // Shared-axis motion: the screen fades in while sliding from the side
         // of the tab it came from, so moving left or right reads as direction.
