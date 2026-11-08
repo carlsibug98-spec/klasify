@@ -10,7 +10,7 @@ import '../database/database_helper.dart';
 /// Configurable sync backend client. Syncs local SQLite data to the
 /// MySQL-backed API. All operations are best-effort: failures are queued
 /// and retried on the next sync attempt.
-class SyncService {
+class SyncService extends ChangeNotifier {
   SyncService._();
   static final SyncService instance = SyncService._();
 
@@ -22,6 +22,11 @@ class SyncService {
 
   bool _syncing = false;
   bool get syncing => _syncing;
+
+  String? _lastError;
+  String? get lastError => _lastError;
+  DateTime? _lastSyncAt;
+  DateTime? get lastSyncAt => _lastSyncAt;
 
   Future<String> get _deviceId async {
     final prefs = await SharedPreferences.getInstance();
@@ -51,6 +56,7 @@ class SyncService {
     if (token == null) return false;
 
     _syncing = true;
+    notifyListeners();
     try {
       final deviceId = await _deviceId;
       final lastPush = await lastPushAt;
@@ -135,15 +141,20 @@ class SyncService {
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_lastPushKey, data['server_time'] as String);
+        _lastError = null;
+        _lastSyncAt = DateTime.now();
         return true;
       }
       debugPrint('Sync push failed: ${res.statusCode} ${res.body}');
+      _lastError = 'Push failed: ${res.statusCode}';
       return false;
     } catch (e) {
       debugPrint('Sync push error: $e');
+      _lastError = 'Push error: $e';
       return false;
     } finally {
       _syncing = false;
+      notifyListeners();
     }
   }
 
@@ -153,6 +164,7 @@ class SyncService {
     if (token == null) return false;
 
     _syncing = true;
+    notifyListeners();
     try {
       final deviceId = await _deviceId;
       final lastPull = await lastPullAt;
@@ -192,15 +204,20 @@ class SyncService {
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_lastPullKey, data['server_time'] as String);
+        _lastError = null;
+        _lastSyncAt = DateTime.now();
         return true;
       }
       debugPrint('Sync pull failed: ${res.statusCode} ${res.body}');
+      _lastError = 'Pull failed: ${res.statusCode}';
       return false;
     } catch (e) {
       debugPrint('Sync pull error: $e');
+      _lastError = 'Pull error: $e';
       return false;
     } finally {
       _syncing = false;
+      notifyListeners();
     }
   }
 

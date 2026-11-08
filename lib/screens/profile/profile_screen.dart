@@ -8,6 +8,7 @@ import '../../services/sync_service.dart';
 import '../../theme/app_theme.dart';
 import 'profile_shared.dart';
 import 'profile_sheets.dart';
+import '../../widgets/app_notification.dart';
 
 /// The Profile tab: identity surface with schedule + guide shortcuts.
 /// MY SCHEDULE and GUIDE live directly on the tab; the hub keeps account,
@@ -122,7 +123,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _pushAuth(String route) async {
     final result = await Navigator.pushNamed(context, route);
     if (result == true) {
-      await SyncService.instance.syncNow();
+      final ok = await SyncService.instance.syncNow();
+      if (mounted && !ok) {
+        showAppNotification(
+          context,
+          'Sync failed. Tap "Sync now" in Settings to retry.',
+          kind: AppNotificationKind.warning,
+        );
+      }
     }
   }
 }
