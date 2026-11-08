@@ -4,4 +4,8 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Dev/profile builds talk to the LAN sync API over plain HTTP
+         (--dart-define=KLASIFY_API_URL=http://<pc-lan-ip>:8080). Release
+         builds stay HTTPS-only. -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>
