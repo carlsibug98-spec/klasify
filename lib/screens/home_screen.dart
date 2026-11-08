@@ -827,14 +827,9 @@ class _TodayEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (hasSchedule) {
-      return const EmptyStateCard(
-        icon: Icons.event_available_outlined,
-        title: 'Nothing scheduled today',
-        // Same line the Week agenda shows, in the app's second-person voice.
-        message: 'Enjoy your open space.',
-      );
-    }
+    // Has-school day with no classes today: the hero already covers it.
+    // First-open (no schedule at all): the tiles are the empty state.
+    if (hasSchedule) return const SizedBox.shrink();
     return FirstRunOptions(
       key: tilesKey,
       onScan: () => Navigator.of(

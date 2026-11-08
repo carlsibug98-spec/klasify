@@ -27,7 +27,7 @@ class EmptyStateCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
         color: AppTheme.cardFillColorOf(scheme),
         borderRadius: BorderRadius.circular(AppTheme.cardRadius),
@@ -68,7 +68,7 @@ class EmptyStateCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Padding(
             padding: const EdgeInsets.only(left: 48),
             child: Text(
