@@ -51,9 +51,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onSignIn: () => unawaited(_pushAuth(AppRoutes.login)),
                     onCreateAccount: () =>
                         unawaited(_pushAuth(AppRoutes.signup)),
-                    onForgotPassword: () =>
-                        unawaited(Navigator.of(context)
-                            .pushNamed(AppRoutes.resetPassword)),
                   ),
                   const SizedBox(height: AppTheme.sectionGap),
                   ProfileGroup(
@@ -103,14 +100,12 @@ class _ProfileHero extends StatelessWidget {
     required this.displayName,
     required this.onSignIn,
     required this.onCreateAccount,
-    required this.onForgotPassword,
   });
 
   final bool signedIn;
   final String? displayName;
   final VoidCallback onSignIn;
   final VoidCallback onCreateAccount;
-  final VoidCallback onForgotPassword;
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +144,6 @@ class _ProfileHero extends StatelessWidget {
             _SignInCard(
               onSignIn: onSignIn,
               onCreateAccount: onCreateAccount,
-              onForgotPassword: onForgotPassword,
             ),
           ],
         ],
@@ -235,12 +229,10 @@ class _SignInCard extends StatelessWidget {
   const _SignInCard({
     required this.onSignIn,
     required this.onCreateAccount,
-    required this.onForgotPassword,
   });
 
   final VoidCallback onSignIn;
   final VoidCallback onCreateAccount;
-  final VoidCallback onForgotPassword;
 
   @override
   Widget build(BuildContext context) {
@@ -299,11 +291,6 @@ class _SignInCard extends StatelessWidget {
                   onPressed: onCreateAccount,
                   child: const Text('Create account'),
                 ),
-              ),
-              ProfileLink(
-                text: 'Forgot password?',
-                onTap: onForgotPassword,
-                center: true,
               ),
             ],
           ),
