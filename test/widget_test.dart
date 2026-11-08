@@ -88,22 +88,25 @@ void main() {
     // Settings is a reading surface: the add-class action steps aside (the
     // FAB stays in the tree but is faded out and ignores pointer input).
     expect(find.byTooltip('Open class actions'), findsOneWidget);
-    // The settings row was renamed from "Import a timetable" to match its
-    // route and the import screen's app bar ("Import schedule").
+    // Import schedule now lives in Settings & privacy (the hub), reached via
+    // the row on the Profile tab.
+    expect(find.text('Settings & privacy'), findsOneWidget);
+
+    await tester.tap(find.text('Settings & privacy'));
+    await tester.pumpAndSettle();
     expect(find.text('Import schedule'), findsOneWidget);
 
     await tester.tap(find.text('Import schedule'));
-    // The import screen gates its content behind a delayed init, so a fixed
-    // 500ms pump can land a frame too early; settle instead.
     await tester.pumpAndSettle();
     expect(find.text('Import schedule'), findsOneWidget);
     await tester.pageBack();
-    // Leaving the import screen flips canPop and awaits endOfFrame before
-    // popping, so the settings screen needs several frames to come back.
     await tester.pumpAndSettle();
 
-    expect(find.text('Class reminders'), findsOneWidget);
-    expect(find.text('Backup and restore'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Settings & privacy'), findsOneWidget);
+    expect(find.text('Backup and restore'), findsNothing);
     expect(find.text('How Klasify works'), findsNothing);
 
     await tester.tap(find.bySemanticsLabel('Today'));

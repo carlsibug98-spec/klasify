@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../services/reminder_service.dart';
+import '../../services/theme_mode_service.dart';
 import '../../theme/app_theme.dart';
-import 'profile_screen.dart' show ProfileDarkModeRow;
 import 'profile_shared.dart';
 import 'profile_sheets.dart';
 
@@ -231,10 +231,32 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
   }
 }
 
-/// Hub's dark-mode row — same switch, same copy as the Profile tab's row.
+/// Hub's dark-mode row — the switch is real, mapping the tri-state theme
+/// picker onto the two-way switch (dark ↔ light).
 class _HubDarkModeRow extends StatelessWidget {
   const _HubDarkModeRow();
 
   @override
-  Widget build(BuildContext context) => const ProfileDarkModeRow();
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: ThemeModeService.instance,
+      builder: (context, _) {
+        final mode = ThemeModeService.instance.mode;
+        return ProfileRow(
+          icon: Icons.dark_mode_outlined,
+          title: 'Dark mode',
+          subtitle: 'Follows your system by default',
+          trailing: MiniSwitch(
+            value: mode == KlasifyThemeMode.dark,
+            semanticsLabel: 'Dark mode',
+            onChanged: (on) => unawaited(
+              ThemeModeService.instance.setMode(
+                on ? KlasifyThemeMode.dark : KlasifyThemeMode.light,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }

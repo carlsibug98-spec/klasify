@@ -4,17 +4,14 @@ import 'package:flutter/material.dart';
 
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
-import '../../services/reminder_service.dart';
 import '../../services/sync_service.dart';
-import '../../services/theme_mode_service.dart';
 import '../../theme/app_theme.dart';
 import 'profile_shared.dart';
 import 'profile_sheets.dart';
 
-/// The Profile tab (mockup v9, frames 1/2/9): the signed-in account view
-/// with the hero avatar and its account groups, and the signed-out state
-/// with the sign-in card. The tab itself stays offline-first: every group
-/// except the account ones exists with no session at all.
+/// The Profile tab: a minimal identity surface. Everything that can be
+/// managed lives in Settings & privacy (the hub), so the tab itself only
+/// carries the hero, the entry to that hub, sign-out and the version line.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, this.onReplayCoachTour});
 
@@ -30,29 +27,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// Narrower than the schedule surfaces: profile reads as a column.
   static const double _contentMaxWidth = 680;
 
-  bool? _remindersEnabled;
-
-  @override
-  void initState() {
-    super.initState();
-    ReminderService.instance.addListener(_onReminderSettingsChanged);
-    unawaited(_loadReminderState());
-  }
-
-  @override
-  void dispose() {
-    ReminderService.instance.removeListener(_onReminderSettingsChanged);
-    super.dispose();
-  }
-
-  void _onReminderSettingsChanged() => unawaited(_loadReminderState());
-
-  Future<void> _loadReminderState() async {
-    final enabled = await ReminderService.instance.isEnabled;
-    if (!mounted || enabled == _remindersEnabled) return;
-    setState(() => _remindersEnabled = enabled);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Align(
@@ -67,18 +41,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               appBar: AppBar(
                 automaticallyImplyLeading: false,
                 title: const Text('Profile'),
-                actions: [
-                  IconButton(
-                    tooltip: 'Settings and privacy',
-                    icon: const Icon(Icons.settings_outlined),
-                    onPressed: () =>
-                        unawaited(Navigator.of(context).pushNamed(
-                      AppRoutes.settingsPrivacy,
-                      arguments:
-                          widget.onReplayCoachTour, // VoidCallback | null
-                    )),
-                  ),
-                ],
               ),
               body: ListView(
                 padding: AppTheme.pagePadding,
@@ -86,12 +48,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _ProfileHero(
                     signedIn: auth.isLoggedIn,
                     displayName: auth.displayName,
-                    onEdit: auth.isLoggedIn
-                        ? () => unawaited(
-                            Navigator.of(context)
-                                .pushNamed(AppRoutes.personalDetails),
-                          )
-                        : null,
                     onSignIn: () => unawaited(_pushAuth(AppRoutes.login)),
                     onCreateAccount: () =>
                         unawaited(_pushAuth(AppRoutes.signup)),
@@ -100,112 +56,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             .pushNamed(AppRoutes.resetPassword)),
                   ),
                   const SizedBox(height: AppTheme.sectionGap),
-                  if (auth.isLoggedIn) ...[
-                    ProfileGroup(
-                      label: 'ACCOUNT',
-                      rows: [
-                        ProfileRow(
-                          icon: Icons.person_outline_rounded,
-                          title: 'Personal details',
-                          subtitle: 'Name, email, display name',
-                          onTap: () => unawaited(
-                            Navigator.of(context)
-                                .pushNamed(AppRoutes.personalDetails),
-                          ),
-                        ),
-                        ProfileRow(
-                          icon: Icons.lock_outline_rounded,
-                          title: 'Password & security',
-                          subtitle: 'Change password',
-                          onTap: () => unawaited(
-                            Navigator.of(context)
-                                .pushNamed(AppRoutes.passwordSecurity),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppTheme.sectionGap),
-                  ],
                   ProfileGroup(
-                    label: 'MY SCHEDULE',
+                    label: 'SETTINGS',
                     rows: [
                       ProfileRow(
-                        icon: Icons.document_scanner_outlined,
-                        title: 'Import schedule',
-                        subtitle: 'From a photo or PDF',
-                        onTap: () => unawaited(
-                          Navigator.of(context)
-                              .pushNamed(AppRoutes.importSchedule),
-                        ),
-                      ),
-                      ProfileRow(
-                        icon: Icons.settings_backup_restore_rounded,
-                        title: 'Backup and restore',
-                        subtitle: 'Saves automatically after every change',
-                        onTap: () => unawaited(
-                          Navigator.of(context).pushNamed(AppRoutes.backup),
-                        ),
+                        icon: Icons.settings_outlined,
+                        title: 'Settings & privacy',
+                        subtitle: 'Account, preferences, legal and support',
+                        onTap: () => unawaited(Navigator.of(context).pushNamed(
+                          AppRoutes.settingsPrivacy,
+                          arguments: widget.onReplayCoachTour,
+                        )),
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppTheme.sectionGap),
-                  ProfileGroup(
-                    label: 'PREFERENCES',
-                    rows: [
-                      ProfileRow(
-                        icon: Icons.notifications_none_rounded,
-                        title: 'Class reminders',
-                        subtitle: switch (_remindersEnabled) {
-                          null => 'Checking status…',
-                          true => 'Alerts before each class',
-                          false => 'No alerts scheduled',
-                        },
-                        trailing: _remindersEnabled == null
-                            ? null
-                            : StatusPill(on: _remindersEnabled!),
-                        onTap: () => unawaited(
-                          Navigator.of(context).pushNamed(AppRoutes.reminders),
-                        ),
-                      ),
-                      // Dark mode exists only while signed in (mock frames:
-                      // 1/2 show it, 9 hides it together with the hero's
-                      // account rows) — the group's radius logic follows
-                      // the row count, so it must always be conditional.
-                      if (auth.isLoggedIn) const ProfileDarkModeRow(),
-                    ],
-                  ),
                   if (auth.isLoggedIn) ...[
-                    const SizedBox(height: AppTheme.sectionGap),
-                    ProfileGroup(
-                      label: 'HELP & SUPPORT',
-                      rows: [
-                        ProfileRow(
-                          icon: Icons.menu_book_outlined,
-                          title: 'How Klasify works',
-                          subtitle: 'A quick tour of the basics',
-                          onTap: () => unawaited(
-                            Navigator.of(context).pushNamed(
-                              AppRoutes.onboarding,
-                              arguments: true, // replay: finishing closes it
-                            ),
-                          ),
-                        ),
-                        ProfileRow(
-                          icon: Icons.widgets_outlined,
-                          title: 'Home-screen widget',
-                          subtitle: 'Your next class at a glance',
-                          onTap: () =>
-                              unawaited(showProfileWidgetHelpSheet(context)),
-                        ),
-                        ProfileRow(
-                          icon: Icons.tour_outlined,
-                          title: 'Replay the coach tour',
-                          subtitle:
-                              'The guided walkthrough of every screen',
-                          onTap: widget.onReplayCoachTour,
-                        ),
-                      ],
-                    ),
                     const SizedBox(height: AppTheme.sectionGap),
                     const _LogoutRow(),
                   ],
@@ -230,14 +95,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-/// The hero: avatar (initial, edit badge when signed in; the quiet guest
-/// tile when not), the name line, and — only when signed out — the sign-in
-/// card. Exactly frames 1/2 vs frame 9.
+/// The hero: avatar (initial; the quiet guest tile when not signed in), the
+/// name line, and — only when signed out — the sign-in card.
 class _ProfileHero extends StatelessWidget {
   const _ProfileHero({
     required this.signedIn,
     required this.displayName,
-    required this.onEdit,
     required this.onSignIn,
     required this.onCreateAccount,
     required this.onForgotPassword,
@@ -245,7 +108,6 @@ class _ProfileHero extends StatelessWidget {
 
   final bool signedIn;
   final String? displayName;
-  final VoidCallback? onEdit;
   final VoidCallback onSignIn;
   final VoidCallback onCreateAccount;
   final VoidCallback onForgotPassword;
@@ -267,13 +129,9 @@ class _ProfileHero extends StatelessWidget {
       padding: const EdgeInsets.only(top: 14, bottom: 24),
       child: Column(
         children: [
-          Semantics(
-            button: signedIn,
-            label: signedIn ? 'Edit profile photo' : null,
-            child: signedIn
-                ? _Avatar(initial: initial, dark: dark, onTap: onEdit)
-                : const _GuestAvatar(),
-          ),
+          signedIn
+              ? _Avatar(initial: initial, dark: dark)
+              : const _GuestAvatar(),
           const SizedBox(height: 14),
           Text(
             name,
@@ -301,84 +159,47 @@ class _ProfileHero extends StatelessWidget {
 }
 
 /// The signed-in avatar: 88px circle, 145° two-stop gradient with the
-/// approved edge colours, and the 29px edit button pinned bottom-right
-/// with a 3px background ring. Tapping opens Personal details.
+/// approved edge colours. No edit badge — personal details are reached
+/// through Settings & privacy.
 class _Avatar extends StatelessWidget {
   const _Avatar({
     required this.initial,
     required this.dark,
-    required this.onTap,
   });
 
   final String initial;
   final bool dark;
-  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: Colors.transparent,
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: Container(
-          width: 88,
-          height: 88,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: dark
-                  ? const [Color(0xFF3C3C3C), Color(0xFF1C1C1C)]
-                  : const [Color(0xFFECECEC), Color(0xFFD7D7D7)],
-            ),
-            border: Border.all(
-              color: dark
-                  ? const Color(0xFF383838)
-                  : const Color(0xFFCFCFCF),
-            ),
-            shape: BoxShape.circle,
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Text(
-                initial,
-                style: TextStyle(
-                  fontSize: 31,
-                  height: 1.1,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                  color: scheme.onSurface,
-                ),
-              ),
-              Positioned(
-                right: -1,
-                bottom: -1,
-                child: Container(
-                  width: 29,
-                  height: 29,
-                  decoration: BoxDecoration(
-                    color: scheme.primary,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: scheme.surface,
-                      width: 3,
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(
-                    Icons.edit_outlined,
-                    size: 13,
-                    color: scheme.onPrimary,
-                  ),
-                ),
-              ),
-            ],
-          ),
+    return Container(
+      width: 88,
+      height: 88,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: dark
+              ? const [Color(0xFF3C3C3C), Color(0xFF1C1C1C)]
+              : const [Color(0xFFECECEC), Color(0xFFD7D7D7)],
+        ),
+        border: Border.all(
+          color: dark
+              ? const Color(0xFF383838)
+              : const Color(0xFFCFCFCF),
+        ),
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: TextStyle(
+          fontSize: 31,
+          height: 1.1,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+          color: scheme.onSurface,
         ),
       ),
     );
@@ -391,8 +212,7 @@ class _GuestAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: 88,
       height: 88,
@@ -410,8 +230,7 @@ class _GuestAvatar extends StatelessWidget {
   }
 }
 
-/// The sign-in card on the signed-out hero (frame 9). Same segment edge as
-/// the rows, radius 18, copy exact.
+/// The sign-in card on the signed-out hero (frame 9).
 class _SignInCard extends StatelessWidget {
   const _SignInCard({
     required this.onSignIn,
@@ -494,40 +313,7 @@ class _SignInCard extends StatelessWidget {
   }
 }
 
-/// The dark-mode row: the switch is real — it maps the tri-state theme
-/// picker onto the two-way switch (dark ↔ light); the system default is
-/// what the app ships with, which is what the subtitle describes.
-/// Shared by the Profile tab and the Settings & privacy hub.
-class ProfileDarkModeRow extends StatelessWidget {
-  const ProfileDarkModeRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: ThemeModeService.instance,
-      builder: (context, _) {
-        final mode = ThemeModeService.instance.mode;
-        return ProfileRow(
-          icon: Icons.dark_mode_outlined,
-          title: 'Dark mode',
-          subtitle: 'Follows your system by default',
-          trailing: MiniSwitch(
-            value: mode == KlasifyThemeMode.dark,
-            semanticsLabel: 'Dark mode',
-            onChanged: (on) => unawaited(
-              ThemeModeService.instance.setMode(
-                on ? KlasifyThemeMode.dark : KlasifyThemeMode.light,
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Log out as its own error-coloured segment. Confirm first; local schedule
-/// data always stays, so we never warn about "losing data".
+/// Log out as its own error-coloured segment.
 class _LogoutRow extends StatelessWidget {
   const _LogoutRow();
 
