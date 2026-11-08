@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'legal_sheets.dart';
 import 'signup_screen.dart';
 
 import '../../services/auth_service.dart';
@@ -219,14 +220,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              Center(
-                child: Text(
-                  'Terms · Privacy',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
+              const Center(child: AuthLegalFooter()),
               const SizedBox(height: 24),
             ],
           ),
