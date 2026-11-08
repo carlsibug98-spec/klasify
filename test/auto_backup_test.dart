@@ -58,7 +58,7 @@ void main() {
     expect(ok, isTrue);
     expect(await mainFile().exists(), isTrue);
 
-    final restored = ScheduleBackupCodec.decode(await mainFile().readAsBytes());
+    final restored = ScheduleBackupCodec.decode(await mainFile().readAsBytes()).classes;
     expect(restored.any((c) => c.subject == original.subject), isTrue,
         reason: 'the backup must contain the saved class');
     expect(restored.any((c) => c.id == id), isFalse,
@@ -73,7 +73,7 @@ void main() {
     final id = await db.insert(original);
     await AutoBackupService.instance.backupNow();
 
-    final decoded = ScheduleBackupCodec.decode(await mainFile().readAsBytes());
+    final decoded = ScheduleBackupCodec.decode(await mainFile().readAsBytes()).classes;
     expect(decoded.length, 1);
     expect(decoded.single.subject, original.subject);
     expect(decoded.single.room, original.room);
@@ -144,7 +144,7 @@ void main() {
     await AutoBackupService.instance.setEnabled(true);
     expect(await mainFile().exists(), isTrue,
         reason: 're-enabling must refresh the copy right away');
-    final restored = ScheduleBackupCodec.decode(await mainFile().readAsBytes());
+    final restored = ScheduleBackupCodec.decode(await mainFile().readAsBytes()).classes;
     expect(restored.any((c) => c.subject == original.subject), isTrue);
     await db.delete(id);
   });
@@ -187,3 +187,5 @@ void main() {
     await db.delete(id);
   });
 }
+
+

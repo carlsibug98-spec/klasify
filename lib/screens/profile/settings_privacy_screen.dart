@@ -57,8 +57,6 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)?.settings.arguments;
-    final onReplayCoachTour = args is VoidCallback ? args : null;
     return Align(
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
@@ -86,33 +84,9 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
                     title: 'Settings & privacy',
                     tagline: 'Account, preferences, legal and support.',
                   ),
-                  ProfileGroup(
-                    label: 'MY SCHEDULE',
-                    description: 'Bring your schedule in and keep it safe.',
-                    rows: [
-                      ProfileRow(
-                        icon: Icons.document_scanner_outlined,
-                        title: 'Import schedule',
-                        subtitle: 'From a photo or PDF',
-                        onTap: () => unawaited(
-                          Navigator.of(context)
-                              .pushNamed(AppRoutes.importSchedule),
-                        ),
-                      ),
-                      ProfileRow(
-                        icon: Icons.settings_backup_restore_rounded,
-                        title: 'Backup and restore',
-                        subtitle: 'Saves automatically after every change',
-                        onTap: () => unawaited(
-                          Navigator.of(context).pushNamed(AppRoutes.backup),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppTheme.sectionGap),
                   // ACCOUNT is a signed-in group: without a session there
                   // are no account details to manage, so the hub shows the
-                  // schedule, preferences and legal worlds only.
+                  // account, preferences and legal worlds only.
                   if (auth.isLoggedIn) ...[
                     ProfileGroup(
                       label: 'ACCOUNT',
@@ -212,12 +186,6 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
                         subtitle: 'Send a problem report',
                         onTap: () =>
                             unawaited(showProfileContactSupportSheet(context)),
-                      ),
-                      ProfileRow(
-                        icon: Icons.tour_outlined,
-                        title: 'Replay the coach tour',
-                        subtitle: 'The guided walkthrough of every screen',
-                        onTap: onReplayCoachTour,
                       ),
                     ],
                   ),

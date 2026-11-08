@@ -531,6 +531,33 @@ class DatabaseHelper extends ChangeNotifier {
     return inserted;
   }
 
+  /// Replaces the full event set atomically. Used by JSON restore; a failed
+  /// import leaves the current events intact.
+  Future<int> replaceAllEvents(List<EventItem> events) async {
+    for (final item in events) {
+      validateEvent(item);
+    }
+    final db = await _database;
+    final inserted = await db.transaction((txn) async {
+      await txn.update(
+        'events',
+        {'deleted': 1, 'updated_at': _stampNow},
+        where: 'deleted = 0',
+      );
+      var inserted = 0;
+      for (final item in events) {
+        await txn.insert(
+          'events',
+          item.toMap()..remove('id')..['updated_at'] = _stampNow,
+        );
+        inserted++;
+      }
+      return inserted;
+    });
+    notifyListeners();
+    return inserted;
+  }
+
   /// Removes selected saved classes and imports replacements atomically.
   Future<int> replaceSelected(List<int> ids, List<ClassItem> classes) async {
     for (final item in classes) {

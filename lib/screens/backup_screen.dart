@@ -33,11 +33,12 @@ class _BackupScreenState extends State<BackupScreen> {
     });
     try {
       final classes = await DatabaseHelper.instance.getAll();
+      final events = await DatabaseHelper.instance.getAllEvents();
       final saved = await FilePicker.saveFile(
         dialogTitle: 'Save class schedule backup',
         fileName: 'klasify_backup.json',
         mimeType: 'application/json',
-        bytes: ScheduleBackupCodec.encode(classes),
+        bytes: ScheduleBackupCodec.encode(classes, events: events),
       );
       if (mounted) {
         if (saved == null) {
@@ -49,7 +50,7 @@ class _BackupScreenState extends State<BackupScreen> {
         } else {
           showAppNotification(
             context,
-            'Backup exported (${classes.length} ${classes.length == 1 ? 'class' : 'classes'}).',
+            'Backup exported (${classes.length} ${classes.length == 1 ? 'class' : 'classes'}, ${events.length} ${events.length == 1 ? 'event' : 'events'}).',
             kind: AppNotificationKind.success,
           );
         }
@@ -84,9 +85,9 @@ class _BackupScreenState extends State<BackupScreen> {
         throw const FormatException('Backup file exceeds the 2 MB limit.');
       }
       final data = await picked.readAsBytes();
-      final classes = ScheduleBackupCodec.decode(data);
+      final backup = ScheduleBackupCodec.decode(data);
       if (!mounted) return;
-      await _confirmAndRestore(classes, source: 'backup file');
+      await _confirmAndRestore(backup, source: 'backup file');
     } catch (e, st) {
       debugPrint('Schedule restore failed: $e\n$st');
       if (mounted) {
@@ -119,9 +120,9 @@ class _BackupScreenState extends State<BackupScreen> {
         );
         return;
       }
-      final classes = ScheduleBackupCodec.decode(await file.readAsBytes());
+      final backup = ScheduleBackupCodec.decode(await file.readAsBytes());
       if (!mounted) return;
-      await _confirmAndRestore(classes, source: 'automatic backup');
+      await _confirmAndRestore(backup, source: 'automatic backup');
     } catch (e, st) {
       debugPrint('Automatic backup restore failed: $e\n$st');
       if (mounted) {
@@ -141,15 +142,17 @@ class _BackupScreenState extends State<BackupScreen> {
   /// Shared destructive path for both restore sources: confirm, replace the
   /// schedule atomically, then refresh reminders.
   Future<void> _confirmAndRestore(
-    List<ClassItem> classes, {
+    ScheduleBackup backup, {
     required String source,
   }) async {
+    final classes = backup.classes;
+    final events = backup.events;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Replace current schedule?'),
         content: Text(
-          'This $source contains ${classes.length} ${classes.length == 1 ? 'class' : 'classes'}. Restoring it replaces all currently saved classes. Export a backup first if you want to keep them.',
+          'This $source contains ${classes.length} ${classes.length == 1 ? 'class' : 'classes'} and ${events.length} ${events.length == 1 ? 'event' : 'events'}. Restoring it replaces all currently saved classes and events. Export a backup first if you want to keep them.',
         ),
         actions: [
           TextButton(
@@ -177,7 +180,8 @@ class _BackupScreenState extends State<BackupScreen> {
       return;
     }
     final count = await DatabaseHelper.instance.replaceAll(classes);
-    var status = 'Restored $count ${count == 1 ? 'class' : 'classes'}.';
+    await DatabaseHelper.instance.replaceAllEvents(events);
+    var status = 'Restored $count ${count == 1 ? 'class' : 'classes'} and ${events.length} ${events.length == 1 ? 'event' : 'events'}.';
     var kind = _BackupStatus.success;
     try {
       await ReminderService.instance.sync();

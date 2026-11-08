@@ -28,7 +28,7 @@ List<int> encode(Object? value) => utf8.encode(jsonEncode(value));
 
 void main() {
   test('decodes and validates a supported backup', () {
-    final classes = ScheduleBackupCodec.decode(encode(backup([row()])));
+    final classes = ScheduleBackupCodec.decode(encode(backup([row()]))).classes;
 
     expect(classes, hasLength(1));
     expect(classes.single.subject, 'Mathematics');
@@ -81,7 +81,7 @@ void main() {
   });
 
   test('restores backups exported before the Klasify rename', () {
-    final classes = ScheduleBackupCodec.decode(encode(legacyBackup([row()])));
+    final classes = ScheduleBackupCodec.decode(encode(legacyBackup([row()]))).classes;
 
     expect(classes, hasLength(1));
     expect(classes.single.subject, 'Mathematics');
@@ -97,3 +97,4 @@ void main() {
     );
   });
 }
+

@@ -88,26 +88,35 @@ void main() {
     // Settings is a reading surface: the add-class action steps aside (the
     // FAB stays in the tree but is faded out and ignores pointer input).
     expect(find.byTooltip('Open class actions'), findsOneWidget);
-    // Import schedule now lives in Settings & privacy (the hub), reached via
-    // the row on the Profile tab.
-    expect(find.text('Settings & privacy'), findsOneWidget);
-
-    await tester.tap(find.text('Settings & privacy'));
-    await tester.pumpAndSettle();
+    // Tap Import schedule on the Profile tab itself.
     expect(find.text('Import schedule'), findsOneWidget);
-
     await tester.tap(find.text('Import schedule'));
     await tester.pumpAndSettle();
     expect(find.text('Import schedule'), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
 
+    // Backup and the coach tour are also on the Profile tab.
+    expect(find.text('Backup and restore'), findsOneWidget);
+    expect(find.text('Replay the coach tour'), findsOneWidget);
+
+    // Scroll the tab down: Settings & privacy sits below the new groups.
+    await tester.dragUntilVisible(
+      find.text('Settings & privacy'),
+      find.byType(ListView),
+      const Offset(0, -400),
+    );
+    expect(find.text('Settings & privacy'), findsOneWidget);
+    await tester.tap(find.text('Settings & privacy'));
+    await tester.pumpAndSettle();
+    // The hub no longer carries the schedule/guide rows.
+    expect(find.text('Import schedule'), findsNothing);
+    expect(find.text('Backup and restore'), findsNothing);
+    expect(find.text('Replay the coach tour'), findsNothing);
+    expect(find.text('How Klasify works'), findsNothing);
+
     await tester.pageBack();
     await tester.pumpAndSettle();
-
-    expect(find.text('Settings & privacy'), findsOneWidget);
-    expect(find.text('Backup and restore'), findsNothing);
-    expect(find.text('How Klasify works'), findsNothing);
 
     await tester.tap(find.bySemanticsLabel('Today'));
     await tester.pump(const Duration(milliseconds: 500));

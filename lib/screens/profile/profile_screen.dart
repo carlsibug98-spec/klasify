@@ -9,14 +9,14 @@ import '../../theme/app_theme.dart';
 import 'profile_shared.dart';
 import 'profile_sheets.dart';
 
-/// The Profile tab: a minimal identity surface. Everything that can be
-/// managed lives in Settings & privacy (the hub), so the tab itself only
-/// carries the hero, the entry to that hub, sign-out and the version line.
+/// The Profile tab: identity surface with schedule + guide shortcuts.
+/// MY SCHEDULE and GUIDE live directly on the tab; the hub keeps account,
+/// preferences and legal management.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, this.onReplayCoachTour});
 
-  /// The one-time coach tour lives in the shell; Profile only asks for a
-  /// replay across this callback. Null keeps the row inert (tests).
+  /// The one-time coach tour lives in the shell; Profile replays it across
+  /// this callback. Null keeps the row inert (tests, signed-out state).
   final VoidCallback? onReplayCoachTour;
 
   @override
@@ -54,16 +54,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: AppTheme.sectionGap),
                   ProfileGroup(
+                    label: 'MY SCHEDULE',
+                    rows: [
+                      ProfileRow(
+                        icon: Icons.document_scanner_outlined,
+                        title: 'Import schedule',
+                        subtitle: 'From a photo or PDF',
+                        onTap: () => unawaited(
+                          Navigator.of(context)
+                              .pushNamed(AppRoutes.importSchedule),
+                        ),
+                      ),
+                      ProfileRow(
+                        icon: Icons.settings_backup_restore_rounded,
+                        title: 'Backup and restore',
+                        subtitle: 'Saves automatically after every change',
+                        onTap: () => unawaited(
+                          Navigator.of(context).pushNamed(AppRoutes.backup),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppTheme.sectionGap),
+                  ProfileGroup(
+                    label: 'GUIDE',
+                    rows: [
+                      ProfileRow(
+                        icon: Icons.tour_outlined,
+                        title: 'Replay the coach tour',
+                        subtitle: 'The guided walkthrough of every screen',
+                        onTap: widget.onReplayCoachTour,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppTheme.sectionGap),
+                  ProfileGroup(
                     label: 'SETTINGS',
                     rows: [
                       ProfileRow(
                         icon: Icons.settings_outlined,
                         title: 'Settings & privacy',
                         subtitle: 'Account, preferences, legal and support',
-                        onTap: () => unawaited(Navigator.of(context).pushNamed(
-                          AppRoutes.settingsPrivacy,
-                          arguments: widget.onReplayCoachTour,
-                        )),
+                        onTap: () => unawaited(
+                          Navigator.of(context)
+                              .pushNamed(AppRoutes.settingsPrivacy),
+                        ),
                       ),
                     ],
                   ),

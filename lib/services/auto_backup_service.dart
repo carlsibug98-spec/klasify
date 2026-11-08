@@ -169,7 +169,8 @@ class AutoBackupService extends ChangeNotifier {
     var ok = false;
     try {
       final classes = await DatabaseHelper.instance.getAll();
-      final bytes = ScheduleBackupCodec.encode(classes);
+      final events = await DatabaseHelper.instance.getAllEvents();
+      final bytes = ScheduleBackupCodec.encode(classes, events: events);
       final dir = await _ensureDirectory();
       final now = DateTime.now();
       await _atomicWrite(File(p.join(dir.path, mainFileName)), bytes);
