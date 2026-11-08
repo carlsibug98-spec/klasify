@@ -14,11 +14,11 @@
 - Admin who can change the availability status of the guidance, registrar, clinic, and the status of the rooms
 - What will the app look like when the admin uses it
 
-## Status (updated 2026-11-07)
+## Status (updated 2026-11-08)
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
-| 0 | SQLite → MySQL | ✅ Built (Phase 1) | Offline SQLite stays the local store; opt-in sync mirrors to MySQL via the Node/Express API (Docker). Device verification pending. |
+| 0 | SQLite → MySQL | ✅ Built (Phase 1) | Offline SQLite stays the local store; opt-in sync mirrors to MySQL via the Node/Express API (Docker). Code pushed (`0a60e1b`); profile APK with LAN-IP baked in is installed on the TECNO LJ6. On-device E2E pending (phone must be reconnected to ADB). |
 | 1 | School event reminders | 🔜 Planned | Events already carry `category = school` + per-event reminders (`lead_minutes`); reuse the reminder service, add a school-aware rule. |
 | 2 | Office availability (guidance / clinic / registrar) | 🔜 Planned | New `office_status` data (open / closed / break / custom) in both stores; admin-editable; offline shows last-known value + freshness. |
 | 3 | Admin role | 🔜 Planned | `users.role = 'user' | 'admin'`; admin provisioning TBD (see open decisions). |
@@ -26,6 +26,28 @@
 | 5 | Live room occupancy | 🔜 Later phase | Derived from events scheduled in that room (event + mock defense) + admin manual override; "notify other classes" needs a decision on in-app vs push (open decision). |
 | 6 | Navigator (rooms / offices / emergency exits / campus) | 🔮 Heaviest item | Phase A: searchable directory (room → building, floor, nearest exit). Phase B: routing over a floor-plan graph. Needs campus data from the user. |
 | 7 | Mini map (optional) | 🔮 Later phase | Static campus map image with markers first; interactive overlay later. Toggleable in Settings. |
+
+## Known gaps (Phase 2 follow-ups, logged 2026-11-08)
+
+- **Sync trigger**: the only trigger today is a successful sign-in/sign-up from
+  Settings → ACCOUNT. There is no explicit "Sync now" row, no background timer,
+  and no auto-retry after a failed sync.
+- **ACCOUNT row**: always opens the login screen, even when already signed in
+  (no account/session view, no sign-out button).
+- **Manual backup**: the exported file carries classes only; events are not
+  included and must be re-created by hand.
+- **Delete account**: `DELETE /auth/account` exists on the API and
+  `AuthService.deleteAccount()` in the client, but no screen calls it.
+- **Release API URL**: release builds default to `http://localhost:3000/v1`
+  unless built with `--dart-define=KLASIFY_API_URL=https://…`. Cleartext HTTP
+  is enabled only in debug/profile manifests; release builds are HTTPS-only by
+  design, so a real deployment needs an HTTPS endpoint.
+- **Terms/Privacy sheets**: the first device build rendered a dead
+  "Terms · Privacy" label. Fixed to tappable sheets with truthful copy; needs
+  the rebuilt APK installed to appear on the phone.
+- **Device E2E**: phone dropped off ADB at last check. Run: sign up → create a
+  class + a school event offline → sign in again → verify the rows in
+  HeidiSQL (`users`, `classes`, `events`, `sync_cursors`).
 
 ## Sequencing decision (answered 2026-11-07)
 
