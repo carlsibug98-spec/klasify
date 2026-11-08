@@ -27,6 +27,21 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
+  Future<void> _signUpWithGoogle() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await AuthService.instance.loginWithGoogle();
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   Future<void> _submit() async {
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
@@ -193,7 +208,7 @@ class _SignupScreenState extends State<SignupScreen> {
               _SocialButton(
                 label: 'Continue with Google',
                 icon: _googleIcon(),
-                onPressed: () {},
+                onPressed: _loading ? () {} : () { _signUpWithGoogle(); },
               ),
               const SizedBox(height: 10),
               _SocialButton(

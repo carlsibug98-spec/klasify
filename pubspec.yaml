@@ -26,6 +26,8 @@ dependencies:
   # Network + secure storage for the optional sync backend (Phase 1).
   http: ^1.2.0
   flutter_secure_storage: ^11.2.0
+  # Google Sign-In for the optional sync backend (Phase 1).
+  google_sign_in: ^6.2.1
   # Opt-in crash reporting: inactive unless a DSN is compiled in with
   # --dart-define=KLASIFY_SENTRY_DSN=... (see lib/services/crash_reporting.dart).
   sentry_flutter: ^10.2.0

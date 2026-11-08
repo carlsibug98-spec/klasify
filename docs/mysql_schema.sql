@@ -23,13 +23,15 @@ USE klasify_sync;
 CREATE TABLE users (
   id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   email         VARCHAR(255) NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,          -- bcrypt, cost 12
+  password_hash VARCHAR(255) NULL,              -- bcrypt, cost 12; NULL for Google-only accounts
+  google_sub    VARCHAR(255) NULL,             -- Google subject id; UNIQUE when present
   display_name  VARCHAR(100) NOT NULL DEFAULT '',
   created_at    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   deleted       TINYINT(1)   NOT NULL DEFAULT 0,
 
   UNIQUE KEY uq_users_email (email),
+  UNIQUE KEY uq_users_google_sub (google_sub),
   KEY idx_users_updated (updated_at)
 ) ENGINE=InnoDB;
 

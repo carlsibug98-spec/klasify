@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'legal_sheets.dart';
 import 'signup_screen.dart';
 
+import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 
 /// Login screen. Follows the mockup design: wordmark, title, subtitle,
@@ -45,6 +46,23 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await AuthService.instance.loginWithGoogle();
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -145,7 +163,10 @@ class _LoginScreenState extends State<LoginScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {},
+                  onPressed: () => Navigator.of(context).pushNamed(
+                    AppRoutes.resetPassword,
+                    arguments: 'Sign in',
+                  ),
                   child: Text(
                     'Forgot password?',
                     style: TextStyle(
@@ -195,7 +216,7 @@ class _LoginScreenState extends State<LoginScreen> {
               _SocialButton(
                 label: 'Continue with Google',
                 icon: _googleIcon(),
-                onPressed: () {},
+                onPressed: _loading ? () {} : () { _signInWithGoogle(); },
               ),
               const SizedBox(height: 10),
               _SocialButton(

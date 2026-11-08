@@ -32,6 +32,7 @@ services:
       KLASIFY_DB_USER: root
       KLASIFY_DB_PASS: klasify_dev
       KLASIFY_JWT_SECRET: change-this-to-a-long-random-string-in-production
+      GOOGLE_CLIENT_ID: ""
     depends_on:
       mysql:
         condition: service_healthy

@@ -7,6 +7,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const crypto = require('node:crypto');
+const { OAuth2Client } = require('google-auth-library');
 const { pool } = require('./db');
 const { signToken, expiresAtIso, verifyToken, requireAuth } = require('./jwt');
 
@@ -108,6 +109,111 @@ router.post('/login', async (req, res, next) => {
 
 /// POST /auth/refresh — accepts an expired token within a grace window and
 /// reissues a fresh one, exactly like the PHP route did.
+const googleRateBucket = new Map();
+
+/// POST /auth/google — sign in (or sign up) with a Google ID token.
+/// 200 { user, token, expires_at } | 401 INVALID_GOOGLE_TOKEN | 422 VALIDATION_ERROR
+router.post('/google', async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const idToken = String(body.id_token || '').trim();
+    if (!idToken) {
+      return res.status(422).json({
+        error: 'Google ID token is required',
+        code: 'VALIDATION_ERROR',
+      });
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      return res.status(500).json({
+        error: 'Google sign-in is not configured on the server',
+        code: 'VALIDATION_ERROR',
+      });
+    }
+
+    // Per-instance rate limit (TODO: move to Redis when we scale horizontally).
+    const now = Date.now();
+    const key = 'google';
+    const bucket = googleRateBucket.get(key) || [];
+    const recent = bucket.filter((t) => now - t < 60_000);
+    if (recent.length >= 30) {
+      return res.status(429).json({
+        error: 'Too many requests, please try again later',
+        code: 'RATE_LIMITED',
+      });
+    }
+    recent.push(now);
+    googleRateBucket.set(key, recent);
+
+    const client = new OAuth2Client(clientId);
+    let payload;
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: clientId,
+      });
+      payload = ticket.getPayload();
+    } catch (err) {
+      return res.status(401).json({
+        error: 'Invalid Google token',
+        code: 'INVALID_GOOGLE_TOKEN',
+      });
+    }
+
+    if (!payload || !payload.email || payload.email_verified !== true) {
+      return res.status(401).json({
+        error: 'Google account email is not verified',
+        code: 'INVALID_GOOGLE_TOKEN',
+      });
+    }
+
+    const email = String(payload.email).trim().toLowerCase();
+    const googleSub = String(payload.sub);
+    const displayName = String(payload.name || '').trim();
+
+    // Look up by google_sub first, then email (backfill google_sub on match).
+    const [bySub] = await pool.query(
+      'SELECT id, email, password_hash, display_name, google_sub FROM users WHERE google_sub = ? AND deleted = 0 LIMIT 1',
+      [googleSub]
+    );
+    let user = bySub[0];
+
+    if (!user) {
+      const [byEmail] = await pool.query(
+        'SELECT id, email, password_hash, display_name, google_sub FROM users WHERE email = ? AND deleted = 0 LIMIT 1',
+        [email]
+      );
+      user = byEmail[0];
+      if (user) {
+        await pool.query(
+          'UPDATE users SET google_sub = ? WHERE id = ?',
+          [googleSub, user.id]
+        );
+        user.google_sub = googleSub;
+      }
+    }
+
+    if (!user) {
+      const [insert] = await pool.query(
+        'INSERT INTO users (email, password_hash, google_sub, display_name) VALUES (?, NULL, ?, ?)',
+        [email, googleSub, displayName]
+      );
+      const [rows] = await pool.query(
+        'SELECT id, email, password_hash, display_name, google_sub FROM users WHERE id = ?',
+        [insert.insertId]
+      );
+      user = rows[0];
+    }
+
+    return res
+      .status(200)
+      .json({ user: userJson(user), token: signToken(Number(user.id), user.email), expires_at: expiresAtIso() });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/refresh', async (req, res, next) => {
   try {
     const header = req.headers.authorization || '';

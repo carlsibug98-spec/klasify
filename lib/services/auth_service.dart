@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 
 /// Typed auth API error: the backend message plus its semantic code, so
@@ -127,6 +128,41 @@ class AuthService extends ChangeNotifier {
       'POST',
       '/auth/login',
       body: {'email': email, 'password': password},
+      auth: false,
+    ) as Map<String, dynamic>;
+    await _saveSession(data);
+    return data['user'] as Map<String, dynamic>;
+  }
+
+  /// Sign in (or sign up) with Google. Returns the user map on success.
+  /// Throws [AuthApiException] on failure.
+  Future<Map<String, dynamic>> loginWithGoogle() async {
+    final googleSignIn = GoogleSignIn(
+      scopes: const ['email', 'profile'],
+      serverClientId: const String.fromEnvironment(
+        'GOOGLE_WEB_CLIENT_ID',
+        defaultValue: '',
+      ),
+    );
+    final account = await googleSignIn.signIn();
+    if (account == null) {
+      throw const AuthApiException(
+        'Google sign-in was cancelled',
+        code: 'CANCELLED',
+      );
+    }
+    final auth = await account.authentication;
+    final idToken = auth.idToken;
+    if (idToken == null) {
+      throw const AuthApiException(
+        'Could not get Google ID token',
+        code: 'VALIDATION_ERROR',
+      );
+    }
+    final data = await _api(
+      'POST',
+      '/auth/google',
+      body: {'id_token': idToken},
       auth: false,
     ) as Map<String, dynamic>;
     await _saveSession(data);
