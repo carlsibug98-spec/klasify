@@ -18,7 +18,7 @@
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
-| 0 | SQLite → MySQL | ✅ Built (Phase 1) | Offline SQLite stays the local store; opt-in sync mirrors to MySQL via the Node/Express API (Docker). Code pushed (`0a60e1b`); profile APK with LAN-IP baked in is installed on the TECNO LJ6. On-device E2E pending (phone must be reconnected to ADB). |
+| 0 | SQLite → MySQL | ✅ Verified on device (Phase 1) | Offline SQLite stays the local store; opt-in sync mirrors to MySQL via the Node/Express API (Docker). Verified on the TECNO LJ6 on 2026-11-08: sign-up, the full 15-class week push, a new class + school event push, and a server→phone pull (room changed to `PullTest1`) all landed correctly. Sync is gated on a signed-in session, signup success now bubbles up to trigger the first sync, and a saved session restores on cold start. |
 | 1 | School event reminders | 🔜 Planned | Events already carry `category = school` + per-event reminders (`lead_minutes`); reuse the reminder service, add a school-aware rule. |
 | 2 | Office availability (guidance / clinic / registrar) | 🔜 Planned | New `office_status` data (open / closed / break / custom) in both stores; admin-editable; offline shows last-known value + freshness. |
 | 3 | Admin role | 🔜 Planned | `users.role = 'user' | 'admin'`; admin provisioning TBD (see open decisions). |
@@ -42,19 +42,13 @@
   unless built with `--dart-define=KLASIFY_API_URL=https://…`. Cleartext HTTP
   is enabled only in debug/profile manifests; release builds are HTTPS-only by
   design, so a real deployment needs an HTTPS endpoint.
-- **Terms/Privacy sheets**: the first device build rendered a dead
-  "Terms · Privacy" label. Fixed to tappable sheets with truthful copy; needs
-  the rebuilt APK installed to appear on the phone.
-- **Device E2E**: phone dropped off ADB at last check. Run: sign up → create a
-  class + a school event offline → sign in again → verify the rows in
-  HeidiSQL (`users`, `classes`, `events`, `sync_cursors`).
 
-## Sequencing decision (answered 2026-11-07)
+## Sequencing decision (answered 2026-11-07, Phase 1 closed 2026-11-08)
 
-**"Finish sync + device test first, decide after."** — Current order: ship Phase 1
-(commit + push → LAN-IP profile APK → TECNO LJ6 device verification), then choose
-the next feature chunk. Feature order questions stay open until then; the other
-open decisions are answered as each phase begins.
+**"Finish sync + device test first, decide after."** — Phase 1 is complete and
+verified on the TECNO LJ6 (push, pull, sign-up, class + school event, cursors).
+Next: pick the next feature chunk from the backlog above; the open decisions
+below are answered as each phase begins.
 
 ## Open decisions (ask the user before building)
 
