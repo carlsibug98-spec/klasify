@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../routes/app_routes.dart';
 import '../services/app_info.dart';
 import '../services/reminder_service.dart';
+import '../services/sync_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/component_kit.dart';
 
@@ -223,7 +226,24 @@ class _SettingsGroup extends StatelessWidget {
       case _SettingsRowAction.coachTour:
         onReplayCoachTour?.call();
       case _SettingsRowAction.route:
-        Navigator.pushNamed(context, row.route, arguments: row.arguments);
+        unawaited(_openRoute(context, row));
+    }
+  }
+
+  /// Pushes the row's route; when returning from sign-in or sign-up with a
+  /// positive result, the first cloud sync fires immediately so the account
+  /// and its data are live without needing another toggle. Failures are
+  /// silent-by-design here: the next sync attempt covers them.
+  Future<void> _openRoute(BuildContext context, _SettingsRowData row) async {
+    final result = await Navigator.pushNamed(
+      context,
+      row.route,
+      arguments: row.arguments,
+    );
+    final isAuth =
+        row.route == AppRoutes.login || row.route == AppRoutes.signup;
+    if (isAuth && result == true) {
+      await SyncService.instance.syncNow();
     }
   }
 
