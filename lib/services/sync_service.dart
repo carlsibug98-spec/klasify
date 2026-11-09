@@ -267,6 +267,7 @@ class SyncService extends ChangeNotifier {
     _sessionActive = loggedIn;
     if (loggedIn) {
       _startBackgroundTimer();
+      unawaited(syncNow());
     } else {
       _stopBackgroundTimer();
     }

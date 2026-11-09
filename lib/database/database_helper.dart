@@ -158,9 +158,24 @@ class DatabaseHelper extends ChangeNotifier {
   }
 
   /// Cached office availability, one row per office, in display order.
+  /// Seeds the three school-wide offices as 'open' on first read so the strip
+  /// always has something to show before the first sync completes.
   Future<List<Map<String, Object?>>> getOfficeStatuses() async {
     final db = await _database;
-    return db.query('office_statuses', orderBy: 'office_name');
+    final rows = await db.query('office_statuses', orderBy: 'office_name');
+    if (rows.isEmpty) {
+      final now = DateTime.now().toUtc().toIso8601String();
+      for (final name in const ['clinic', 'guidance', 'registrar']) {
+        await db.insert('office_statuses', {
+          'office_name': name,
+          'status': 'open',
+          'custom_message': null,
+          'updated_at': now,
+        });
+      }
+      return db.query('office_statuses', orderBy: 'office_name');
+    }
+    return rows;
   }
 
   /// Upserts one office row pulled from the server. Office statuses have no
