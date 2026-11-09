@@ -132,13 +132,16 @@ const RESET_TABLES = [
     'rate_limit_hits',
 ];
 
-/// Empty every table between tests. TRUNCATE resets AUTO_INCREMENT, so
-/// seeded ids are deterministic (1, 2, 3, ...).
+/// Empty every table between tests and reset AUTO_INCREMENT. Note: with
+/// FOREIGN_KEY_CHECKS=0 MariaDB allows TRUNCATE on referenced parent tables
+/// but silently SKIPS the AUTO_INCREMENT reset — so ALTER it explicitly to
+/// keep seeded ids deterministic (1, 2, 3, ...).
 function db_reset(): void
 {
     db()->exec('SET FOREIGN_KEY_CHECKS=0');
     foreach (RESET_TABLES as $table) {
         db()->exec("TRUNCATE TABLE `{$table}`");
+        db()->exec("ALTER TABLE `{$table}` AUTO_INCREMENT = 1");
     }
     db()->exec('SET FOREIGN_KEY_CHECKS=1');
 }
