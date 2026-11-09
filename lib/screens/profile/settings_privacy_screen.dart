@@ -35,6 +35,12 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
     super.initState();
     ReminderService.instance.addListener(_onReminderSettingsChanged);
     unawaited(_loadReminderState());
+    // Roles/departments can change while the app stays open; a Settings
+    // visit is the natural point to re-check the account. The screen already
+    // listens to AuthService, so a promotion reveals ADMIN immediately.
+    if (AuthService.instance.isLoggedIn) {
+      unawaited(AuthService.instance.refreshSession());
+    }
   }
 
   @override
@@ -104,6 +110,27 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
                   // ACCOUNT is a signed-in group: without a session there
                   // are no account details to manage, so the hub shows the
                   // account, preferences and legal worlds only.
+                  if (auth.isLoggedIn && AuthService.instance.isAdmin) ...[
+                    ProfileGroup(
+                      label: 'ADMIN',
+                      description: AuthService.instance.isSuperAdmin
+                          ? 'Office availability, user roles and departments.'
+                          : 'Office availability for the campus.',
+                      rows: [
+                        ProfileRow(
+                          icon: Icons.admin_panel_settings_outlined,
+                          title: 'Admin panel',
+                          subtitle: AuthService.instance.isSuperAdmin
+                              ? 'Manage offices and users'
+                              : 'Manage campus offices',
+                          onTap: () => unawaited(
+                            Navigator.of(context).pushNamed(AppRoutes.admin),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppTheme.sectionGap),
+                  ],
                   if (auth.isLoggedIn) ...[
                     ProfileGroup(
                       label: 'ACCOUNT',

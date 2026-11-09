@@ -149,7 +149,7 @@ void main() {
     );
     await tester.pump();
     expect(
-      find.text('Saved on this phone · syncs when account sync turns on'),
+      find.textContaining('Saved on this phone'),
       findsOneWidget,
     );
     await tester.dragFrom(

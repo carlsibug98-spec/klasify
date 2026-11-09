@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -11,7 +12,10 @@ import '../database/database_helper.dart';
 /// MySQL-backed API. All operations are best-effort: failures are queued
 /// and retried on the next sync attempt.
 class SyncService extends ChangeNotifier {
-  SyncService._();
+  SyncService._() {
+    AuthService.instance.addListener(_onAuthChanged);
+    _onAuthChanged();
+  }
   static final SyncService instance = SyncService._();
 
   static String get baseUrl => AuthService.baseUrl;
@@ -22,6 +26,10 @@ class SyncService extends ChangeNotifier {
 
   bool _syncing = false;
   bool get syncing => _syncing;
+
+  Timer? _backgroundTimer;
+  Timer? _retryTimer;
+  int _retryAttempt = 0;
 
   String? _lastError;
   String? get lastError => _lastError;
@@ -90,6 +98,8 @@ class SyncService extends ChangeNotifier {
           'event_date': e.date,
           'start_minutes': e.startMinutes,
           'category': e.category.name,
+          'department': e.department,
+          'broadcast': e.broadcast,
           'reminder_enabled': e.remindMe,
           'lead_minutes': e.leadMinutes,
           'deleted': e.deleted,
@@ -197,6 +207,11 @@ class SyncService extends ChangeNotifier {
           await db.upsertClassStatusFromServer(row as Map<String, dynamic>);
         }
 
+        // Upsert pulled office availability (last-known value offline)
+        for (final row in (data['office_statuses'] as List? ?? [])) {
+          await db.upsertOfficeStatusFromServer(row as Map<String, dynamic>);
+        }
+
         // Purge soft-deleted rows the server already accepted. Unpushed
         // tombstones survive: purging them early would silently drop the
         // deletion and let the server resurrect the row.
@@ -232,6 +247,68 @@ class SyncService extends ChangeNotifier {
       return false;
     }
     return pull();
+  }
+
+  /// Background sync: a 5-minute periodic timer plus exponential-backoff
+  /// retry after a failed attempt. Started/stopped automatically with the
+  /// auth session (see [_onAuthChanged]).
+  ///
+  /// Boot hook: constructing the singleton (called from main) wires the auth
+  /// listener so a restored session starts the timer without opening Settings.
+  void ensureStarted() {}
+
+  bool _sessionActive = false;
+
+  void _onAuthChanged() {
+    final loggedIn = AuthService.instance.isLoggedIn;
+    // Auth notifies on every profile refresh; only session transitions should
+    // restart the cadence.
+    if (loggedIn == _sessionActive) return;
+    _sessionActive = loggedIn;
+    if (loggedIn) {
+      _startBackgroundTimer();
+    } else {
+      _stopBackgroundTimer();
+    }
+  }
+
+  void _startBackgroundTimer() {
+    _backgroundTimer?.cancel();
+    _backgroundTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      if (AuthService.instance.isLoggedIn && !_syncing) {
+        unawaited(_backgroundSync());
+      }
+    });
+  }
+
+  void _stopBackgroundTimer() {
+    _backgroundTimer?.cancel();
+    _backgroundTimer = null;
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    _retryAttempt = 0;
+  }
+
+  Future<void> _backgroundSync() async {
+    final ok = await syncNow();
+    if (ok) {
+      _retryAttempt = 0;
+      _retryTimer?.cancel();
+      _retryTimer = null;
+    } else {
+      _scheduleRetry();
+    }
+  }
+
+  void _scheduleRetry() {
+    _retryTimer?.cancel();
+    final seconds = (30 * (1 << _retryAttempt)).clamp(30, 300);
+    _retryAttempt = (_retryAttempt + 1).clamp(0, 4);
+    _retryTimer = Timer(Duration(seconds: seconds), () {
+      if (AuthService.instance.isLoggedIn && !_syncing) {
+        unawaited(_backgroundSync());
+      }
+    });
   }
 
   Future<String?> get _token async {

@@ -12,9 +12,15 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
+  /// Departments a student can belong to. Kept in sync with the picker in
+  /// [LoginScreen]'s sibling create-account flow; the backend stores the
+  /// chosen value verbatim.
+  static const List<String> departments = ['IT', 'AIS', 'BA', 'EDUC'];
+
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  String? _department;
   bool _obscurePassword = true;
   bool _loading = false;
   String? _error;
@@ -28,12 +34,26 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _signUpWithGoogle() async {
+    // Google supplies the email, but the name and department are the
+    // student's choice, not fields silently copied from the Google profile.
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = 'Enter your name before continuing with Google.');
+      return;
+    }
+    if (_department == null) {
+      setState(() => _error = 'Choose your department before continuing with Google.');
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      await AuthService.instance.loginWithGoogle();
+      await AuthService.instance.signUpWithGoogle(
+        displayName: name,
+        department: _department!,
+      );
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
@@ -50,6 +70,10 @@ class _SignupScreenState extends State<SignupScreen> {
       setState(() => _error = 'Please fill in all fields.');
       return;
     }
+    if (_department == null) {
+      setState(() => _error = 'Please choose your department.');
+      return;
+    }
     if (password.length < 8) {
       setState(() => _error = 'Password must be at least 8 characters.');
       return;
@@ -63,6 +87,7 @@ class _SignupScreenState extends State<SignupScreen> {
         email: email,
         password: password,
         displayName: name,
+        department: _department,
       );
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
@@ -119,6 +144,28 @@ class _SignupScreenState extends State<SignupScreen> {
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.name],
                 decoration: _inputDecoration(scheme, 'Your name'),
+              ),
+              const SizedBox(height: 16),
+              const _FieldLabel('Department'),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                initialValue: _department,
+                isExpanded: true,
+                decoration: _inputDecoration(scheme, 'Choose your department'),
+                icon: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: scheme.onSurfaceVariant,
+                ),
+                items: [
+                  for (final department in _SignupScreenState.departments)
+                    DropdownMenuItem<String>(
+                      value: department,
+                      child: Text(department),
+                    ),
+                ],
+                onChanged: _loading
+                    ? null
+                    : (value) => setState(() => _department = value),
               ),
               const SizedBox(height: 16),
               const _FieldLabel('Email'),

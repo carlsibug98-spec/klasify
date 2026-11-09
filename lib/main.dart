@@ -7,6 +7,7 @@ import 'services/auth_service.dart';
 import 'services/auto_backup_service.dart';
 import 'services/crash_reporting.dart';
 import 'services/onboarding_store.dart';
+import 'services/sync_service.dart';
 import 'services/theme_mode_service.dart';
 import 'theme/app_theme.dart';
 
@@ -20,6 +21,9 @@ Future<void> main() async {
     } catch (e) {
       debugPrint('Session restore failed: $e');
     }
+    // Touch the sync client so a restored session starts its 5-minute
+    // background timer (the auth listener does the rest).
+    SyncService.instance.ensureStarted();
     // The quiet backup follows schedule changes for the whole session; it
     // starts async so launch never waits on disk or prefs.
     unawaited(AutoBackupService.instance.attach());

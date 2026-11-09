@@ -21,4 +21,5 @@ class AppRoutes {
   static const legalTerms = '/legal-terms';
   static const legalPrivacy = '/legal-privacy';
   static const legalStandards = '/legal-standards';
+  static const admin = '/admin';
 }

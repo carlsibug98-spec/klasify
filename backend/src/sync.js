@@ -80,6 +80,14 @@ router.post('/push', async (req, res, next) => {
     const nowIso = new Date().toISOString();
     const nowDt = toMysqlTimestamp(new Date());
 
+    // Caller role/dept for department-scoped broadcast events.
+    const [callerRows] = await pool.query(
+      'SELECT role, department FROM users WHERE id = ? AND deleted = 0 LIMIT 1',
+      [userId]
+    );
+    const caller = callerRows[0] || { role: 'user', department: null };
+    const callerIsAdmin = caller.role === 'admin' || caller.role === 'super_admin';
+
     const result = {
       server_time: nowIso,
       classes: [],
@@ -162,6 +170,20 @@ router.post('/push', async (req, res, next) => {
       const clientIso = row.updated_at ?? nowIso;
       const updatedAt = toMysqlTimestamp(row.updated_at) || nowDt;
 
+      // Broadcasting: only admins can post to a department or the school.
+      // A dept admin always posts to their own department; a super admin
+      // may pick one (row.department) or leave it school-wide.
+      const wantsBroadcast = !!row.broadcast;
+      const isBroadcast = wantsBroadcast && callerIsAdmin &&
+        (caller.role === 'super_admin' || !!caller.department);
+      const broadcast = isBroadcast ? 1 : 0;
+      const department = isBroadcast
+        ? (caller.role === 'super_admin'
+            ? (row.department ? String(row.department).trim() || null : null)
+            : (caller.department || null))
+        : null;
+      const storeUserId = isBroadcast ? null : userId;
+
       const pushServerId =
         row.server_id !== null && row.server_id !== undefined
           ? Number(row.server_id)
@@ -169,27 +191,52 @@ router.post('/push', async (req, res, next) => {
       let existing = [];
       if (pushServerId !== null && Number.isFinite(pushServerId) && pushServerId > 0) {
         [existing] = await pool.query(
-          'SELECT id FROM events WHERE user_id = ? AND id = ? LIMIT 1',
-          [userId, pushServerId]
+          'SELECT id, user_id, department FROM events WHERE id = ? LIMIT 1',
+          [pushServerId]
         );
       }
+      if (existing.length > 0 && existing[0].user_id !== null && Number(existing[0].user_id) !== Number(userId)) {
+        // Someone else's personal event: never editable from this account.
+        console.warn(`sync/push: skipped foreign event id ${pushServerId} for user ${userId}`);
+        result.events.push({ local_id: localId, server_id: Number(existing[0].id), updated_at: clientIso });
+        continue;
+      }
+      if (existing.length > 0 && existing[0].user_id === null) {
+        // Broadcast row: only an admin whose scope covers it may change it.
+        const inScope = caller.role === 'super_admin' ||
+          (callerIsAdmin && existing[0].department === caller.department);
+        if (!inScope || !isBroadcast) {
+          result.events.push({ local_id: localId, server_id: Number(existing[0].id), updated_at: clientIso });
+          continue;
+        }
+      }
       if (existing.length === 0) {
-        [existing] = await pool.query(
-          'SELECT id FROM events WHERE user_id = ? AND local_id = ? LIMIT 1',
-          [userId, localId]
-        );
+        if (storeUserId === null) {
+          [existing] = await pool.query(
+            'SELECT id FROM events WHERE user_id IS NULL AND local_id = ? AND department <=> ? LIMIT 1',
+            [localId, department]
+          );
+        } else {
+          [existing] = await pool.query(
+            'SELECT id FROM events WHERE user_id = ? AND local_id = ? LIMIT 1',
+            [storeUserId, localId]
+          );
+        }
       }
       let serverId;
       if (existing.length > 0) {
         serverId = Number(existing[0].id);
+        // user_id follows the broadcast state: a personal event shared to the
+        // school/department becomes a broadcast row (user_id NULL), so other
+        // users' pulls can see it.
         await pool.query(
-          'UPDATE events SET title=?, venue=?, event_date=?, start_minutes=?, category=?, reminder_enabled=?, lead_minutes=?, deleted=?, updated_at=? WHERE id=?',
-          [title, venue, eventDate, startMin, category, reminder, leadMin, deleted, updatedAt, serverId]
+          'UPDATE events SET user_id=?, title=?, venue=?, event_date=?, start_minutes=?, category=?, department=?, broadcast=?, reminder_enabled=?, lead_minutes=?, deleted=?, updated_at=? WHERE id=?',
+          [storeUserId, title, venue, eventDate, startMin, category, department, broadcast, reminder, leadMin, deleted, updatedAt, serverId]
         );
       } else {
         const [insert] = await pool.query(
-          'INSERT INTO events (user_id, local_id, title, venue, event_date, start_minutes, category, reminder_enabled, lead_minutes, deleted, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-          [userId, localId, title, venue, eventDate, startMin, category, reminder, leadMin, deleted, updatedAt]
+          'INSERT INTO events (user_id, local_id, title, venue, event_date, start_minutes, category, department, broadcast, reminder_enabled, lead_minutes, deleted, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+          [storeUserId, localId, title, venue, eventDate, startMin, category, department, broadcast, reminder, leadMin, deleted, updatedAt]
         );
         serverId = Number(insert.insertId);
       }
@@ -285,11 +332,19 @@ router.get('/pull', async (req, res, next) => {
     const sinceDt = toMysqlTimestamp(sinceIso) || '1970-01-01 00:00:00.000';
     const nowDt = toMysqlTimestamp(new Date());
 
+    // Caller's department for broadcast-event filtering.
+    const [callerRows] = await pool.query(
+      'SELECT department FROM users WHERE id = ? AND deleted = 0 LIMIT 1',
+      [userId]
+    );
+    const callerDept = callerRows[0] ? callerRows[0].department : null;
+
     const result = {
       server_time: new Date().toISOString(),
       classes: [],
       events: [],
       class_statuses: [],
+      office_statuses: [],
     };
 
     // `since` is inclusive on purpose: rows stamped exactly at the cursor
@@ -313,8 +368,8 @@ router.get('/pull', async (req, res, next) => {
     }));
 
     const [events] = await pool.query(
-      'SELECT id, local_id, title, venue, event_date, start_minutes, category, reminder_enabled, lead_minutes, deleted, updated_at FROM events WHERE user_id = ? AND updated_at >= ?',
-      [userId, sinceDt]
+      'SELECT id, local_id, title, venue, event_date, start_minutes, category, department, broadcast, reminder_enabled, lead_minutes, deleted, updated_at FROM events WHERE (user_id = ? OR (user_id IS NULL AND (department IS NULL OR department = ?))) AND updated_at >= ?',
+      [userId, callerDept, sinceDt]
     );
     result.events = events.map((r) => ({
       id: Number(r.id),
@@ -324,6 +379,8 @@ router.get('/pull', async (req, res, next) => {
       event_date: r.event_date,
       start_minutes: Number(r.start_minutes),
       category: r.category,
+      department: r.department || null,
+      broadcast: !!Number(r.broadcast),
       reminder_enabled: !!Number(r.reminder_enabled),
       lead_minutes: Number(r.lead_minutes),
       deleted: !!Number(r.deleted),
@@ -344,6 +401,20 @@ router.get('/pull', async (req, res, next) => {
       end_date: r.end_date,
       deleted: !!Number(r.deleted),
       updated_at: fromMysqlTimestampToIso(r.updated_at) ?? r.updated_at,
+    }));
+
+    const [offices] = await pool.query(
+      'SELECT id, office_name, department, status, custom_message, updated_at, deleted FROM office_statuses WHERE (department IS NULL OR department = ?) AND updated_at >= ?',
+      [callerDept, sinceDt]
+    );
+    result.office_statuses = offices.map((r) => ({
+      id: Number(r.id),
+      office_name: r.office_name,
+      department: r.department || null,
+      status: r.status,
+      custom_message: r.custom_message,
+      updated_at: fromMysqlTimestampToIso(r.updated_at) ?? r.updated_at,
+      deleted: !!Number(r.deleted),
     }));
 
     await pool.query(

@@ -57,11 +57,18 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
-      await AuthService.instance.loginWithGoogle();
+      await AuthService.instance.signInWithGoogle();
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
-        setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+        // Sign-in never provisions an account. A Google identity with no
+        // Klasify account returns ACCOUNT_NOT_FOUND; surface the server's
+        // message and point at the create-account link below the fields.
+        final message = e is AuthApiException && e.code == 'ACCOUNT_NOT_FOUND'
+            ? 'No Klasify account is connected to this Google account. '
+                'Tap Create account below to sign up.'
+            : e.toString().replaceFirst('Exception: ', '');
+        setState(() => _error = message);
       }
     } finally {
       if (mounted) setState(() => _loading = false);

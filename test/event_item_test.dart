@@ -111,6 +111,43 @@ void main() {
     expect(legacy.leadMinutes, eventDefaultLeadMinutes);
   });
 
+  test('broadcast scope round-trips with the department', () {
+    final event = EventItem(
+      title: 'IT Dept Event',
+      venue: 'Lab 2',
+      date: '2026-11-21',
+      startMinutes: 540,
+      department: 'IT',
+      broadcast: true,
+    );
+    final map = event.toMap();
+    expect(map['broadcast'], 1);
+    expect(map['department'], 'IT');
+
+    final restored = EventItem.fromMap({'id': 9, ...map});
+    expect(restored.broadcast, isTrue);
+    expect(restored.department, 'IT');
+  });
+
+  test('non-broadcast events default to personal scope', () {
+    final map = eventAt().toMap();
+    expect(map['broadcast'], 0);
+    expect(map['department'], isNull);
+    expect(EventItem.fromMap({'id': 1, ...map}).broadcast, isFalse);
+  });
+
+  test('legacy rows without broadcast columns read as personal', () {
+    final legacy = EventItem.fromMap({
+      'id': 4,
+      'title': 'Test Event A',
+      'venue': '',
+      'date': '2026-11-07',
+      'start_minutes': 600,
+    });
+    expect(legacy.broadcast, isFalse);
+    expect(legacy.department, isNull);
+  });
+
   test('the sheet kicker reads "Sat, Nov 7"', () {
     expect(eventKickLabel(DateTime(2026, 11, 7)), 'Sat, Nov 7');
     expect(eventKickLabel(DateTime(2026, 1, 1)), 'Thu, Jan 1');

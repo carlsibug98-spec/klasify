@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -74,6 +75,10 @@ class AuthService extends ChangeNotifier {
   /// Convenience getters for the profile UI.
   String? get displayName => _currentUser?['display_name'] as String?;
   String? get userEmail => _currentUser?['email'] as String?;
+  String get userRole => _currentUser?['role'] as String? ?? 'user';
+  String? get userDepartment => _currentUser?['department'] as String?;
+  bool get isAdmin => userRole == 'admin' || userRole == 'super_admin';
+  bool get isSuperAdmin => userRole == 'super_admin';
 
   /// The session token, or null when signed out.
   String? get token => _currentUser?['token'] as String?;
@@ -96,6 +101,11 @@ class AuthService extends ChangeNotifier {
       try {
         _currentUser = jsonDecode(userJson) as Map<String, dynamic>;
         _currentUser!['token'] = token;
+        // Refresh once per cold start so a promotion, demotion, or department
+        // change made on another device lands without a sign-out. Offline
+        // restores keep the stored session (refreshSession swallows network
+        // errors); only a rejected token clears it.
+        unawaited(refreshSession());
       } catch (_) {
         await _clearSession();
       }
@@ -108,11 +118,17 @@ class AuthService extends ChangeNotifier {
     required String email,
     required String password,
     String displayName = '',
+    String? department,
   }) async {
     final data = await _api(
       'POST',
       '/auth/register',
-      body: {'email': email, 'password': password, 'display_name': displayName},
+      body: {
+        'email': email,
+        'password': password,
+        'display_name': displayName,
+        'department': department,
+      },
       auth: false,
     ) as Map<String, dynamic>;
     await _saveSession(data);
@@ -134,9 +150,11 @@ class AuthService extends ChangeNotifier {
     return data['user'] as Map<String, dynamic>;
   }
 
-  /// Sign in (or sign up) with Google. Returns the user map on success.
-  /// Throws [AuthApiException] on failure.
-  Future<Map<String, dynamic>> loginWithGoogle() async {
+  /// Runs the native Google account picker and returns the ID token.
+  ///
+  /// The picker is forced every time — without `signOut()` google_sign_in
+  /// silently re-uses the last account and there's no way to switch or merge.
+  Future<String> _googleIdToken() async {
     final googleSignIn = GoogleSignIn(
       scopes: const ['email', 'profile'],
       serverClientId: const String.fromEnvironment(
@@ -144,8 +162,6 @@ class AuthService extends ChangeNotifier {
         defaultValue: '',
       ),
     );
-    // Force the account picker every time — without this, google_sign_in
-    // silently re-uses the last account and there's no way to switch or merge.
     await googleSignIn.signOut();
     final account = await googleSignIn.signIn();
     if (account == null) {
@@ -162,10 +178,41 @@ class AuthService extends ChangeNotifier {
         code: 'VALIDATION_ERROR',
       );
     }
+    return idToken;
+  }
+
+  /// Sign in with Google. Never creates an account: a Google identity with
+  /// no Klasify account gets ACCOUNT_NOT_FOUND, so the sign-in screen can
+  /// point the user at Create account instead of silently provisioning one.
+  Future<Map<String, dynamic>> signInWithGoogle() async {
+    final idToken = await _googleIdToken();
     final data = await _api(
       'POST',
       '/auth/google',
-      body: {'id_token': idToken},
+      body: {'id_token': idToken, 'mode': 'signin'},
+      auth: false,
+    ) as Map<String, dynamic>;
+    await _saveSession(data);
+    return data['user'] as Map<String, dynamic>;
+  }
+
+  /// Create an account with Google. Name and department come from the
+  /// create-account form, not from the Google profile, so the user always
+  /// chooses what the school sees.
+  Future<Map<String, dynamic>> signUpWithGoogle({
+    required String displayName,
+    required String department,
+  }) async {
+    final idToken = await _googleIdToken();
+    final data = await _api(
+      'POST',
+      '/auth/google',
+      body: {
+        'id_token': idToken,
+        'mode': 'signup',
+        'display_name': displayName,
+        'department': department,
+      },
       auth: false,
     ) as Map<String, dynamic>;
     await _saveSession(data);
@@ -178,7 +225,36 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Delete the account and all server-side data, then clear the session.
+  /// Admin: list users (scoped by caller's role/department on the server).
+  Future<List<Map<String, dynamic>>> adminGetUsers() async {
+    final data = await _api('GET', '/admin/users') as Map<String, dynamic>;
+    return (data['users'] as List? ?? []).cast<Map<String, dynamic>>();
+  }
+
+  /// Admin: promote/demote a user (super_admin only).
+  Future<void> adminSetRole(int userId, String role) async {
+    await _api('PATCH', '/admin/users/$userId/role', body: {'role': role});
+  }
+
+  /// Admin: assign a user to a department (super_admin only).
+  Future<void> adminSetDepartment(int userId, String? department) async {
+    await _api('PATCH', '/admin/users/$userId/department', body: {'department': department});
+  }
+
+  /// Admin: list office statuses (scoped by caller's role/department).
+  Future<List<Map<String, dynamic>>> adminGetOfficeStatuses() async {
+    final data = await _api('GET', '/admin/office-statuses') as Map<String, dynamic>;
+    return (data['offices'] as List? ?? []).cast<Map<String, dynamic>>();
+  }
+
+  /// Admin: update an office's status.
+  Future<void> adminSetOfficeStatus(String office, String status, {String? customMessage, String? department}) async {
+    await _api('PATCH', '/admin/office-statuses/$office', body: {
+      'status': status,
+      'custom_message': customMessage,
+      'department': department,
+    });
+  }
   /// Local schedule data on the phone stays, as decided.
   Future<void> deleteAccount() async {
     try {
@@ -269,6 +345,10 @@ class AuthService extends ChangeNotifier {
           await _storage.write(key: _expiresKey, value: expiresIso);
         }
         _currentUser?['token'] = newToken;
+        final user = data['user'];
+        if (user is Map<String, dynamic>) {
+          await _persistUser(user);
+        }
         notifyListeners();
         return true;
       }
@@ -386,8 +466,11 @@ class AuthService extends ChangeNotifier {
   /// Keeps the in-memory user in sync and rewrites the stored user JSON.
   Future<void> _persistUser(Map<String, dynamic> user) async {
     if (_currentUser != null) {
-      _currentUser!['display_name'] = user['display_name'];
-      _currentUser!['email'] = user['email'];
+      // Merge every server-owned field (name, email, role, department) so
+      // a promotion or department change lands without a fresh sign-in.
+      for (final entry in user.entries) {
+        if (entry.key != 'token') _currentUser![entry.key] = entry.value;
+      }
     }
     final bare = {...user}..remove('token');
     await _storage.write(key: _userKey, value: jsonEncode(bare));

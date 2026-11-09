@@ -7,6 +7,7 @@ import '../routes/app_routes.dart';
 import '../models/class_item.dart';
 import '../models/class_status.dart';
 import '../models/event_item.dart';
+import '../models/office_status.dart';
 import '../widgets/day_status_sheet.dart';
 import '../utils/next_class.dart';
 import '../widgets/app_notification.dart';
@@ -19,14 +20,15 @@ import '../widgets/event_sheet.dart';
 import '../widgets/event_tile.dart';
 import '../widgets/first_run_options.dart';
 import '../widgets/next_class_card.dart';
+import '../widgets/office_status_strip.dart';
 import '../services/first_class_coach_store.dart';
+import '../services/auth_service.dart';
 import '../services/reminder_service.dart';
 import '../services/coach_tour_store.dart';
 import '../widgets/coach_tour_overlay.dart';
 import '../widgets/swipe_actions.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_state_transition.dart';
-import '../widgets/empty_state_card.dart';
 import '../widgets/week_agenda_view.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -77,6 +79,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<ClassItem> _classes = [];
   ClassStatuses _statuses = {};
   List<EventItem> _events = [];
+  List<OfficeStatus> _offices = [];
   bool _loading = true;
   String? _error;
   int _loadVersion = 0;
@@ -153,6 +156,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  /// Broadcast events belong to the admin who posted them: a regular user
+  /// (or an admin from another department) sees them read-only so their
+  /// delete/edit cannot change the row for everyone else.
+  bool _canManageEvent(EventItem event) {
+    if (!event.broadcast) return true;
+    final auth = AuthService.instance;
+    if (auth.isSuperAdmin) return true;
+    return auth.isAdmin &&
+        auth.userDepartment != null &&
+        auth.userDepartment == event.department;
+  }
+
   Future<void> _load() async {
     final version = ++_loadVersion;
     try {
@@ -188,6 +203,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
         return <EventItem>[];
       });
+      final offices = await _db.getOfficeStatuses().catchError((
+        Object error,
+        StackTrace stackTrace,
+      ) {
+        // The office strip is ambient information; a read failure hides it
+        // rather than taking the schedule down.
+        debugPrint('Office statuses failed to load: $error\n$stackTrace');
+        return <Map<String, Object?>>[];
+      });
       if (!mounted || version != _loadVersion) return;
       // First class lands: the one-time coach tour trigger.
       final scheduleWasEmpty = _scheduleWasEmpty;
@@ -199,6 +223,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _classes = list;
         _statuses = statuses;
         _events = events;
+        _offices = offices.map(OfficeStatus.fromMap).toList();
         _loading = false;
         _error = null;
       });
@@ -636,6 +661,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               tilesKey: widget.firstRunTilesKey,
                             ),
                           ),
+                        if (_offices.isNotEmpty)
+                          OfficeStatusStrip(offices: _offices),
                         // Whole-school events: a count chip, an Add entry, and
                         // date-block rows. The section header stays even with
                         // zero events so the entry point never disappears under
@@ -755,10 +782,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   upcomingEvents.length,
                                 ),
                                 inverted: eventIndex == 0,
-                                onTap: () =>
-                                    showEventSheet(context, initial: event),
-                                onLongPress: () =>
-                                    deleteEventWithUndo(context, event),
+                                onTap: () => showEventSheet(
+                                  context,
+                                  initial: event,
+                                  readOnly: !_canManageEvent(event),
+                                ),
+                                onLongPress: _canManageEvent(event)
+                                    ? () =>
+                                        deleteEventWithUndo(context, event)
+                                    : null,
                               ),
                             ),
                           ),

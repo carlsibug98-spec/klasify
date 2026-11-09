@@ -15,6 +15,7 @@ import '../screens/profile/security_hub_screen.dart';
 import '../screens/profile/change_password_screen.dart';
 import '../screens/profile/reset_password_screens.dart';
 import '../screens/profile/legal_screens.dart';
+import '../screens/profile/admin_screen.dart';
 import 'app_routes.dart';
 
 /// The ONLY file that lists every screen.
@@ -97,6 +98,8 @@ class AppRouter {
         return _page(const PrivacyPolicyScreen(), settings);
       case AppRoutes.legalStandards:
         return _page(const CommunityStandardsScreen(), settings);
+      case AppRoutes.admin:
+        return _page(const AdminScreen(), settings);
       default:
         return onUnknownRoute(settings);
     }

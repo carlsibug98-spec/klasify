@@ -23,6 +23,8 @@ function userJson(row) {
     id: Number(row.id),
     email: row.email,
     display_name: row.display_name,
+    role: row.role || 'user',
+    department: row.department || null,
   };
 }
 
@@ -56,14 +58,21 @@ router.post('/register', async (req, res, next) => {
       });
     }
 
+    const department = body.department ? String(body.department).trim() || null : null;
+
     const [insert] = await pool.query(
-      'INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?)',
-      [email, await bcrypt.hash(password, BCRYPT_COST), displayName]
+      'INSERT INTO users (email, password_hash, display_name, department) VALUES (?, ?, ?, ?)',
+      [email, await bcrypt.hash(password, BCRYPT_COST), displayName, department]
     );
     const userId = Number(insert.insertId);
 
+    const [rows] = await pool.query(
+      'SELECT id, email, password_hash, display_name, role, department, google_sub FROM users WHERE id = ?',
+      [userId]
+    );
+
     return res.status(201).json({
-      user: { id: userId, email, display_name: displayName },
+      user: userJson(rows[0]),
       token: signToken(userId, email),
       expires_at: expiresAtIso(),
     });
@@ -88,7 +97,7 @@ router.post('/login', async (req, res, next) => {
     }
 
     const [rows] = await pool.query(
-      'SELECT id, email, password_hash, display_name FROM users WHERE email = ? AND deleted = 0 LIMIT 1',
+      'SELECT id, email, password_hash, display_name, role, department FROM users WHERE email = ? AND deleted = 0 LIMIT 1',
       [email]
     );
     const user = rows[0];
@@ -111,8 +120,12 @@ router.post('/login', async (req, res, next) => {
 /// reissues a fresh one, exactly like the PHP route did.
 const googleRateBucket = new Map();
 
-/// POST /auth/google — sign in (or sign up) with a Google ID token.
-/// 200 { user, token, expires_at } | 401 INVALID_GOOGLE_TOKEN | 422 VALIDATION_ERROR
+/// POST /auth/google — sign in or sign up with a Google ID token.
+/// `mode: 'signin'` (default) only logs into an existing account and answers
+/// 404 ACCOUNT_NOT_FOUND otherwise; `mode: 'signup'` creates one using the
+/// name/department sent by the create-account screen.
+/// 200 { user, token, expires_at } | 401 INVALID_GOOGLE_TOKEN
+/// | 404 ACCOUNT_NOT_FOUND | 422 VALIDATION_ERROR | 429 RATE_LIMITED
 router.post('/google', async (req, res, next) => {
   try {
     const body = req.body || {};
@@ -172,16 +185,28 @@ router.post('/google', async (req, res, next) => {
     const googleSub = String(payload.sub);
     const displayName = String(payload.name || '').trim();
 
+    // `mode` decides whether an unknown Google identity may create an
+    // account. The sign-in screen sends 'signin' (default) so a mistyped /
+    // unregistered Gmail gets ACCOUNT_NOT_FOUND instead of silently
+    // provisioning a new account. The create-account screen sends 'signup'
+    // plus the name and department the user typed there.
+    const wantsSignup = body.mode === 'signup';
+    const requestedName = String(body.display_name || '').trim().slice(0, 100);
+    const department =
+      body.department !== undefined && body.department !== null
+        ? String(body.department).trim().slice(0, 100) || null
+        : null;
+
     // Look up by google_sub first, then email (backfill google_sub on match).
     const [bySub] = await pool.query(
-      'SELECT id, email, password_hash, display_name, google_sub FROM users WHERE google_sub = ? AND deleted = 0 LIMIT 1',
+      'SELECT id, email, password_hash, display_name, google_sub, role, department FROM users WHERE google_sub = ? AND deleted = 0 LIMIT 1',
       [googleSub]
     );
     let user = bySub[0];
 
     if (!user) {
       const [byEmail] = await pool.query(
-        'SELECT id, email, password_hash, display_name, google_sub FROM users WHERE email = ? AND deleted = 0 LIMIT 1',
+        'SELECT id, email, password_hash, display_name, google_sub, role, department FROM users WHERE email = ? AND deleted = 0 LIMIT 1',
         [email]
       );
       user = byEmail[0];
@@ -195,12 +220,35 @@ router.post('/google', async (req, res, next) => {
     }
 
     if (!user) {
+      if (!wantsSignup) {
+        return res.status(404).json({
+          error:
+            'No Klasify account is connected to this Google account. Create an account first.',
+          code: 'ACCOUNT_NOT_FOUND',
+        });
+      }
+      // Soft-deleted accounts still hold the unique email/google_sub keys.
+      // Reusing them cannot create a new row, so answer 409 instead of
+      // letting the INSERT fail with a duplicate-key 500.
+      const [anyExisting] = await pool.query(
+        'SELECT id FROM users WHERE email = ? OR google_sub = ? LIMIT 1',
+        [email, googleSub]
+      );
+      if (anyExisting.length > 0) {
+        return res.status(409).json({
+          error: 'An account with this email already exists',
+          code: 'EMAIL_EXISTS',
+        });
+      }
+      // Prefer the name typed on the create-account screen; fall back to the
+      // Google profile name only when the client did not send one.
+      const createdName = requestedName || displayName;
       const [insert] = await pool.query(
-        'INSERT INTO users (email, password_hash, google_sub, display_name) VALUES (?, NULL, ?, ?)',
-        [email, googleSub, displayName]
+        'INSERT INTO users (email, password_hash, google_sub, display_name, department) VALUES (?, NULL, ?, ?, ?)',
+        [email, googleSub, createdName, department]
       );
       const [rows] = await pool.query(
-        'SELECT id, email, password_hash, display_name, google_sub FROM users WHERE id = ?',
+        'SELECT id, email, password_hash, display_name, google_sub, role, department FROM users WHERE id = ?',
         [insert.insertId]
       );
       user = rows[0];
@@ -228,7 +276,7 @@ router.post('/refresh', async (req, res, next) => {
     }
 
     const [rows] = await pool.query(
-      'SELECT id, email, display_name FROM users WHERE id = ? AND deleted = 0 LIMIT 1',
+      'SELECT id, email, display_name, role, department FROM users WHERE id = ? AND deleted = 0 LIMIT 1',
       [Number(payload.user_id)]
     );
     const user = rows[0];
@@ -236,9 +284,11 @@ router.post('/refresh', async (req, res, next) => {
       return res.status(401).json({ error: 'User not found', code: 'TOKEN_EXPIRED' });
     }
 
-    return res
-      .status(200)
-      .json({ token: signToken(Number(user.id), user.email), expires_at: expiresAtIso() });
+    return res.status(200).json({
+      user: userJson(user),
+      token: signToken(Number(user.id), user.email),
+      expires_at: expiresAtIso(),
+    });
   } catch (err) {
     next(err);
   }
@@ -321,7 +371,7 @@ router.patch('/me', requireAuth, async (req, res, next) => {
     ]);
 
     const [rows] = await pool.query(
-      'SELECT id, email, display_name FROM users WHERE id = ? LIMIT 1',
+      'SELECT id, email, display_name, role, department FROM users WHERE id = ? LIMIT 1',
       [req.userId]
     );
     return res.status(200).json({ user: userJson(rows[0]) });

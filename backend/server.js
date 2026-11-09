@@ -9,6 +9,7 @@ const db = require('./src/db');
 
 const authRoutes = require('./src/auth');
 const syncRoutes = require('./src/sync');
+const adminRoutes = require('./src/admin');
 
 const app = express();
 const PORT = parseInt(process.env.KLASIFY_PORT || '80', 10);
@@ -31,6 +32,7 @@ app.get('/health', (req, res) => {
 
 app.use('/auth', authRoutes);
 app.use('/sync', syncRoutes);
+app.use('/admin', adminRoutes);
 
 // 404s use the same shape as every other error in the contract.
 app.use((req, res) => {

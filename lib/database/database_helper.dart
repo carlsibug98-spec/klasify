@@ -22,7 +22,7 @@ class DatabaseHelper extends ChangeNotifier {
     final path = join(await getDatabasesPath(), databaseName);
     return openDatabase(
       path,
-      version: 8,
+      version: 9,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE classes (
@@ -48,6 +48,7 @@ class DatabaseHelper extends ChangeNotifier {
         await _createValidationTriggers(db);
         await _createClassStatusTable(db);
         await _createEventTable(db);
+        await _createOfficeStatusTable(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         // Do not rebuild or delete the existing table: users' saved classes
@@ -90,6 +91,14 @@ class DatabaseHelper extends ChangeNotifier {
         if (oldVersion < 8) {
           await _migrateToSyncSchema(db);
         }
+        // Version 9: department scoping + broadcast events, and the
+        // last-known office availability cache (offline shows the value
+        // from the last successful sync).
+        if (oldVersion < 9) {
+          await _addColumnIfMissing(db, 'events', 'department', 'TEXT');
+          await _addColumnIfMissing(db, 'events', 'broadcast', 'INTEGER NOT NULL DEFAULT 0');
+          await _createOfficeStatusTable(db);
+        }
       },
     );
   }
@@ -117,6 +126,8 @@ class DatabaseHelper extends ChangeNotifier {
         reminder_enabled INTEGER NOT NULL DEFAULT 1,
         lead_minutes INTEGER NOT NULL DEFAULT 30,
         category TEXT NOT NULL DEFAULT 'personal',
+        department TEXT,
+        broadcast INTEGER NOT NULL DEFAULT 0,
         deleted INTEGER NOT NULL DEFAULT 0,
         updated_at TEXT,
         server_id INTEGER,
@@ -128,6 +139,47 @@ class DatabaseHelper extends ChangeNotifier {
         CHECK (category IN ('personal', 'school'))
       )
     ''');
+  }
+
+  /// The last-known office availability cache. School-wide offices only
+  /// (guidance / clinic / registrar), one row each, overwritten by sync.
+  /// Kept separate from events so the Today strip always has a value to
+  /// show offline.
+  Future<void> _createOfficeStatusTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS office_statuses (
+        office_name TEXT PRIMARY KEY,
+        status TEXT NOT NULL DEFAULT 'open',
+        custom_message TEXT,
+        updated_at TEXT NOT NULL,
+        CHECK (status IN ('open', 'closed', 'break'))
+      )
+    ''');
+  }
+
+  /// Cached office availability, one row per office, in display order.
+  Future<List<Map<String, Object?>>> getOfficeStatuses() async {
+    final db = await _database;
+    return db.query('office_statuses', orderBy: 'office_name');
+  }
+
+  /// Upserts one office row pulled from the server. Office statuses have no
+  /// local mutations, so the server value always wins.
+  Future<void> upsertOfficeStatusFromServer(Map<String, dynamic> data) async {
+    final office = data['office_name'];
+    if (office is! String || office.isEmpty) return;
+    final db = await _database;
+    await db.insert(
+      'office_statuses',
+      {
+        'office_name': office,
+        'status': data['status'] ?? 'open',
+        'custom_message': data['custom_message'],
+        'updated_at': data['updated_at'] ?? _stampNow,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    notifyListeners();
   }
 
   /// Version 7 migration: add sync metadata columns to classes and events.
@@ -892,6 +944,8 @@ class DatabaseHelper extends ChangeNotifier {
       'date': data['event_date'],
       'start_minutes': data['start_minutes'],
       'category': data['category'] ?? 'personal',
+      'department': data['department'],
+      'broadcast': (data['broadcast'] as bool? ?? false) ? 1 : 0,
       'reminder_enabled': (data['reminder_enabled'] as bool? ?? true) ? 1 : 0,
       'lead_minutes': data['lead_minutes'] ?? 30,
       'deleted': (data['deleted'] as bool? ?? false) ? 1 : 0,
@@ -906,8 +960,12 @@ class DatabaseHelper extends ChangeNotifier {
       limit: 1,
     );
     if (rows.isEmpty) {
+      // A broadcast row's local_id belongs to the admin who posted it, so
+      // it must never be matched against this device's unrelated local
+      // rows. Only rows this device pushed use the id fallback.
+      final isBroadcast = data['broadcast'] as bool? ?? false;
       final localFallback = data['local_id'];
-      if (localFallback is int) {
+      if (!isBroadcast && localFallback is int) {
         rows = await db.query(
           'events',
           where: 'id = ? AND server_id IS NULL',

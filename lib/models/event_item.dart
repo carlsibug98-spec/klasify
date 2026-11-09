@@ -59,6 +59,15 @@ class EventItem {
   /// Whether this is a personal event or a school-wide event.
   final EventCategory category;
 
+  /// Department scope: null = school-wide (everyone sees it), non-null =
+  /// only that department's users see it (admin-created department events).
+  final String? department;
+
+  /// True when an admin posted this event to a whole department or the
+  /// whole school. Broadcast rows are read-only for regular users: their
+  /// long-press delete would otherwise remove the event for everyone.
+  final bool broadcast;
+
   /// Soft-delete flag for sync. Locally deleted rows are kept with
   /// deleted=true until the server confirms the deletion.
   final bool deleted;
@@ -77,6 +86,8 @@ class EventItem {
     this.remindMe = true,
     this.leadMinutes = eventDefaultLeadMinutes,
     this.category = EventCategory.personal,
+    this.department,
+    this.broadcast = false,
     this.deleted = false,
     this.updatedAt,
   });
@@ -128,6 +139,8 @@ class EventItem {
     'reminder_enabled': remindMe ? 1 : 0,
     'lead_minutes': leadMinutes,
     'category': category.name,
+    'department': department,
+    'broadcast': broadcast ? 1 : 0,
     'deleted': deleted ? 1 : 0,
     if (updatedAt != null) 'updated_at': updatedAt!.toIso8601String(),
     if (serverId != null) 'server_id': serverId,
@@ -146,6 +159,8 @@ class EventItem {
       (c) => c.name == (m['category'] as String? ?? 'personal'),
       orElse: () => EventCategory.personal,
     ),
+    department: m['department'] as String?,
+    broadcast: (m['broadcast'] as int? ?? 0) != 0,
     deleted: (m['deleted'] as int? ?? 0) != 0,
     updatedAt: m['updated_at'] != null
         ? DateTime.tryParse(m['updated_at'] as String)

@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../database/database_helper.dart';
-import '../models/class_item.dart' show formatMinutes;
+import '../models/class_item.dart' show formatMinutes, formatRoom;
 import '../models/class_status.dart' show dateKey, shortDateLabel;
 import '../models/event_item.dart'
     show EventItem, eventDefaultLeadMinutes, eventLeadChoices, eventKickLabel, EventCategory;
+import '../services/auth_service.dart';
 import '../services/reminder_service.dart';
 import '../theme/app_theme.dart';
 import 'app_notification.dart';
@@ -94,11 +95,12 @@ Future<bool> deleteEventWithUndo(BuildContext context, EventItem event) async {
 Future<void> showEventSheet(
   BuildContext context, {
   EventItem? initial,
+  bool readOnly = false,
 }) =>
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => EventSheet(initial: initial),
+      builder: (_) => EventSheet(initial: initial, readOnly: readOnly),
     );
 
 /// The one event form the mockups specify: name, when & where, and the
@@ -106,10 +108,14 @@ Future<void> showEventSheet(
 /// the phone's local database — the footnote says exactly that, because the
 /// account sync that will carry events to other devices does not exist yet.
 class EventSheet extends StatefulWidget {
-  const EventSheet({super.key, this.initial});
+  const EventSheet({super.key, this.initial, this.readOnly = false});
 
   /// The event being edited; null creates a new one.
   final EventItem? initial;
+
+  /// Read-only presentation for events the viewer must not change
+  /// (admin broadcasts from another department).
+  final bool readOnly;
 
   @override
   State<EventSheet> createState() => _EventSheetState();
@@ -123,6 +129,7 @@ class _EventSheetState extends State<EventSheet> {
   late bool _remindMe;
   late int _lead;
   late EventCategory _category;
+  late bool _broadcast;
   bool _saving = false;
   final FocusNode _titleFocus = FocusNode();
   bool _titleFocusScheduled = false;
@@ -139,6 +146,7 @@ class _EventSheetState extends State<EventSheet> {
       _remindMe = initial.remindMe;
       _lead = initial.leadMinutes;
       _category = initial.category;
+      _broadcast = initial.broadcast;
     } else {
       // A fresh form never opens with a default already in the past:
       // today at 9:00 while morning, else the next half-hour, else
@@ -158,6 +166,7 @@ class _EventSheetState extends State<EventSheet> {
       _remindMe = true;
       _lead = eventDefaultLeadMinutes;
       _category = EventCategory.personal;
+      _broadcast = false;
     }
   }
 
@@ -193,6 +202,59 @@ class _EventSheetState extends State<EventSheet> {
   }
 
   bool get _nameValid => _title.text.trim().length >= 2;
+
+  bool get _isAdmin => AuthService.instance.isAdmin;
+  String? get _adminDept => AuthService.instance.userDepartment;
+  bool get _canBroadcast {
+    final dept = _adminDept?.trim() ?? '';
+    return _isAdmin && (AuthService.instance.isSuperAdmin || dept.isNotEmpty);
+  }
+
+  String get _broadcastLabel {
+    if (!_broadcast) return 'Just me';
+    return AuthService.instance.isSuperAdmin
+        ? 'Whole school'
+        : 'My department';
+  }
+
+  Future<void> _pickBroadcast() async {
+    FocusScope.of(context).unfocus();
+    final superAdmin = AuthService.instance.isSuperAdmin;
+    final picked = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              title: const Text('Just me'),
+              subtitle: const Text('Only your account sees this event'),
+              trailing: !_broadcast ? const Icon(Icons.check_rounded) : null,
+              onTap: () => Navigator.pop(sheetContext, false),
+            ),
+            if (_canBroadcast)
+              ListTile(
+                title: Text(
+                  superAdmin ? 'Whole school' : 'My department',
+                ),
+                subtitle: Text(
+                  superAdmin
+                      ? 'Every signed-in student sees this event'
+                      : 'Everyone in ${_adminDept ?? 'your department'} sees this event',
+                ),
+                trailing: _broadcast
+                    ? const Icon(Icons.check_rounded)
+                    : null,
+                onTap: () => Navigator.pop(sheetContext, true),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked != null) setState(() => _broadcast = picked);
+  }
 
   Future<void> _pickDate() async {
     FocusScope.of(context).unfocus();
@@ -262,6 +324,10 @@ class _EventSheetState extends State<EventSheet> {
       remindMe: _remindMe,
       leadMinutes: _lead,
       category: _category,
+      broadcast: _broadcast,
+      department: _broadcast
+          ? (AuthService.instance.isSuperAdmin ? null : _adminDept)
+          : null,
     );
     try {
       if (widget.initial == null) {
@@ -306,8 +372,75 @@ class _EventSheetState extends State<EventSheet> {
     if (ok && mounted) Navigator.of(context).pop();
   }
 
+  /// Read-only presentation of a shared event: details only, no editing
+  /// affordances. Used when the viewer is not the event's admin scope.
+  Widget _buildReadOnly(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final event = widget.initial!;
+    final venue = event.venue.trim();
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+        children: [
+          Text(
+            'Shared event · ${eventKickLabel(event.day)}'.toUpperCase(),
+            style: textTheme.labelSmall?.copyWith(
+              color: AppTheme.groupLabelColorOf(scheme),
+              fontSize: 10,
+              height: 1.2,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            event.title,
+            style: textTheme.titleLarge?.copyWith(fontSize: 20, height: 1.25),
+          ),
+          const Divider(height: 20),
+          _SheetRow(label: 'Date', value: shortDateLabel(event.day)),
+          _SheetRow(label: 'Time', value: event.timeLabel),
+          _SheetRow(
+            label: 'Where',
+            value: venue.isEmpty ? 'To be confirmed' : formatRoom(venue),
+          ),
+          _SheetRow(
+            label: 'Posted for',
+            value: event.department == null
+                ? 'Whole school'
+                : event.department!,
+          ),
+          if (event.remindMe)
+            _SheetRow(
+              label: 'Reminder',
+              value: '${event.leadMinutes} minutes before',
+            ),
+          const SizedBox(height: 16),
+          Text(
+            'Shared by your department · not editable on a student account',
+            textAlign: TextAlign.center,
+            style: textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+              fontSize: 12,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (widget.readOnly && widget.initial != null) {
+      return _buildReadOnly(context);
+    }
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final editing = widget.initial != null;
@@ -414,6 +547,13 @@ class _EventSheetState extends State<EventSheet> {
               if (picked != null) setState(() => _category = picked);
             },
           ),
+          if (_isAdmin)
+            _SheetRow(
+              label: 'Share with',
+              value: _broadcastLabel,
+              onTap: _canBroadcast ? _pickBroadcast : null,
+              disabled: !_canBroadcast,
+            ),
           // The venue is its own full-width filled field: one line, roomy
           // touch target, hint naming it optional.
           Padding(
@@ -503,7 +643,9 @@ class _EventSheetState extends State<EventSheet> {
           ],
           const SizedBox(height: 6),
           Text(
-            'Saved on this phone · syncs when account sync turns on',
+            AuthService.instance.isLoggedIn
+                ? 'Saved to your account · syncs across your devices'
+                : 'Saved on this phone · sign in to sync',
             textAlign: TextAlign.center,
             style: textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
