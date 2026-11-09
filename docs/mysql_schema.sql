@@ -166,6 +166,17 @@ CREATE TABLE sync_cursors (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
+-- Rate limiting (added 2026-11-09 with the PHP port). The port also
+-- self-creates this table at first use; the DDL is here for documentation.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS rate_limit_hits (
+  id     BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  bucket VARCHAR(300) NOT NULL,          -- 'forgot:<email>' | 'google'
+  hit_at DATETIME(3)  NOT NULL,
+  KEY idx_rl_bucket_time (bucket, hit_at)
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------------
 -- Helpful views for debugging
 -- ---------------------------------------------------------------------------
 CREATE VIEW active_classes AS
