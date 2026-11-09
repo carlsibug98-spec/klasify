@@ -22,7 +22,8 @@ class FirstRunOptions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final tiles = IntrinsicHeight(
+    final tiles = SizedBox(
+      height: 104,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
