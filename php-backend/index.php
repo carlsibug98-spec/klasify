@@ -8,6 +8,7 @@ require __DIR__ . '/src/common.php';
 require __DIR__ . '/src/auth.php';
 require __DIR__ . '/src/sync.php';
 require __DIR__ . '/src/admin.php';
+require __DIR__ . '/src/google_jwks.php';
 
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
