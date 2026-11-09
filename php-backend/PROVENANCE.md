@@ -28,6 +28,9 @@
   id now answers 404 / USER_NOT_FOUND instead of the old `{ok:true}` (Node's
   `(int)"abc"` cast made this unreachable through the app). Numeric-but-missing
   ids keep the Node-parity `{ok:true}` (documented, not "fixed").
-- Pending (TDD, Google suite): `google_verify` config switch + local JWKS
-  RS256 verifier in `src/google_jwks.php` replacing the per-login tokeninfo
-  cURL call; tokeninfo kept as fallback via `KLASIFY_GOOGLE_VERIFY=tokeninfo`.
+- 2026-11-09 (Google suite, Task 6): `src/google_jwks.php` added — local RS256
+  JWKS verification (`google_verify_jwks`, `jwks_pem` + DER helpers) with a 24h
+  on-disk cache at `storage/cache/google_jwks.json`, single re-fetch on an
+  unknown `kid`, and stale-cache fallback on a failed fetch. `config.php`
+  gained `google_verify` (`KLASIFY_GOOGLE_VERIFY`, default `jwt_jwks`); `auth.php`
+  dispatches on it, keeping `verify_google_id_token` as the `tokeninfo` fallback.

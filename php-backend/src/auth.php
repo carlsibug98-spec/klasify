@@ -146,7 +146,9 @@ function auth_google(): void
         throw new ApiError(429, 'Too many requests, please try again later', 'RATE_LIMITED');
     }
 
-    $claims = verify_google_id_token($idToken, $clientId);
+    $claims = cfg('google_verify') === 'tokeninfo'
+        ? verify_google_id_token($idToken, $clientId)
+        : google_verify_jwks($idToken, $clientId);
     if ($claims === null) {
         throw new ApiError(401, 'Invalid Google token', 'INVALID_GOOGLE_TOKEN');
     }

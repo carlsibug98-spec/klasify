@@ -14,6 +14,7 @@ require dirname(__DIR__) . '/src/common.php';
 require dirname(__DIR__) . '/src/auth.php';
 require dirname(__DIR__) . '/src/sync.php';
 require dirname(__DIR__) . '/src/admin.php';
+require dirname(__DIR__) . '/src/google_jwks.php';
 
 /// Minimal test runner: immediate execution, pass/fail counters, CLI output.
 final class T
@@ -229,7 +230,16 @@ function make_rs256_fixture(array $claims, string $kid = 'test-kid-1'): array
         'digest_alg' => 'sha256',
         'private_key_bits' => 2048,
         'private_key_type' => OPENSSL_KEYTYPE_RSA,
+        'config' => 'C:/xampp/php/extras/openssl/openssl.cnf',
     ]);
+    if ($privKey === false) {
+        $privKey = openssl_pkey_new([
+            'digest_alg' => 'sha256',
+            'private_key_bits' => 2048,
+            'private_key_type' => OPENSSL_KEYTYPE_RSA,
+            'config' => 'C:/xampp/apache/conf/openssl.cnf',
+        ]);
+    }
     $details = openssl_pkey_get_details($privKey);
     $b64url = fn (string $bin) => rtrim(strtr(base64_encode($bin), '+/', '-_'), '=');
     // JWK wants the modulus as an unsigned octet string (no leading zeros).

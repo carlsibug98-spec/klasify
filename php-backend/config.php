@@ -12,4 +12,5 @@ return [
     'db_pass'          => getenv('KLASIFY_DB_PASS') ?: '',
     'jwt_secret'       => getenv('KLASIFY_JWT_SECRET') ?: 'change-this-to-a-long-random-string-in-production',
     'google_client_id' => getenv('GOOGLE_CLIENT_ID') ?: '359657054360-0v7f3rlt56caci4h78v6kc0me91v2s4m.apps.googleusercontent.com',
+    'google_verify'     => getenv('KLASIFY_GOOGLE_VERIFY') ?: 'jwt_jwks',
 ];
