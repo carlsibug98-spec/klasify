@@ -47,7 +47,7 @@ Edit `config.php` (or set the matching environment variables):
 | `db_name` | `klasify_sync` | created by the schema file |
 | `db_user` / `db_pass` | `root` / *(empty)* | XAMPP's defaults |
 | `jwt_secret` | placeholder | **change it** to a long random string before real use |
-| `google_client_id` | the project's web client id | used to verify Google sign-in |
+| `google_verify` | `jwt_jwks` | `jwt_jwks` (default) verifies Google ID tokens locally against the JWKS; `tokeninfo` falls back to Google's endpoint |
 
 ## Running the Flutter app against it
 
@@ -88,8 +88,8 @@ config.php       Settings (not served to browsers)
 src/common.php   Database, JSON, JWT, timestamps, rate limiting, logging
 src/auth.php     /auth/* routes
 src/sync.php     /sync/push and /sync/pull
-src/admin.php    /admin/* routes
-storage/logs/    app.log (reset codes, skipped sync rows, server errors)
+src/google_jwks.php  Local RS256 verification of Google ID tokens (JWKS, 24h cache)
+storage/cache/       google_jwks.json (auto-created, gitignored)
 ```
 
 ## Notes on the migration
@@ -99,6 +99,8 @@ storage/logs/    app.log (reset codes, skipped sync rows, server errors)
   same, existing sign-in tokens stay valid too.
 - **Rate limits are stored in the database** (`rate_limit_hits`, created
   automatically on first use), so they hold across PHP requests.
-- **Google sign-in** verifies the ID token through Google's `tokeninfo`
-  endpoint, which needs no Composer packages.
+- **Google sign-in** verifies the ID token locally against Google's published
+  JWKS (RS256), cached for 24 hours in `storage/cache/google_jwks.json`. Set
+  `KLASIFY_GOOGLE_VERIFY=tokeninfo` to fall back to Google's tokeninfo
+  endpoint. No Composer packages are needed.
 - **Dates** are stored in UTC and sent as ISO 8601 strings, as before.
