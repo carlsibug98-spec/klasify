@@ -26,13 +26,17 @@ CREATE TABLE users (
   password_hash VARCHAR(255) NULL,              -- bcrypt, cost 12; NULL for Google-only accounts
   google_sub    VARCHAR(255) NULL,             -- Google subject id; UNIQUE when present
   display_name  VARCHAR(100) NOT NULL DEFAULT '',
+  role          VARCHAR(20)  NOT NULL DEFAULT 'user',   -- 'user' | 'admin' | 'super_admin'
+  department    VARCHAR(100) NULL,             -- department scope for dept admins; NULL = school-wide
   created_at    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   deleted       TINYINT(1)   NOT NULL DEFAULT 0,
 
   UNIQUE KEY uq_users_email (email),
   UNIQUE KEY uq_users_google_sub (google_sub),
-  KEY idx_users_updated (updated_at)
+  KEY idx_users_updated (updated_at),
+  KEY idx_users_role (role),
+  KEY idx_users_department (department)
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
@@ -66,13 +70,15 @@ CREATE TABLE classes (
 -- ---------------------------------------------------------------------------
 CREATE TABLE events (
   id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  user_id         BIGINT UNSIGNED NOT NULL,
+  user_id         BIGINT UNSIGNED NULL,          -- NULL = broadcast row (admin post); owner id for personal events
   local_id        BIGINT          NULL,
   title           VARCHAR(200)    NOT NULL,
   venue           VARCHAR(200)    NOT NULL DEFAULT '',
   event_date      DATE            NOT NULL,      -- yyyy-MM-dd
   start_minutes   SMALLINT        NOT NULL,      -- 0..1439
   category        ENUM('personal','school') NOT NULL DEFAULT 'personal',
+  department      VARCHAR(100)    NULL,          -- NULL = school-wide; non-null = department-scoped
+  broadcast       TINYINT(1)      NOT NULL DEFAULT 0, -- admin post: visible to the whole dept/school
   reminder_enabled TINYINT(1)     NOT NULL DEFAULT 1,
   lead_minutes    TINYINT         NOT NULL DEFAULT 30,
   created_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -87,6 +93,26 @@ CREATE TABLE events (
   CHECK (lead_minutes IN (5, 10, 15, 30))
 ) ENGINE=InnoDB;
 
+-- ---------------------------------------------------------------------------
+-- Office availability (guidance / clinic / registrar)
+-- ---------------------------------------------------------------------------
+CREATE TABLE office_statuses (
+  id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id         BIGINT UNSIGNED NULL,          -- last admin who changed it; NULL after account deletion
+  office_name     VARCHAR(64)     NOT NULL,
+  department      VARCHAR(100)    NULL,
+  status          ENUM('open','closed','break') NOT NULL DEFAULT 'open',
+  custom_message  VARCHAR(200)    NULL,
+  updated_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  deleted         TINYINT(1)      NOT NULL DEFAULT 0,
+
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  -- MySQL unique keys allow repeated NULLs, so the backend upserts school-wide
+  -- rows by (office_name, department IS NULL) explicitly instead of relying
+  -- on this key alone.
+  UNIQUE KEY uq_office (office_name, department),
+  KEY idx_office_updated (updated_at)
+) ENGINE=InnoDB;
 -- ---------------------------------------------------------------------------
 -- Class status marks (done / not attending / cancelled per date range)
 -- ---------------------------------------------------------------------------
@@ -150,3 +176,20 @@ CREATE VIEW active_events AS
 
 CREATE VIEW active_class_statuses AS
   SELECT * FROM class_statuses WHERE deleted = 0;
+
+-- ---------------------------------------------------------------------------
+-- Provisioning the first admin
+-- ---------------------------------------------------------------------------
+-- There is no public "claim admin" endpoint. Promote an existing account by
+-- email (sign up normally first), then sign out/in or wait for the next
+-- /auth/refresh so the app picks up the role.
+--
+--   UPDATE users SET role = 'super_admin' WHERE email = 'you@school.edu';
+--
+-- Department admins can broadcast events to their own department only:
+--
+--   UPDATE users SET role = 'admin', department = 'IT' WHERE email = 'dept@school.edu';
+--
+-- Super admins promote/demote and assign departments from
+-- Settings & privacy -> Admin -> User roles (no SQL needed after the first
+-- admin exists). Self-demotion is blocked by the API.

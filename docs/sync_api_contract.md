@@ -1,6 +1,6 @@
 # Klasify Sync API — Contract
 
-Base URL: `https://api.klasify.app/v1` (configurable; local dev: `http://localhost:3000/v1`)
+Base URL: `https://api.klasify.app` (configurable; local dev against the Node API: `http://localhost:8080`).
 
 All endpoints except `/auth/*` require `Authorization: Bearer <jwt>`.
 
@@ -9,12 +9,17 @@ All endpoints except `/auth/*` require `Authorization: Bearer <jwt>`.
 ### POST /auth/register
 ```json
 // Request
-{ "email": "user@example.com", "password": "min8chars", "display_name": "Juan" }
+{ "email": "user@example.com", "password": "min8chars",
+  "display_name": "Juan", "department": "IT" }
 
 // Response 201
-{ "user": { "id": 1, "email": "user@example.com", "display_name": "Juan" },
+{ "user": { "id": 1, "email": "user@example.com", "display_name": "Juan",
+             "role": "user", "department": "IT" },
   "token": "<jwt>", "expires_at": "2026-12-06T10:00:00Z" }
 ```
+
+`department` is optional on the wire but the app requires it at sign-up
+(`IT`, `AIS`, `BA`, `EDUC`).
 
 ### POST /auth/login
 ```json
@@ -22,16 +27,55 @@ All endpoints except `/auth/*` require `Authorization: Bearer <jwt>`.
 { "email": "user@example.com", "password": "..." }
 
 // Response 200
-{ "user": { "id": 1, "email": "...", "display_name": "..." },
+{ "user": { "id": 1, "email": "...", "display_name": "...",
+             "role": "user", "department": null },
   "token": "<jwt>", "expires_at": "..." }
 ```
+
+### POST /auth/google
+Verifies a Google ID token (audience = the configured web client id) and
+returns a session. `mode` decides what happens when the verified Google
+identity has no Klasify account:
+
+- `"signin"` (default) — **never** creates an account. Responds 404
+  `ACCOUNT_NOT_FOUND` so the sign-in screen can point at Create account.
+- `"signup"` — creates the account from the create-account screen. Uses the
+  user-typed `display_name` and `department` from the request, not the Google
+  profile name.
+
+```json
+// Request (create account)
+{ "id_token": "<google-id-token>", "mode": "signup",
+  "display_name": "Juan", "department": "IT" }
+
+// Response 200 (existing account or newly created)
+{ "user": { "id": 1, "email": "juan@gmail.com", "display_name": "Juan",
+             "role": "user", "department": "IT" },
+  "token": "<jwt>", "expires_at": "..." }
+```
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| INVALID_GOOGLE_TOKEN | 401 | Bad signature, wrong audience, or unverified email |
+| ACCOUNT_NOT_FOUND | 404 | Google identity has no account and mode was `signin` |
+| RATE_LIMITED | 429 | More than 30 attempts per minute (per instance) |
+
+If a password account already uses the Google email, the token is accepted,
+`google_sub` is backfilled, and the existing account (with its role) is
+returned — the merge path.
 
 ### POST /auth/refresh
 ```
 Authorization: Bearer <expired_jwt>
 // Response 200
-{ "token": "<new_jwt>", "expires_at": "..." }
+{ "token": "<new_jwt>", "expires_at": "...",
+  "user": { "id": 1, "email": "...", "display_name": "...",
+             "role": "admin", "department": "IT" } }
 ```
+
+`role` is `user` / `admin` / `super_admin`; `department` is non-null only for
+department-scoped admins. Refresh re-reads both from the DB, so promotions
+land without a new sign-in.
 
 ### PATCH /auth/me
 Partial profile edit. Send `display_name` and/or `email`.
@@ -41,7 +85,8 @@ Partial profile edit. Send `display_name` and/or `email`.
 { "display_name": "Clarisse", "email": "clarisse.sync@test.com" }
 
 // Response 200
-{ "user": { "id": 1, "email": "clarisse.sync@test.com", "display_name": "Clarisse" } }
+{ "user": { "id": 1, "email": "clarisse.sync@test.com", "display_name": "Clarisse",
+             "role": "user", "department": null } }
 ```
 
 | Code | HTTP | Meaning |
@@ -107,7 +152,8 @@ Pushes local changes to the server. The client sends only rows changed since the
   ],
   "events": [
     { "local_id": 3, "title": "Exam", "venue": "Gym", "event_date": "2026-11-10",
-      "start_minutes": 540, "category": "school", "reminder_enabled": true,
+      "start_minutes": 540, "category": "school", "department": null,
+      "broadcast": false, "reminder_enabled": true,
       "lead_minutes": 30, "updated_at": "2026-11-06T09:30:00.000Z", "deleted": false }
   ],
   "class_statuses": [
@@ -142,12 +188,36 @@ Pulls all rows changed on the server since `since`.
 {
   "server_time": "2026-11-06T09:31:00.000Z",
   "classes": [ { "id": 42, "subject": "Math", ..., "updated_at": "...", "deleted": false } ],
-  "events": [ { "id": 7, "title": "Exam", ..., "updated_at": "...", "deleted": false } ],
-  "class_statuses": [ { "id": 12, "class_id": 42, "status": "finished", ..., "updated_at": "...", "deleted": false } ]
+  "events": [ { "id": 7, "title": "Exam", ..., "department": null,
+                "broadcast": false, "updated_at": "...", "deleted": false } ],
+  "class_statuses": [ { "id": 12, "class_id": 42, "status": "finished", ..., "updated_at": "...", "deleted": false } ],
+  "office_statuses": [ { "office_name": "guidance", "status": "break",
+                         "custom_message": "Back at 2pm", "updated_at": "..." } ]
 }
 ```
 
 The client applies these to local SQLite (upsert by server_id mapping, or insert if new).
+Pulled events include the caller's own rows plus broadcast rows scoped to the
+caller (`department IS NULL` or `department = <caller.department>`); a broadcast
+row has `user_id = NULL` on the server and never matches a viewer's local id.
+
+### Admin endpoints
+
+All require a signed-in `admin` or `super_admin`; role/department changes are
+`super_admin` only.
+
+| Method | Path | Body | Notes |
+|---|---|---|---|
+| GET | `/admin/users` | — | super admins see everyone; dept admins see their department (limit 200) |
+| PATCH | `/admin/users/:id/role` | `{ "role": "admin" }` | self-demotion rejected with 422 |
+| PATCH | `/admin/users/:id/department` | `{ "department": "IT" }` or `null` | |
+| GET | `/admin/office-statuses` | — | seeds any missing office as `open` |
+| PATCH | `/admin/office-statuses/:office` | `{ "status": "break", "custom_message": "Back at 2pm" }` | school-wide |
+
+Broadcast scope is decided server-side from the caller's stored role and
+department, never from the push payload: a dept admin always posts to their own
+department (and cannot broadcast without one); a super admin may post
+school-wide (`department: null`) or to a department.
 
 ## Conflict resolution
 - **Last-write-wins** per row, based on `updated_at` (client timestamp vs server timestamp).
@@ -156,12 +226,10 @@ The client applies these to local SQLite (upsert by server_id mapping, or insert
 
 ## Sync flow (client side)
 1. On sign-in: push then pull, so every device starts consistent
-2. On app start (if signed in): pull since last_pull_at
-3. After any local write: schedule a debounced push (5s delay)
+2. While signed in: a 5-minute background timer pulls/pushes; failures retry
+   with backoff (30s → 5min) and surface in Settings & privacy
+3. Manual "Sync now" row in Settings & privacy (signed-in only)
 4. On app resume: pull since last_pull_at
-
-(There is no manual "Sync now" button — sync runs automatically at
-sign-in and on the schedule above.)
 
 ## Error responses
 All errors return JSON: `{ "error": "message", "code": "ERROR_CODE" }`
