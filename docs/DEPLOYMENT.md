@@ -1,88 +1,79 @@
-# Klasify backend deployment (HTTPS)
+# Klasify backend deployment (XAMPP / PHP)
 
-Release builds of the Flutter app are HTTPS-only (cleartext HTTP is disabled
-in the release manifest), so a real deployment needs an HTTPS endpoint in
-front of the Node/Express API.
+The sync and auth backend is PHP + MySQL on XAMPP. No Docker, no Node.js.
 
-## Option A — reverse proxy in front of Docker (recommended)
+## Requirements
 
-1. Run the backend as documented in `backend/README.md`:
-   ```
-   cd backend
-   docker compose up -d
-   ```
-   The API listens on `http://127.0.0.1:8080` on the host (container port 80,
-   published as 8080 by `backend/docker-compose.yml`).
+- **XAMPP** with PHP 8.0+ (XAMPP 8.x is fine) — `C:\xampp`
+- The **curl** extension enabled (on by default in XAMPP)
+- A MySQL/MariaDB instance (XAMPP's, on 127.0.0.1:3306)
 
-2. Put a TLS-terminating reverse proxy in front of it. Any of these work:
-   - **Caddy** (automatic Let's Encrypt):
-     ```
-     api.klasify.app {
-       reverse_proxy 127.0.0.1:8080
-     }
-     ```
-   - **nginx** with a cert from certbot:
-     ```
-     server {
-       listen 443 ssl;
-       server_name api.klasify.app;
-       ssl_certificate     /etc/letsencrypt/live/api.klasify.app/fullchain.pem;
-       ssl_certificate_key /etc/letsencrypt/live/api.klasify.app/privkey.pem;
-       location / { proxy_pass http://127.0.0.1:8080; }
-     }
-     ```
-   - A cloud load balancer (AWS ALB, GCP HTTPS LB, Cloudflare) terminating
-     TLS and forwarding to the container port 8080.
+## Local dev setup
 
-3. Point DNS `api.klasify.app` at the host. Verify:
-   ```
-   curl https://api.klasify.app/auth/login -X POST -H 'Content-Type: application/json' -d '{}'
-   ```
-   (expect `422 VALIDATION_ERROR`, not a connection error).
+1. Start Apache and MySQL in the XAMPP Control Panel.
+2. Create the database: `mysql -u root < docs/mysql_schema.sql` (creates `klasify_sync`).
+3. Copy `php-backend/` into `C:\xampp\htdocs\klasify-api\` (exclude `tests/`).
+4. Verify: `http://localhost/klasify-api/health` → `{"status":"ok","version":"1.0.0"}`.
+5. Allow port 80 through the Windows firewall for LAN access:
+   `netsh advfirewall firewall add rule name="Klasify API 80" dir=in action=allow protocol=TCP localport=80`
 
-## Option B — managed Node host
+## Settings
 
-Deploy `backend/` to a host that provides HTTPS by default (Render, Railway,
-Fly.io, Heroku). Set the env vars from `backend/docker-compose.yml`
-(`KLASIFY_DB_HOST`, `KLASIFY_DB_PORT`, `KLASIFY_DB_NAME`, `KLASIFY_DB_USER`,
-`KLASIFY_DB_PASS`, `KLASIFY_JWT_SECRET`, `GOOGLE_CLIENT_ID`) in the host's
-dashboard. The MySQL volume must be a managed database, not the container's.
+Edit `config.php` (or set env vars):
 
-## Option C — free tunnel, no domain purchase
+| Setting | Default | Notes |
+|---|---|---|
+| `db_host` / `db_port` | `127.0.0.1` / `3306` | XAMPP's MySQL |
+| `db_name` | `klasify_sync` | created by the schema file |
+| `db_user` / `db_pass` | `root` / *(empty)* | XAMPP's defaults |
+| `jwt_secret` | placeholder | **change it** to a long random string before real use |
+| `google_client_id` | project's web client id | used to verify Google sign-in |
+| `google_verify` | `jwt_jwks` | `jwt_jwks` (local RS256) or `tokeninfo` (fallback) |
 
-For a zero-cost demo endpoint, Cloudflare Quick Tunnel gives an HTTPS URL
-with no account or domain:
+## Migrating from the old Node/Docker backend
 
-    cloudflared tunnel --url http://localhost:8080
+1. Dump the live data: `docker exec klasify-mysql sh -c 'exec mysqldump -uroot -pklasify_dev klasify_sync' > klasify_sync_dump.sql`
+2. Stop Docker: `docker compose -f backend/docker-compose.yml down`
+3. Start XAMPP MySQL, import schema + dump:
+   `mysql -u root < docs/mysql_schema.sql`
+   `mysql -u root klasify_sync < klasify_sync_dump.sql`
+4. Copy `php-backend/` → `C:\xampp\htdocs\klasify-api\` (exclude `tests/`).
+5. Smoke test: `/health` 200, login `test@test.com`/`password123` 200 (Node bcrypt interop), `/admin/office-statuses` 200.
 
-Point `KLASIFY_API_URL` at the printed `https://<random>.trycloudflare.com`
-URL. The URL changes every time the tunnel restarts, so use it for a demo
-build, not for a long-lived release. A named Cloudflare Tunnel (also free)
-fixes the URL once a domain is available; Render/Fly/Railway free subdomains
-are the alternative when the API can move off this machine.
+Existing accounts keep working: Node-issued `$2b$` bcrypt hashes verify under PHP, and the HS256 JWT secret is unchanged.
 
-## Building the release APK
+## Running the Flutter app against it
 
-Once the HTTPS endpoint exists:
+Use your PC's LAN IP (e.g. `192.168.1.67`), never `localhost`:
 
 ```
-flutter build apk --release \
-  --dart-define=KLASIFY_API_URL=https://api.klasify.app \
-  --dart-define=GOOGLE_WEB_CLIENT_ID=<your-web-client-id>
+flutter run --dart-define=KLASIFY_API_URL=http://192.168.1.67/klasify-api \
+            --dart-define=GOOGLE_WEB_CLIENT_ID=359657054360-0v7f3rlt56caci4h78v6kc0me91v2s4m.apps.googleusercontent.com
 ```
 
-The release manifest is HTTPS-only, so a release build pointed at
-`http://...` will fail at runtime with a cleartext-not-permitted error.
-Debug/profile builds keep cleartext enabled for local dev against
-`http://192.168.1.67:8080`.
+Release builds require HTTPS; put the API behind a TLS reverse proxy for production.
 
-## Checklist before shipping
+## Password reset codes
 
-- [ ] `GOOGLE_CLIENT_ID` set on the API host (Google Sign-In returns
-      `VALIDATION_ERROR` otherwise).
-- [ ] `KLASIFY_JWT_SECRET` changed from the dev default to a long random string.
-- [ ] MySQL reachable from the API host (managed DB or same VPC).
-- [ ] HTTPS endpoint verified with curl.
-- [ ] APK built with `--dart-define=KLASIFY_API_URL=https://...`.
-- [ ] Android OAuth client ID registered with the **release** signing
-      certificate's SHA-1 (the debug SHA-1 `93:7D:...` is for debug builds only).
+No email server is configured yet. Reset codes are written to `storage/logs/app.log` on the API server.
+
+## Google sign-in troubleshooting
+
+Google sign-in verifies the ID token locally against Google's published JWKS (RS256), cached 24h in `storage/cache/google_jwks.json`. Set `KLASIFY_GOOGLE_VERIFY=tokeninfo` to fall back to Google's tokeninfo endpoint.
+
+If Google sign-in always answers `INVALID_GOOGLE_TOKEN`, PHP probably can't verify Google's HTTPS certificate. Open `php.ini`, set `curl.cainfo` to the `cacert.pem` that ships with XAMPP, restart Apache.
+
+## Folder layout
+
+```
+index.php        Router: CORS, route table, error handling
+config.php       Settings (not served to browsers)
+.htaccess        Sends all requests to index.php
+src/common.php   Database, JSON, JWT, timestamps, rate limiting, logging
+src/auth.php     /auth/* routes
+src/sync.php     /sync/push and /sync/pull
+src/admin.php    /admin/* routes
+src/google_jwks.php  Local RS256 verification of Google ID tokens
+storage/logs/    app.log (reset codes, skipped sync rows, server errors)
+storage/cache/   google_jwks.json (auto-created, gitignored)
+```

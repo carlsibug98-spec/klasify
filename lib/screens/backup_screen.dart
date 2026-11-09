@@ -2,7 +2,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../database/database_helper.dart';
-import '../models/class_item.dart';
 import '../services/auto_backup_service.dart';
 import '../services/reminder_service.dart';
 import '../theme/app_theme.dart';

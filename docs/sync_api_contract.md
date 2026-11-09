@@ -1,6 +1,6 @@
 # Klasify Sync API — Contract
 
-Base URL: `https://api.klasify.app` (configurable; local dev against the Node API: `http://localhost:8080`).
+Base URL: `https://api.klasify.app` (configurable; local dev against the PHP API on XAMPP: `http://<PC-IP>/klasify-api`).
 
 All endpoints except `/auth/*` require `Authorization: Bearer <jwt>`.
 
@@ -118,7 +118,7 @@ Creates a 6-digit code that lives 15 minutes (one active code per account).
 
 Max 5 requests per email per hour, then 429 `RATE_LIMITED`. Email delivery requires SMTP in
 production; while no mailer is configured the code is written to the server log
-(`docker logs klasify-api`) so the flow stays testable in development.
+(`storage/logs/app.log` on the API server) so the flow stays testable in development.
 
 ### POST /auth/reset-password
 ```json

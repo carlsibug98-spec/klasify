@@ -214,8 +214,8 @@ class _ResetPasswordConfirmScreenState
           if (kDebugMode) ...[
             const SizedBox(height: 6),
             Text(
-              'Dev builds: the code appears in the API console '
-              '(docker logs klasify-api).',
+              'Dev builds: the code is written to storage/logs/app.log '
+              'on the API server.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppTheme.placeholderFor(
                       Theme.of(context).colorScheme,

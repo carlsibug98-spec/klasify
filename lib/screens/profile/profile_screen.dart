@@ -7,7 +7,6 @@ import '../../services/auth_service.dart';
 import '../../services/sync_service.dart';
 import '../../theme/app_theme.dart';
 import 'profile_shared.dart';
-import 'profile_sheets.dart';
 import '../../widgets/app_notification.dart';
 
 /// The Profile tab: identity surface with schedule + guide shortcuts.
