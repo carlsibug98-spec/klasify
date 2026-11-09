@@ -202,6 +202,22 @@ function run_handler(callable $handler, mixed ...$args): array
     return ['status' => http_response_code() ?: 200, 'body' => $body, 'raw' => $raw];
 }
 
+/// HS256 token in the same shape as jwt_sign_token, with backdated claims,
+/// for the /auth/refresh-accepts-expired path.
+function make_expired_token(int $userId, string $email): string
+{
+    $header = b64url_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
+    $now = time();
+    $payload = b64url_encode(json_encode([
+        'user_id' => $userId,
+        'email' => $email,
+        'iat' => $now - TOKEN_TTL_SECONDS,
+        'exp' => $now - 10,
+    ], JSON_UNESCAPED_SLASHES));
+    $sig = b64url_encode(hash_hmac('sha256', "$header.$payload", cfg('jwt_secret'), true));
+    return "$header.$payload.$sig";
+}
+
 /// RS256 fixture for the JWKS tests: generate a keypair, build a JWKS doc
 /// and a matching signed id_token with the given claims.
 function make_rs256_fixture(array $claims, string $kid = 'test-kid-1'): array
