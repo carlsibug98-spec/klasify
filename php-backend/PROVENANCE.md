@@ -23,8 +23,11 @@
 - 2026-11-09 (test harness commit): single test seam in
   `src/common.php:read_json_body()` — CLI harness injects request bodies via
   `$GLOBALS['KLASIFY_TEST_BODY']`; production behavior unchanged.
-- Pending (TDD, admin suite): `src/admin.php` `ctype_digit` guard on admin
-  path ids — will be appended here with its date when it lands.
+- 2026-11-09 (admin suite, Task 5): `src/admin.php` gained a `ctype_digit`
+  guard on `admin_set_role` and `admin_set_department` path ids — a non-numeric
+  id now answers 404 / USER_NOT_FOUND instead of the old `{ok:true}` (Node's
+  `(int)"abc"` cast made this unreachable through the app). Numeric-but-missing
+  ids keep the Node-parity `{ok:true}` (documented, not "fixed").
 - Pending (TDD, Google suite): `google_verify` config switch + local JWKS
   RS256 verifier in `src/google_jwks.php` replacing the per-login tokeninfo
   cURL call; tokeninfo kept as fallback via `KLASIFY_GOOGLE_VERIFY=tokeninfo`.

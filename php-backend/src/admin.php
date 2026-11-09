@@ -57,6 +57,12 @@ function admin_list_users(): void
 function admin_set_role(string $id): void
 {
     $caller = admin_caller();
+    // Hardening patch (2026-11-09, Task 5): a non-numeric path id must not
+    // silently become user 0 and answer {ok:true}. Node did the same cast
+    // but was unreachable with non-numeric ids; making the failure explicit.
+    if (!ctype_digit($id)) {
+        throw new ApiError(404, 'User not found', 'USER_NOT_FOUND');
+    }
     $targetId = (int)$id;
     $role = trim(js_text(read_json_body()['role'] ?? null));
 
@@ -78,6 +84,9 @@ function admin_set_role(string $id): void
 function admin_set_department(string $id): void
 {
     $caller = admin_caller();
+    if (!ctype_digit($id)) {
+        throw new ApiError(404, 'User not found', 'USER_NOT_FOUND');
+    }
     $targetId = (int)$id;
     $body = read_json_body();
 
