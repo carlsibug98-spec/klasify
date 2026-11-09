@@ -88,6 +88,12 @@ function send_no_content(): void
 /// Malformed JSON is rejected with 422, like the Express parser did.
 function read_json_body(): array
 {
+    // Test seam (adoption, 2026-11-09): the parity harness injects request
+    // bodies from CLI (php://input is not writable there). Production never
+    // sets this key, so behavior below is unchanged.
+    if (isset($GLOBALS['KLASIFY_TEST_BODY'])) {
+        return $GLOBALS['KLASIFY_TEST_BODY'];
+    }
     static $body = null;
     if ($body !== null) {
         return $body;
