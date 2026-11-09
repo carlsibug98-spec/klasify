@@ -552,7 +552,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
                       children: [
                         // Hint text
                         Padding(
-                          padding: EdgeInsets.only(left: 4, bottom: 16),
+                          padding: const EdgeInsets.only(left: 4, bottom: 16),
                           child: Text(
                             'Fields marked * are required.',
                             style: TextStyle(
@@ -636,7 +636,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
             const SizedBox(height: 4),
             Text(
               _subjectError!,
-              key: Key('edit_class_subject_error'),
+              key: const Key('edit_class_subject_error'),
               style: TextStyle(color: ComposeColors.of(context).error, fontSize: 13),
             ),
           ],
@@ -826,7 +826,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
             const SizedBox(height: 8),
             Text(
               _dayError!,
-              key: Key('edit_class_day_error'),
+              key: const Key('edit_class_day_error'),
               style: TextStyle(color: ComposeColors.of(context).error, fontSize: 13),
             ),
           ],
@@ -860,7 +860,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
             const SizedBox(height: 8),
             Text(
               _timeError!,
-              key: Key('edit_class_time_error'),
+              key: const Key('edit_class_time_error'),
               style: TextStyle(color: ComposeColors.of(context).error, fontSize: 13),
             ),
           ],
@@ -886,7 +886,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
         borderRadius: BorderRadius.circular(12),
         onTap: () => _openTimePicker(isStart: isStart),
         child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: ComposeColors.of(context).field,
             borderRadius: BorderRadius.circular(12),
@@ -994,7 +994,7 @@ class _EditClassScreenState extends State<EditClassScreen> {
             child: SizedBox(
               height: 48,
               child: ElevatedButton(
-                key: Key('edit_class_delete_button'),
+                key: const Key('edit_class_delete_button'),
                 onPressed: _isDeleting || _isSaving ? null : _onDeleteTap,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _deleteArmed

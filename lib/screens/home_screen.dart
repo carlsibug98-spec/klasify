@@ -23,6 +23,7 @@ import '../widgets/next_class_card.dart';
 import '../widgets/office_status_strip.dart';
 import '../services/first_class_coach_store.dart';
 import '../services/auth_service.dart';
+import '../services/sync_service.dart';
 import '../services/reminder_service.dart';
 import '../services/coach_tour_store.dart';
 import '../widgets/coach_tour_overlay.dart';
@@ -248,6 +249,117 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _retry() {
     setState(() => _loading = true);
     _load();
+  }
+
+  Future<void> _editOfficeStatus(OfficeStatus office) async {
+    final name = office.office;
+    final display = office.displayName;
+    var status = office.status;
+    final note = TextEditingController(text: office.message ?? '');
+
+    final result = await showModalBottomSheet<({String status, String? note})>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setModal) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
+                  child: Text(
+                    display,
+                    style: Theme.of(sheetContext).textTheme.titleLarge,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                  child: Text(
+                    'Students see this on Today, updated at the next sync.',
+                    style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(
+                        sheetContext,
+                      ).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                for (final option in const [
+                  ('open', 'Open', Icons.check_circle_outline_rounded),
+                  ('break', 'On break', Icons.pause_circle_outline_rounded),
+                  ('closed', 'Closed', Icons.cancel_outlined),
+                ])
+                  ListTile(
+                    leading: Icon(option.$3),
+                    title: Text(option.$2),
+                    trailing: status == option.$1
+                        ? const Icon(Icons.check_rounded)
+                        : null,
+                    onTap: () => setModal(() => status = option.$1),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+                  child: TextField(
+                    controller: note,
+                    maxLength: 60,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(
+                      labelText: 'Note (optional)',
+                      hintText: 'Back at 2pm',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
+                  child: SizedBox(
+                    height: 52,
+                    child: FilledButton(
+                      onPressed: () {
+                        final text = note.text.trim();
+                        Navigator.pop(sheetContext, (
+                          status: status,
+                          note: text.isEmpty ? null : text,
+                        ));
+                      },
+                      child: const Text('Update availability'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    note.dispose();
+
+    if (result == null) return;
+    try {
+      await AuthService.instance.adminSetOfficeStatus(
+        name,
+        result.status,
+        customMessage: result.note,
+      );
+      unawaited(SyncService.instance.syncNow());
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$display updated')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e')),
+        );
+      }
+    }
   }
 
   /// The one-time empty-schedule coach: newcomers who explore without adding
@@ -662,7 +774,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             ),
                           ),
                         if (_offices.isNotEmpty)
-                          OfficeStatusStrip(offices: _offices),
+                          OfficeStatusStrip(
+                            offices: _offices,
+                            isAdmin: AuthService.instance.isAdmin,
+                            onEditOffice: AuthService.instance.isAdmin
+                                ? _editOfficeStatus
+                                : null,
+                          ),
                         // Whole-school events: a count chip, an Add entry, and
                         // date-block rows. The section header stays even with
                         // zero events so the entry point never disappears under

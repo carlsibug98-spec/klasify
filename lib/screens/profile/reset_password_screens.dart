@@ -191,7 +191,7 @@ class _ResetPasswordConfirmScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: ProfileTitleBar(parent: 'Reset password'),
+      appBar: const ProfileTitleBar(parent: 'Reset password'),
       body: ListView(
         padding: AppTheme.pagePadding,
         children: [

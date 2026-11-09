@@ -568,7 +568,7 @@ class ProfileVersionLine extends StatelessWidget {
             fontWeight: FontWeight.w500,
           ),
         ),
-        child: Text('Klasify ${AppInfo.version} (build ${AppInfo.build})'),
+        child: const Text('Klasify ${AppInfo.version} (build ${AppInfo.build})'),
       ),
     );
   }

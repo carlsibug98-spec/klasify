@@ -164,7 +164,7 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: ProfileTitleBar(parent: 'Profile'),
+      appBar: const ProfileTitleBar(parent: 'Profile'),
       body: ListView(
         padding: AppTheme.pagePadding,
         children: [

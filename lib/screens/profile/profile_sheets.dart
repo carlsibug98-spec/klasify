@@ -70,7 +70,7 @@ Future<void> showProfileContactSupportSheet(BuildContext context) {
 /// fact, with the licenses one tap away. Same layout idiom as the day
 /// status sheet (icon block + title + subtitle on a single quiet surface).
 class ProfileAboutSheet extends StatelessWidget {
-  const ProfileAboutSheet();
+  const ProfileAboutSheet({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -154,8 +154,8 @@ class ProfileAboutSheet extends StatelessWidget {
                     context: context,
                     applicationName: AppInfo.name,
                     applicationVersion: '${AppInfo.version} (${AppInfo.build})',
-                    applicationIcon: ImageIcon(
-                      const AssetImage('assets/klasify_logo.png'),
+                    applicationIcon: const ImageIcon(
+                      AssetImage('assets/klasify_logo.png'),
                       size: 44,
                     ),
                     applicationLegalese: AppInfo.tagline,
@@ -201,7 +201,7 @@ class ProfileAboutSheet extends StatelessWidget {
 /// How to place the native home-screen widget. Widgets live in the launcher,
 /// not inside the app, so the steps name the launcher's own vocabulary.
 class ProfileWidgetHelpSheet extends StatelessWidget {
-  const ProfileWidgetHelpSheet();
+  const ProfileWidgetHelpSheet({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -316,7 +316,7 @@ class ProfileWidgetHelpSheet extends StatelessWidget {
 /// The Help centre sheet: the questions the app can answer from its own
 /// behaviour, written from how things actually work.
 class ProfileHelpCentreSheet extends StatelessWidget {
-  const ProfileHelpCentreSheet();
+  const ProfileHelpCentreSheet({super.key});
 
   static const List<(String, String)> _answers = [
     (
@@ -436,7 +436,7 @@ class ProfileHelpCentreSheet extends StatelessWidget {
 /// a useful report contains and copies the app's fingerprint to the
 /// clipboard so it can be pasted wherever they reach the developer.
 class ProfileContactSupportSheet extends StatelessWidget {
-  const ProfileContactSupportSheet();
+  const ProfileContactSupportSheet({super.key});
 
   static String get _report =>
       'Klasify ${AppInfo.version} (build ${AppInfo.build})';

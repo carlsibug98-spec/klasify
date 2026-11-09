@@ -99,7 +99,7 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
             final notificationsOn =
                 (_classEnabled ?? false) || (_eventsEnabled ?? true);
             return Scaffold(
-              appBar: ProfileTitleBar(parent: 'Profile'),
+              appBar: const ProfileTitleBar(parent: 'Profile'),
               body: ListView(
                 padding: AppTheme.pagePadding,
                 children: [

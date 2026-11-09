@@ -144,7 +144,7 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
     return Container(
       decoration: BoxDecoration(
         color: ComposeColors.of(context).surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
       ),
       padding: EdgeInsets.fromLTRB(16, 12, 16, bottomInset + 16),
       child: Column(
@@ -210,7 +210,7 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                       style: TextStyle(
                         color: ComposeColors.of(context).muted,
                         fontSize: 15,
-                        fontFeatures: [FontFeature.tabularFigures()],
+                        fontFeatures: [const FontFeature.tabularFigures()],
                       ),
                     ),
                   ],
@@ -265,7 +265,7 @@ class _EditClassTimePickerSheetState extends State<EditClassTimePickerSheet> {
                 // Highlight band behind the selected row
                 Container(
                   height: 44,
-                  margin: EdgeInsets.symmetric(horizontal: 8),
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
                     color: ComposeColors.of(context).field,
                     borderRadius: BorderRadius.circular(10),

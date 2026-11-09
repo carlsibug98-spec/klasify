@@ -112,7 +112,7 @@ void main() {
   });
 
   test('broadcast scope round-trips with the department', () {
-    final event = EventItem(
+    final event = const EventItem(
       title: 'IT Dept Event',
       venue: 'Lab 2',
       date: '2026-11-21',

@@ -96,7 +96,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: ProfileTitleBar(parent: 'Password & security'),
+      appBar: const ProfileTitleBar(parent: 'Password & security'),
       body: ListView(
         padding: AppTheme.pagePadding,
         children: [

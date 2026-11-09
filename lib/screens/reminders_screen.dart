@@ -207,7 +207,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Scaffold(
-      appBar: ProfileTitleBar(parent: 'Settings & privacy'),
+      appBar: const ProfileTitleBar(parent: 'Settings & privacy'),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 680),

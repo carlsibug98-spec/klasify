@@ -24,7 +24,7 @@ class LegalDocScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Scaffold(
-      appBar: ProfileTitleBar(parent: 'Settings & privacy'),
+      appBar: const ProfileTitleBar(parent: 'Settings & privacy'),
       body: ListView(
         padding: AppTheme.pagePadding,
         children: [

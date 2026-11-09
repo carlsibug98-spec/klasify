@@ -16,7 +16,7 @@ class SecurityHubScreen extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 680),
         child: Scaffold(
-          appBar: ProfileTitleBar(parent: 'Settings & privacy'),
+          appBar: const ProfileTitleBar(parent: 'Settings & privacy'),
           body: ListView(
             padding: AppTheme.pagePadding,
             children: [
@@ -38,11 +38,11 @@ class SecurityHubScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppTheme.sectionGap),
-              ProfileGroup(
+              const ProfileGroup(
                 label: 'WHERE YOU’RE SIGNED IN',
                 description: 'Phones your account syncs on.',
                 rows: [
-                  const ProfileRow(
+                  ProfileRow(
                     icon: Icons.sync_rounded,
                     title: 'This phone',
                     subtitle: 'Signed in automatically',
