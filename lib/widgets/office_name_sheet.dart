@@ -103,7 +103,9 @@ class _OfficeNameSheetState extends State<_OfficeNameSheet> {
       // could tap away and never learn whether the change landed).
       canPop: !_busy,
       child: Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
         child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -225,7 +227,9 @@ class _OfficeNameSheetState extends State<_OfficeNameSheet> {
                 child: SizedBox(
                   height: 40,
                   child: TextButton(
-                    onPressed: _busy ? null : () => Navigator.pop(context, false),
+                    onPressed: _busy
+                        ? null
+                        : () => Navigator.pop(context, false),
                     style: TextButton.styleFrom(
                       foregroundColor: scheme.onSurfaceVariant,
                       textStyle: theme.textTheme.labelLarge?.copyWith(
