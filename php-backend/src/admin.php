@@ -1,12 +1,12 @@
 <?php
 // src/admin.php
-// /admin routes: user list, role and department changes, and office availability.
-// Every route needs a signed-in admin. Department admins see only their department;
-// role and department changes are super_admin only.
+// /admin routes: user list, role and department changes, office availability,
+// and office management (add/rename/retire). Every route needs a signed-in
+// admin. Department admins see only their department; role and department
+// changes plus office management are super_admin only.
 
 const ADMIN_ROLES = ['user', 'admin', 'super_admin'];
 const OFFICE_STATUSES = ['open', 'closed', 'break'];
-const OFFICES = ['guidance', 'clinic', 'registrar'];
 
 /// Authenticates the caller and confirms they are an admin. Returns their id, role and department.
 function admin_caller(): array
@@ -20,6 +20,16 @@ function admin_caller(): array
         throw new ApiError(403, 'Admin access required', 'FORBIDDEN');
     }
     return ['id' => $userId, 'role' => $row['role'], 'department' => $row['department']];
+}
+
+/// admin_caller() + super_admin requirement. Returns the caller array.
+function admin_super_caller(): array
+{
+    $caller = admin_caller();
+    if ($caller['role'] !== 'super_admin') {
+        throw new ApiError(403, 'Super admin required', 'FORBIDDEN');
+    }
+    return $caller;
 }
 
 /// GET /admin/users -> { users: [...] } (limit 200)
@@ -99,21 +109,11 @@ function admin_set_department(string $id): void
     send_json(200, ['ok' => true]);
 }
 
-/// GET /admin/office-statuses -> { offices: [...] }. Seeds any missing office as "open".
+/// GET /admin/office-statuses -> { offices: [...] }. No seeding; an empty list is valid.
 function admin_list_offices(): void
 {
-    $caller = admin_caller();
+    admin_caller();
     $select = 'SELECT id, office_name, status, custom_message, user_id, updated_at FROM office_statuses WHERE deleted = 0 AND department IS NULL ORDER BY office_name';
-
-    $present = array_column(fetch_all($select), 'office_name');
-    foreach (OFFICES as $office) {
-        if (!in_array($office, $present, true)) {
-            query(
-                'INSERT INTO office_statuses (user_id, office_name, department, status) VALUES (?,?,NULL,?)',
-                [$caller['id'], $office, 'open']
-            );
-        }
-    }
 
     $offices = array_map(fn (array $r) => [
         'id' => (int)$r['id'],
@@ -131,10 +131,7 @@ function admin_list_offices(): void
 function admin_update_office(string $office): void
 {
     $caller = admin_caller();
-    $office = trim(rawurldecode($office));
-    if (!in_array($office, OFFICES, true)) {
-        throw new ApiError(422, 'Unknown office', 'VALIDATION_ERROR');
-    }
+    $office = office_row_or_404($office);
 
     $body = read_json_body();
     $status = trim(js_text($body['status'] ?? null));
@@ -143,20 +140,107 @@ function admin_update_office(string $office): void
     }
     $customMessage = isset($body['custom_message']) ? trim(js_string($body['custom_message'])) : null;
 
-    $existing = fetch_one(
-        'SELECT id FROM office_statuses WHERE office_name = ? AND department IS NULL AND deleted = 0 LIMIT 1',
-        [$office]
+    query(
+        'UPDATE office_statuses SET status = ?, custom_message = ?, user_id = ? WHERE id = ?',
+        [$status, $customMessage, $caller['id'], $office['id']]
     );
-    if ($existing !== null) {
-        query(
-            'UPDATE office_statuses SET status = ?, custom_message = ?, user_id = ? WHERE id = ?',
-            [$status, $customMessage, $caller['id'], $existing['id']]
-        );
-    } else {
-        query(
-            'INSERT INTO office_statuses (user_id, office_name, department, status, custom_message) VALUES (?,?,NULL,?,?)',
-            [$caller['id'], $office, $status, $customMessage]
-        );
+    send_json(200, ['ok' => true]);
+}
+
+/// Trims an office name; empty or longer than 40 chars is a 422.
+function office_name_or_422(string $raw): string
+{
+    $name = trim($raw);
+    if ($name === '' || mb_strlen($name) > 40) {
+        throw new ApiError(422, 'Invalid office name', 'VALIDATION_ERROR');
     }
+    return $name;
+}
+
+/// Rejects a name already used by an active school-wide office (case-insensitive).
+function office_assert_unique(string $name, ?int $excludeId = null): void
+{
+    $sql = 'SELECT id FROM office_statuses WHERE LOWER(office_name) = LOWER(?) AND department IS NULL AND deleted = 0';
+    $params = [$name];
+    if ($excludeId !== null) {
+        $sql .= ' AND id <> ?';
+        $params[] = $excludeId;
+    }
+    if (fetch_one($sql . ' LIMIT 1', $params) !== null) {
+        throw new ApiError(409, 'Office already exists', 'OFFICE_EXISTS');
+    }
+}
+
+/// Loads the active school-wide office named by a path key. 404 when it is gone.
+function office_row_or_404(string $key): array
+{
+    $name = trim(rawurldecode($key));
+    $row = fetch_one(
+        'SELECT id, office_name, status, custom_message FROM office_statuses WHERE office_name = ? AND department IS NULL AND deleted = 0 LIMIT 1',
+        [$name]
+    );
+    if ($row === null) {
+        throw new ApiError(404, 'Office not found', 'OFFICE_NOT_FOUND');
+    }
+    return $row;
+}
+
+/// POST /admin/offices  body: { name } -> 201 { office: {...} }
+function admin_add_office(): void
+{
+    $caller = admin_super_caller();
+    $name = office_name_or_422(js_text(read_json_body()['name'] ?? null));
+    office_assert_unique($name);
+
+    query(
+        'INSERT INTO office_statuses (user_id, office_name, department, status) VALUES (?,?,NULL,?)',
+        [$caller['id'], $name, 'open']
+    );
+    $row = fetch_one(
+        'SELECT id, office_name, status, custom_message, user_id, updated_at FROM office_statuses WHERE id = ? LIMIT 1',
+        [(int)db()->lastInsertId()]
+    );
+
+    send_json(201, ['office' => [
+        'id' => (int)$row['id'],
+        'office_name' => $row['office_name'],
+        'status' => $row['status'],
+        'custom_message' => $row['custom_message'],
+        'user_id' => nullable_int($row['user_id']),
+        'updated_at' => $row['updated_at'],
+    ]]);
+}
+
+/// PATCH /admin/offices/{office}  body: { name } -> 200 { ok: true }
+function admin_rename_office(string $office): void
+{
+    $caller = admin_super_caller();
+    $row = office_row_or_404($office);
+    $newName = office_name_or_422(js_text(read_json_body()['name'] ?? null));
+    office_assert_unique($newName, (int)$row['id']);
+
+    // Tombstone the old key and re-create it under the new name so the
+    // availability row keeps its status and note.
+    query(
+        'UPDATE office_statuses SET deleted = 1, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?',
+        [$row['id']]
+    );
+    query(
+        'INSERT INTO office_statuses (user_id, office_name, department, status, custom_message) VALUES (?,?,NULL,?,?)',
+        [$caller['id'], $newName, $row['status'], $row['custom_message']]
+    );
+    send_json(200, ['ok' => true]);
+}
+
+/// DELETE /admin/offices/{office} -> 200 { ok: true }. Soft delete, permanent in-app.
+function admin_retire_office(string $office): void
+{
+    admin_super_caller();
+    $row = office_row_or_404($office);
+
+    query(
+        'UPDATE office_statuses SET deleted = 1, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?',
+        [$row['id']]
+    );
     send_json(200, ['ok' => true]);
 }

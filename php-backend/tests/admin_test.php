@@ -139,88 +139,147 @@ T()->test('department assignment incl. clearing and Node-parity missing id', fun
     T()->eq(['ok' => true], $r['body'], 'missing numeric id body');
 });
 
-T()->test('office list auto-seeds all 3 with raw updated_at', function () {
+T()->test('office list: no seeding, empty is valid', function () {
     db_reset();
-    seed_user(['email' => 'oa@test.com', 'role' => 'admin']);
+    seed_user(['email' => 'oa@test.com', 'role' => 'super_admin']);
     act_as(1);
     $r = run_handler('admin_list_offices');
-    T()->eq(200, $r['status'], 'office list status');
-    $offices = $r['body']['offices'] ?? [];
-    T()->eq(['clinic', 'guidance', 'registrar'], array_column($offices, 'office_name'), 'office names ordered by name');
-    foreach ($offices as $o) {
-        T()->eq('open', $o['status'], "office {$o['office_name']} seeded open");
-        T()->truthy($o['user_id'] !== null && $o['user_id'] > 0, "office {$o['office_name']} has seeder user_id");
-        T()->truthy(preg_match(RAWDT_RX, (string)$o['updated_at']) === 1, "office {$o['office_name']} raw updated_at");
-        T()->truthy($o['custom_message'] === null, "office {$o['office_name']} message null");
-    }
+    T()->eq(200, $r['status'], 'list status');
+    T()->eq([], $r['body']['offices'] ?? null, 'fresh DB yields empty list');
 });
 
-T()->test('office upsert update branch', function () {
+T()->test('add office: 201 + row shape', function () {
     db_reset();
-    seed_user(['email' => 'oa2@test.com', 'role' => 'admin']);
+    seed_user(['email' => 'oa2@test.com', 'role' => 'super_admin']);
     act_as(1);
-    run_handler('admin_list_offices'); // seed
+    set_body(['name' => 'Library']);
+    $r = run_handler('admin_add_office');
+    T()->eq(201, $r['status'], 'create status');
+    $o = $r['body']['office'] ?? [];
+    T()->eq(['id', 'office_name', 'status', 'custom_message', 'user_id', 'updated_at'], array_keys($o), 'row keys');
+    T()->eq('Library', $o['office_name'], 'name kept verbatim');
+    T()->eq('open', $o['status'], 'new offices start open');
+    T()->truthy($o['custom_message'] === null, 'note null');
+    T()->truthy($o['user_id'] === 1, 'creator user_id');
+    T()->truthy(preg_match(RAWDT_RX, (string)$o['updated_at']) === 1, 'raw updated_at');
+    $r = run_handler('admin_list_offices');
+    T()->eq(['Library'], array_column($r['body']['offices'] ?? [], 'office_name'), 'appears in list');
+});
 
+T()->test('add office: duplicate case-insensitive -> 409 OFFICE_EXISTS', function () {
+    db_reset();
+    seed_user(['email' => 'oa3@test.com', 'role' => 'super_admin']);
+    act_as(1);
+    set_body(['name' => 'Library']);
+    run_handler('admin_add_office');
+    set_body(['name' => 'library']);
+    $r = run_handler('admin_add_office');
+    T()->eq(409, $r['status'], 'dup status');
+    T()->eq('OFFICE_EXISTS', $r['body']['code'] ?? null, 'dup code');
+    set_body(['name' => '  Library  ']);
+    $r = run_handler('admin_add_office');
+    T()->eq(409, $r['status'], 'padded dup status');
+});
+
+T()->test('add office: name validation -> 422', function () {
+    db_reset();
+    seed_user(['email' => 'oa4@test.com', 'role' => 'super_admin']);
+    act_as(1);
+    set_body(['name' => '   ']);
+    $r = run_handler('admin_add_office');
+    T()->eq(422, $r['status'], 'blank name status');
+    T()->eq('VALIDATION_ERROR', $r['body']['code'] ?? null, 'blank name code');
+    set_body(['name' => str_repeat('x', 41)]);
+    $r = run_handler('admin_add_office');
+    T()->eq(422, $r['status'], '41-char name status');
+    set_body(['name' => str_repeat('x', 40)]);
+    T()->eq(201, run_handler('admin_add_office')['status'], '40-char name ok');
+});
+
+T()->test('rename office: keeps status+note, tombstones old key', function () {
+    db_reset();
+    seed_user(['email' => 'oa5@test.com', 'role' => 'super_admin']);
+    act_as(1);
+    set_body(['name' => 'Library']);
+    run_handler('admin_add_office');
     set_body(['status' => 'break', 'custom_message' => 'Back at 2pm']);
-    $r = run_handler('admin_update_office', 'guidance');
-    T()->eq(200, $r['status'], 'office update status');
-    T()->eq(['ok' => true], $r['body'], 'office update body');
-
+    run_handler('admin_update_office', 'Library');
+    set_body(['name' => 'Learning Commons']);
+    $r = run_handler('admin_rename_office', 'Library');
+    T()->eq(200, $r['status'], 'rename status');
+    T()->eq(['ok' => true], $r['body'], 'rename body');
     $r = run_handler('admin_list_offices');
-    $g = null;
-    foreach ($r['body']['offices'] ?? [] as $o) {
-        if ($o['office_name'] === 'guidance') {
-            $g = $o;
-        }
-    }
-    T()->truthy($g !== null, 'guidance still listed');
-    T()->eq('break', $g['status'], 'guidance status updated');
-    T()->eq('Back at 2pm', $g['custom_message'], 'guidance custom_message updated');
-    T()->eq(1, $g['user_id'], 'guidance editor recorded');
+    T()->eq(['Learning Commons'], array_column($r['body']['offices'] ?? [], 'office_name'), 'only new key listed');
+    $new = fetch_one("SELECT status, custom_message FROM office_statuses WHERE office_name = 'Learning Commons'");
+    T()->eq('break', $new['status'], 'status carried over');
+    T()->eq('Back at 2pm', $new['custom_message'], 'note carried over');
+    T()->eq(1, (int)fetch_one("SELECT deleted FROM office_statuses WHERE office_name = 'Library'")['deleted'], 'old key tombstoned');
 });
 
-T()->test('office upsert create branch after hard delete', function () {
+T()->test('rename office: dup -> 409, unknown -> 404', function () {
     db_reset();
-    seed_user(['email' => 'oa3@test.com', 'role' => 'admin']);
+    seed_user(['email' => 'oa6@test.com', 'role' => 'super_admin']);
     act_as(1);
-    run_handler('admin_list_offices'); // seed
+    set_body(['name' => 'Alpha']); run_handler('admin_add_office');
+    set_body(['name' => 'Beta']);  run_handler('admin_add_office');
+    set_body(['name' => 'beta']);
+    $r = run_handler('admin_rename_office', 'Alpha');
+    T()->eq(409, $r['status'], 'rename onto existing status');
+    T()->eq('OFFICE_EXISTS', $r['body']['code'] ?? null, 'rename onto existing code');
+    set_body(['name' => 'Whatever']);
+    $r = run_handler('admin_rename_office', 'Nope');
+    T()->eq(404, $r['status'], 'rename unknown status');
+    T()->eq('OFFICE_NOT_FOUND', $r['body']['code'] ?? null, 'rename unknown code');
+    $r = run_handler('admin_retire_office', 'Nope');
+    T()->eq(404, $r['status'], 'retire unknown status');
+    T()->eq('OFFICE_NOT_FOUND', $r['body']['code'] ?? null, 'retire unknown code');
+});
 
-    query("DELETE FROM office_statuses WHERE office_name = 'guidance'");
-    T()->truthy(
-        fetch_one("SELECT id FROM office_statuses WHERE office_name = 'guidance'") === null,
-        'guidance really gone'
-    );
-
+T()->test('retire office: soft-deletes, list empties, availability PATCH then 404', function () {
+    db_reset();
+    seed_user(['email' => 'oa7@test.com', 'role' => 'super_admin']);
+    act_as(1);
+    set_body(['name' => 'Clinic']); run_handler('admin_add_office');
+    $r = run_handler('admin_retire_office', 'Clinic');
+    T()->eq(200, $r['status'], 'retire status');
+    T()->eq(['ok' => true], $r['body'], 'retire body');
+    T()->eq([], run_handler('admin_list_offices')['body']['offices'], 'gone from list');
+    T()->eq(1, (int)fetch_one("SELECT deleted FROM office_statuses WHERE office_name = 'Clinic'")['deleted'], 'record kept, deleted=1');
     set_body(['status' => 'closed']);
-    $r = run_handler('admin_update_office', 'guidance');
-    T()->eq(200, $r['status'], 'office recreate status');
-
-    $r = run_handler('admin_list_offices');
-    T()->eq(['clinic', 'guidance', 'registrar'], array_column($r['body']['offices'] ?? [], 'office_name'), '3 offices again');
-    T()->eq('closed', fetch_one("SELECT status FROM office_statuses WHERE office_name = 'guidance'")['status'], 'recreated with status');
+    $r = run_handler('admin_update_office', 'Clinic');
+    T()->eq(404, $r['status'], 'availability PATCH on retired office');
+    T()->eq('OFFICE_NOT_FOUND', $r['body']['code'] ?? null, 'retired office code');
 });
 
-T()->test('office boundaries: unknown office, invalid status, non-admin', function () {
+T()->test('office CRUD is super_admin only', function () {
     db_reset();
-    seed_user(['email' => 'oa4@test.com', 'role' => 'admin']);
+    seed_user(['email' => 's@test.com', 'role' => 'super_admin']);
+    seed_user(['email' => 'a@test.com', 'role' => 'admin', 'department' => 'IT']);
+    set_body(['name' => 'Library']);
+    act_as(2);
+    $r = run_handler('admin_add_office');
+    T()->eq(403, $r['status'], 'dept admin add');
+    T()->eq('FORBIDDEN', $r['body']['code'] ?? null, 'dept admin add code');
+    set_body(['name' => 'X']);
+    T()->eq(403, run_handler('admin_rename_office', 'Guidance')['status'], 'dept admin rename');
+    T()->eq(403, run_handler('admin_retire_office', 'Guidance')['status'], 'dept admin retire');
+});
+
+T()->test('availability update: unknown office 404, invalid status 422, non-admin 403', function () {
+    db_reset();
+    seed_user(['email' => 'oa8@test.com', 'role' => 'super_admin']);
     act_as(1);
-
-    set_body(['status' => 'open']);
+    set_body(['status' => 'closed']);
     $r = run_handler('admin_update_office', 'gym');
-    T()->eq(422, $r['status'], 'unknown office status');
-    T()->eq('Unknown office', $r['body']['error'] ?? null, 'unknown office message');
-
-    set_body(['status' => 'vacant']);
-    $r = run_handler('admin_update_office', 'guidance');
-    T()->eq(422, $r['status'], 'invalid status code path');
-    T()->eq('Invalid status', $r['body']['error'] ?? null, 'invalid status message');
-
-    db_reset();
-    $uid = (int)seed_user(['email' => 'plain@test.com', 'role' => 'user']);
+    T()->eq(404, $r['status'], 'unknown office now 404');
+    T()->eq('OFFICE_NOT_FOUND', $r['body']['code'] ?? null, 'unknown office code');
+    set_body(['name' => 'Guidance']); run_handler('admin_add_office');
+    set_body(['status' => 'nonsense']);
+    T()->eq(422, run_handler('admin_update_office', 'Guidance')['status'], 'invalid status');
+    $uid = (int)seed_user(['email' => 'u@test.com', 'role' => 'user']);
     act_as($uid);
     set_body(['status' => 'open']);
-    $r = run_handler('admin_update_office', 'guidance');
-    T()->eq(403, $r['status'], 'non-admin office status');
+    T()->eq(403, run_handler('admin_update_office', 'Guidance')['status'], 'non-admin');
 });
 
 T()->test('admin routes carry no rate limit', function () {

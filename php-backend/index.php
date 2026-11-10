@@ -54,6 +54,9 @@ $routes = [
     ['PATCH',  '#^/admin/users/([^/]+)/department$#',           'admin_set_department'],
     ['GET',    '#^/admin/office-statuses$#',                    'admin_list_offices'],
     ['PATCH',  '#^/admin/office-statuses/([^/]+)$#',            'admin_update_office'],
+    ['POST',   '#^/admin/offices$#',                            'admin_add_office'],
+    ['PATCH',  '#^/admin/offices/([^/]+)$#',                    'admin_rename_office'],
+    ['DELETE', '#^/admin/offices/([^/]+)$#',                    'admin_retire_office'],
 ];
 
 try {

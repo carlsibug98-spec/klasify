@@ -211,8 +211,11 @@ All require a signed-in `admin` or `super_admin`; role/department changes are
 | GET | `/admin/users` | — | super admins see everyone; dept admins see their department (limit 200) |
 | PATCH | `/admin/users/:id/role` | `{ "role": "admin" }` | self-demotion rejected with 422 |
 | PATCH | `/admin/users/:id/department` | `{ "department": "IT" }` or `null` | |
-| GET | `/admin/office-statuses` | — | seeds any missing office as `open` |
-| PATCH | `/admin/office-statuses/:office` | `{ "status": "break", "custom_message": "Back at 2pm" }` | school-wide |
+| GET | `/admin/office-statuses` | — | returns active school-wide offices (no seeding; empty list is valid) |
+| PATCH | `/admin/office-statuses/:office` | `{ "status": "break", "custom_message": "Back at 2pm" }` | requires an existing active office (404 `OFFICE_NOT_FOUND` otherwise); school-wide |
+| POST | `/admin/offices` | `{ "name": "Library" }` | super_admin only. 201 with the created row; duplicates (case-insensitive) → 409 `OFFICE_EXISTS` |
+| PATCH | `/admin/offices/:office` | `{ "name": "New name" }` | super_admin only. Renames (tombstones the old key, keeps status + note) |
+| DELETE | `/admin/offices/:office` | — | super_admin only. Retires (soft delete, permanent in-app) |
 
 Broadcast scope is decided server-side from the caller's stored role and
 department, never from the push payload: a dept admin always posts to their own
@@ -238,7 +241,9 @@ All errors return JSON: `{ "error": "message", "code": "ERROR_CODE" }`
 |---|---|---|
 | INVALID_CREDENTIALS | 401 | Wrong email/password |
 | TOKEN_EXPIRED | 401 | JWT expired, call /auth/refresh |
+| OFFICE_NOT_FOUND | 404 | No such active office |
 | EMAIL_EXISTS | 409 | Registration with existing email |
+| OFFICE_EXISTS | 409 | Office name already in use |
 | VALIDATION_ERROR | 422 | Missing/invalid fields |
 | RATE_LIMITED | 429 | Too many requests |
 | SERVER_ERROR | 500 | Internal error |
