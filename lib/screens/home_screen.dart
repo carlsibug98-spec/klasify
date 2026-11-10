@@ -20,6 +20,7 @@ import '../widgets/event_sheet.dart';
 import '../widgets/event_tile.dart';
 import '../widgets/first_run_options.dart';
 import '../widgets/next_class_card.dart';
+import '../widgets/office_status_editor_sheet.dart';
 import '../widgets/office_status_strip.dart';
 import '../services/first_class_coach_store.dart';
 import '../services/auth_service.dart';
@@ -82,6 +83,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<EventItem> _events = [];
   List<OfficeStatus> _offices = [];
   bool _loading = true;
+
+  // Office-availability feedback states (design C): an office whose change
+  // saved on the server but has not finished syncing reads "Syncing…" in
+  // the strip; the one whose PATCH is in flight is dimmed.
+  final Set<String> _pendingOffices = {};
+  String? _savingOffice;
   String? _error;
   int _loadVersion = 0;
   Timer? _heroRefreshTimer;
@@ -253,112 +260,39 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _editOfficeStatus(OfficeStatus office) async {
     final name = office.office;
-    final display = office.displayName;
-    var status = office.status;
-    final note = TextEditingController(text: office.message ?? '');
-
-    final result = await showModalBottomSheet<({String status, String? note})>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (sheetContext, setModal) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
-          ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
-                  child: Text(
-                    display,
-                    style: Theme.of(sheetContext).textTheme.titleLarge,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-                  child: Text(
-                    'Students see this on Today, updated at the next sync.',
-                    style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(
-                        sheetContext,
-                      ).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                for (final option in const [
-                  ('open', 'Open', Icons.check_circle_outline_rounded),
-                  ('break', 'On break', Icons.pause_circle_outline_rounded),
-                  ('closed', 'Closed', Icons.cancel_outlined),
-                ])
-                  ListTile(
-                    leading: Icon(option.$3),
-                    title: Text(option.$2),
-                    trailing: status == option.$1
-                        ? const Icon(Icons.check_rounded)
-                        : null,
-                    onTap: () => setModal(() => status = option.$1),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-                  child: TextField(
-                    controller: note,
-                    maxLength: 60,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'Note (optional)',
-                      hintText: 'Back at 2pm',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
-                  child: SizedBox(
-                    height: 52,
-                    child: FilledButton(
-                      onPressed: () {
-                        final text = note.text.trim();
-                        Navigator.pop(sheetContext, (
-                          status: status,
-                          note: text.isEmpty ? null : text,
-                        ));
-                      },
-                      child: const Text('Update availability'),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    final saved = await showOfficeStatusEditorSheet(
+      context,
+      displayName: office.displayName,
+      initialStatus: office.status,
+      initialNote: office.message,
+      onSave: (status, note) async {
+        if (mounted) setState(() => _savingOffice = name);
+        try {
+          await AuthService.instance.adminSetOfficeStatus(
+            name,
+            status,
+            customMessage: note,
+          );
+        } finally {
+          if (mounted) setState(() => _savingOffice = null);
+        }
+      },
     );
-    note.dispose();
+    if (!saved || !mounted) return;
 
-    if (result == null) return;
-    try {
-      await AuthService.instance.adminSetOfficeStatus(
-        name,
-        result.status,
-        customMessage: result.note,
+    // The PATCH landed; the tile reads "Syncing…" until this phone's pull
+    // brings the new row back. If the push fails, the local change is still
+    // real — say so instead of pretending nothing happened.
+    setState(() => _pendingOffices.add(name));
+    final synced = await SyncService.instance.syncNow();
+    if (mounted) setState(() => _pendingOffices.remove(name));
+    await _load();
+    if (!synced && mounted) {
+      showAppNotification(
+        context,
+        'Saved on this phone. Sync did not finish, so other phones may show the old status.',
+        kind: AppNotificationKind.warning,
       );
-      unawaited(SyncService.instance.syncNow());
-      await _load();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$display updated')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e')),
-        );
-      }
     }
   }
 
@@ -777,6 +711,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           OfficeStatusStrip(
                             offices: _offices,
                             isAdmin: AuthService.instance.isAdmin,
+                            pendingOffices: _pendingOffices,
+                            savingOffice: _savingOffice,
                             onEditOffice: AuthService.instance.isAdmin
                                 ? _editOfficeStatus
                                 : null,

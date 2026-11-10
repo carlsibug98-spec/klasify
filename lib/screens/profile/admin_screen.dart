@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../services/sync_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/office_status_editor_sheet.dart';
 import 'profile_shared.dart';
 
 /// Admin surface: office availability + user role management.
@@ -67,112 +68,24 @@ class _AdminScreenState extends State<AdminScreen> {
     final display = name.isEmpty
         ? 'Office'
         : name[0].toUpperCase() + name.substring(1);
-    var status = office['status'] as String? ?? 'open';
-    final note = TextEditingController(
-      text: office['custom_message'] as String? ?? '',
-    );
 
-    final result = await showModalBottomSheet<({String status, String? note})>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (sheetContext, setModal) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
-          ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
-                  child: Text(
-                    display,
-                    style: Theme.of(sheetContext).textTheme.titleLarge,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-                  child: Text(
-                    'Students see this on Today, updated at the next sync.',
-                    style: Theme.of(sheetContext).textTheme.bodySmall
-                        ?.copyWith(
-                          color: Theme.of(
-                            sheetContext,
-                          ).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                ),
-                for (final option in const [
-                  ('open', 'Open', Icons.check_circle_outline_rounded),
-                  ('break', 'On break', Icons.pause_circle_outline_rounded),
-                  ('closed', 'Closed', Icons.cancel_outlined),
-                ])
-                  ListTile(
-                    leading: Icon(option.$3),
-                    title: Text(option.$2),
-                    trailing: status == option.$1
-                        ? const Icon(Icons.check_rounded)
-                        : null,
-                    onTap: () => setModal(() => status = option.$1),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-                  child: TextField(
-                    controller: note,
-                    maxLength: 60,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'Note (optional)',
-                      hintText: 'Back at 2pm',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
-                  child: SizedBox(
-                    height: 52,
-                    child: FilledButton(
-                      onPressed: () {
-                        final text = note.text.trim();
-                        Navigator.pop(sheetContext, (
-                          status: status,
-                          note: text.isEmpty ? null : text,
-                        ));
-                      },
-                      child: const Text('Update availability'),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+    final saved = await showOfficeStatusEditorSheet(
+      context,
+      displayName: display,
+      initialStatus: office['status'] as String? ?? 'open',
+      initialNote: office['custom_message'] as String?,
+      onSave: (status, note) => AuthService.instance.adminSetOfficeStatus(
+        name,
+        status,
+        customMessage: note,
       ),
     );
-    note.dispose();
+    if (!saved) return;
 
-    if (result == null) return;
-    try {
-      await AuthService.instance.adminSetOfficeStatus(
-        name,
-        result.status,
-        customMessage: result.note,
-      );
-      // Push the change to the server now; other phones pick it up on
-      // their next pull.
-      unawaited(SyncService.instance.syncNow());
-      await _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e')),
-        );
-      }
-    }
+    // Push the change to the server now; other phones pick it up on
+    // their next pull.
+    unawaited(SyncService.instance.syncNow());
+    await _load();
   }
 
   Future<void> _editUser(Map<String, dynamic> user) async {
