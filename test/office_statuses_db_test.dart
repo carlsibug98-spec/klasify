@@ -61,4 +61,31 @@ void main() {
 
     expect(await db.getOfficeStatuses(), hasLength(2));
   });
+
+  test('a pulled tombstone deletes the cached office row', () async {
+    final db = DatabaseHelper.instance;
+    await db.upsertOfficeStatusFromServer({
+      'office_name': 'guidance',
+      'status': 'open',
+      'custom_message': null,
+      'updated_at': '2026-11-10T08:30:00.000Z',
+    });
+    await db.upsertOfficeStatusFromServer({
+      'office_name': 'clinic',
+      'status': 'open',
+      'custom_message': null,
+      'updated_at': '2026-11-10T08:30:00.000Z',
+    });
+
+    await db.upsertOfficeStatusFromServer({
+      'office_name': 'guidance',
+      'status': 'open',
+      'custom_message': null,
+      'updated_at': '2026-11-10T09:00:00.000Z',
+      'deleted': true,
+    });
+
+    final names = (await db.getOfficeStatuses()).map((r) => r['office_name']);
+    expect(names, ['clinic']);
+  });
 }

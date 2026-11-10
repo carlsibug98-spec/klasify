@@ -178,6 +178,14 @@ class DatabaseHelper extends ChangeNotifier {
     final office = data['office_name'];
     if (office is! String || office.isEmpty) return;
     final db = await _database;
+    // Tombstone: the office was retired or renamed away on the server. The
+    // local table has no deleted column, so the cached row is removed
+    // outright — otherwise it would render on Today forever.
+    if (data['deleted'] == true) {
+      await db.delete('office_statuses', where: 'office_name = ?', whereArgs: [office]);
+      notifyListeners();
+      return;
+    }
     await db.insert('office_statuses', {
       'office_name': office,
       'status': data['status'] ?? 'open',
