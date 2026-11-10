@@ -5,8 +5,19 @@ import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../services/sync_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_notification.dart';
+import '../../widgets/office_name_sheet.dart';
 import '../../widgets/office_status_editor_sheet.dart';
 import 'profile_shared.dart';
+
+/// Office display name shared by the list rows and the manage toasts:
+/// underscores become spaces, first letter capitalized (matches
+/// OfficeStatus.displayName).
+String _officeDisplay(String name) {
+  if (name.isEmpty) return 'Office';
+  final spaced = name.replaceAll('_', ' ');
+  return spaced[0].toUpperCase() + spaced.substring(1);
+}
 
 /// Admin surface: office availability + user role management.
 /// Visible only to admins (role = admin or super_admin). Role changes are
@@ -65,9 +76,7 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Future<void> _editOffice(Map<String, dynamic> office) async {
     final name = office['office_name'] as String? ?? '';
-    final display = name.isEmpty
-        ? 'Office'
-        : name[0].toUpperCase() + name.substring(1);
+    final display = _officeDisplay(name);
 
     final saved = await showOfficeStatusEditorSheet(
       context,
@@ -79,11 +88,69 @@ class _AdminScreenState extends State<AdminScreen> {
         status,
         customMessage: note,
       ),
+      otherOfficeNames: _isSuper
+          ? [
+              for (final o in _offices)
+                if ((o['office_name'] as String? ?? '') != name)
+                  o['office_name'] as String? ?? '',
+            ]
+          : const [],
+      onRename: _isSuper
+          ? (newName) async {
+              await AuthService.instance.adminRenameOffice(name, newName);
+              if (mounted) {
+                showAppNotification(
+                  context,
+                  "$display is now $newName. Students see the change after the next sync.",
+                  kind: AppNotificationKind.success,
+                );
+              }
+            }
+          : null,
+      onRetire: _isSuper
+          ? () async {
+              await AuthService.instance.adminRetireOffice(name);
+              if (mounted) {
+                showAppNotification(
+                  context,
+                  "$display retired. Students will no longer see it on Today.",
+                  kind: AppNotificationKind.success,
+                );
+              }
+            }
+          : null,
     );
     if (!saved) return;
 
     // Push the change to the server now; other phones pick it up on
     // their next pull.
+    unawaited(SyncService.instance.syncNow());
+    await _load();
+  }
+
+  Future<void> _addOffice() async {
+    String? addedName;
+    final saved = await showOfficeNameSheet(
+      context,
+      title: 'Add office',
+      ctaLabel: 'Add office',
+      takenNames: [
+        for (final o in _offices) o['office_name'] as String? ?? '',
+      ],
+      onSave: (name) async {
+        addedName = name;
+        await AuthService.instance.adminAddOffice(name);
+      },
+    );
+    if (!saved) return;
+
+    if (mounted && addedName != null) {
+      showAppNotification(
+        context,
+        "${_officeDisplay(addedName!)} added. Students see it on Today after the next sync.",
+        kind: AppNotificationKind.success,
+      );
+    }
     unawaited(SyncService.instance.syncNow());
     await _load();
   }
@@ -212,38 +279,41 @@ class _AdminScreenState extends State<AdminScreen> {
                       label: 'OFFICE AVAILABILITY',
                       description:
                           'Open, on break or closed for each office. Students see this on Today.',
-                      rows: _offices.isEmpty
-                          ? [
-                              const ProfileRow(
-                                icon: Icons.info_outline_rounded,
-                                title: 'No offices yet',
-                                subtitle: 'Offices appear after first sync',
-                              ),
-                            ]
-                          : _offices.map((o) {
-                              final office =
-                                  o['office_name'] as String? ?? '';
-                              final status = o['status'] as String? ?? 'open';
-                              final note =
-                                  (o['custom_message'] as String?)?.trim();
-                              final statusLabel = switch (status) {
-                                'open' => 'Open',
-                                'break' => 'On break',
-                                _ => 'Closed',
-                              };
-                              final display = office.isEmpty
-                                  ? 'Office'
-                                  : office[0].toUpperCase() +
-                                        office.substring(1);
-                              return ProfileRow(
-                                icon: Icons.meeting_room_outlined,
-                                title: display,
-                                subtitle: note == null || note.isEmpty
-                                    ? statusLabel
-                                    : '$statusLabel · $note',
-                                onTap: () => unawaited(_editOffice(o)),
-                              );
-                            }).toList(),
+                      rows: [
+                        if (_offices.isEmpty)
+                          const ProfileRow(
+                            icon: Icons.info_outline_rounded,
+                            title: 'No offices yet',
+                            subtitle: 'Offices appear after first sync',
+                          )
+                        else
+                          ..._offices.map((o) {
+                            final office = o['office_name'] as String? ?? '';
+                            final status = o['status'] as String? ?? 'open';
+                            final note =
+                                (o['custom_message'] as String?)?.trim();
+                            final statusLabel = switch (status) {
+                              'open' => 'Open',
+                              'break' => 'On break',
+                              _ => 'Closed',
+                            };
+                            return ProfileRow(
+                              icon: Icons.meeting_room_outlined,
+                              title: _officeDisplay(office),
+                              subtitle: note == null || note.isEmpty
+                                  ? statusLabel
+                                  : '$statusLabel · $note',
+                              onTap: () => unawaited(_editOffice(o)),
+                            );
+                          }),
+                        if (_isSuper)
+                          ProfileRow(
+                            icon: Icons.add,
+                            title: 'Add office',
+                            subtitle: 'New offices start Open',
+                            onTap: () => unawaited(_addOffice()),
+                          ),
+                      ],
                     ),
                     if (_isSuper) ...[
                       const SizedBox(height: AppTheme.sectionGap),

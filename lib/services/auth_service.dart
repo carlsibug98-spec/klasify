@@ -260,11 +260,30 @@ class AuthService extends ChangeNotifier {
 
   /// Admin: update an office's status.
   Future<void> adminSetOfficeStatus(String office, String status, {String? customMessage, String? department}) async {
-    await _api('PATCH', '/admin/office-statuses/$office', body: {
+    await _api('PATCH', '/admin/office-statuses/${Uri.encodeComponent(office)}', body: {
       'status': status,
       'custom_message': customMessage,
       'department': department,
     });
+  }
+
+  /// Admin: create a new school-wide office (super_admin only). Returns the
+  /// created row (same shape as adminGetOfficeStatuses rows).
+  Future<Map<String, dynamic>> adminAddOffice(String name) async {
+    final data = await _api('POST', '/admin/offices', body: {'name': name}) as Map<String, dynamic>;
+    return (data['office'] as Map?)?.cast<String, dynamic>() ?? const {};
+  }
+
+  /// Admin: rename an office (super_admin only). The old key disappears at
+  /// every phone's next sync; availability and note carry over.
+  Future<void> adminRenameOffice(String office, String newName) async {
+    await _api('PATCH', '/admin/offices/${Uri.encodeComponent(office)}', body: {'name': newName});
+  }
+
+  /// Admin: retire an office (super_admin only). Soft delete: students lose
+  /// it at their next sync; the record stays on the server.
+  Future<void> adminRetireOffice(String office) async {
+    await _api('DELETE', '/admin/offices/${Uri.encodeComponent(office)}');
   }
   /// Local schedule data on the phone stays, as decided.
   Future<void> deleteAccount() async {

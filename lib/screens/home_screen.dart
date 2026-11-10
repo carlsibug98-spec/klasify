@@ -260,6 +260,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _editOfficeStatus(OfficeStatus office) async {
     final name = office.office;
+    final isSuper = AuthService.instance.isSuperAdmin;
     final saved = await showOfficeStatusEditorSheet(
       context,
       displayName: office.displayName,
@@ -277,6 +278,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           if (mounted) setState(() => _savingOffice = null);
         }
       },
+      otherOfficeNames: isSuper
+          ? [for (final o in _offices) if (o.office != name) o.office]
+          : const [],
+      onRename: isSuper
+          ? (newName) async {
+              await AuthService.instance.adminRenameOffice(name, newName);
+              if (mounted) {
+                showAppNotification(
+                  context,
+                  "${office.displayName} is now $newName. Students see the change after the next sync.",
+                  kind: AppNotificationKind.success,
+                );
+              }
+            }
+          : null,
+      onRetire: isSuper
+          ? () async {
+              await AuthService.instance.adminRetireOffice(name);
+              if (mounted) {
+                showAppNotification(
+                  context,
+                  "${office.displayName} retired. Students will no longer see it on Today.",
+                  kind: AppNotificationKind.success,
+                );
+              }
+            }
+          : null,
     );
     if (!saved || !mounted) return;
 
