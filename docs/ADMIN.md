@@ -48,8 +48,11 @@ super admin.
 `office_statuses` is school-wide: one row per office (`guidance`, `clinic`,
 `registrar`) with `department IS NULL`.
 
-- Admins edit **Settings & privacy → Admin → Office availability**
-  (open / on break / closed + an optional note like "Back at 2pm").
+- Admins edit in **two places**: inline on **Today** (the pencil on each
+  office tile opens the same editor sheet) or **Settings & privacy → Admin →
+  Office availability** — open / on break / closed + an optional note like
+  "Back at 2pm". Both write through the same API, so students get the change
+  at the next sync.
 - `GET /admin/office-statuses` seeds any missing office as `open` on first
   read, so a fresh install always shows all three.
 - The app caches the rows locally (`office_statuses` SQLite table, DB v9) and

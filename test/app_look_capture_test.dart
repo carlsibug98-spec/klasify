@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -162,7 +163,11 @@ void main() {
         professor: 'Prof. Chen',
         day: today,
         startMinutes: nowM - 50,
-        endMinutes: nowM + 40,
+        // Late-evening runs (after ~23:20) would push the end past midnight,
+        // which validateClass rejects. Clamp to 23:55 so the seed always
+        // stays within the day; near midnight the hero shows the class as
+        // finished instead of live, which is fine for a smoke run.
+        endMinutes: math.min(nowM + 40, 1435),
       ),
       if (upcomingStart > 0)
         ClassItem(

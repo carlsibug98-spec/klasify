@@ -1,6 +1,6 @@
 # Klasify — know what’s next
 
-An offline-first Flutter app for maintaining a weekly class timetable. **All schedule data is stored in a local SQLite database on the device.** This project does not use Firebase, Supabase, a server, cloud sync, or online user accounts.
+An offline-first Flutter app for maintaining a weekly class timetable. **All schedule data is stored in a local SQLite database on the device**, and the app is fully usable signed-out with no backend at all. An **optional, self-hosted sync backend** (`php-backend/`, PHP + MySQL on XAMPP, included in this repo) adds accounts, background sync, campus office availability, and department/school event broadcasting — nothing talks to it unless the app is signed in and the server is reachable. No Firebase, no Supabase, no third-party cloud.
 
 ## Features
 - Add, edit, and delete classes with instant undo capability
@@ -16,15 +16,20 @@ An offline-first Flutter app for maintaining a weekly class timetable. **All sch
 - In-memory import draft caching (`ImportRouteCache`) allowing users to pause and resume timetable reviews
 - Import review screen with conflict checks, uncertain room detection, and all-or-nothing atomic SQLite save
 - JSON schedule backup and restore with structure validation and confirmation dialogs
-- **Automatic backups**: a fresh backup file is written after every schedule change (no button to press). The copy lives in the app support folder and is included in Android's own device cloud backup (Google Drive) when device backup is on — still no account, no server, no internet permission
+- **Automatic backups**: a fresh backup file is written after every schedule change (no button to press). The copy lives in the app support folder and is included in Android's own device cloud backup (Google Drive) when device backup is on — Klasify itself performs no upload, with or without a backend
 - On-device weekly class reminders with notification permission and battery-saving handling
+- **Optional accounts & sync** (`AuthService` + `SyncService`): sign in with Google or email/password and pick a department at sign-up (IT / AIS / BA / EDUC); classes, class statuses, events, and office availability sync with the self-hosted backend (5-minute background timer with exponential-backoff retry, plus a manual "Sync now" row) while everything keeps working offline from the local cache
+- **Campus offices on Today**: a guidance / clinic / registrar strip with open / on break / closed states and admin notes ("Back at 2pm"), cached locally so it renders offline; admins edit inline on Today (pencil on each tile) or in Settings → Admin, and students see the change at the next sync
+- **School & department events** on Today with a count chip, Add entry, and per-event reminders (distinct "School event starting soon" notification style); department admins broadcast to their department, super admins to the whole school; students see broadcasts read-only
+- **Admin panel** (only for `admin` / `super_admin` roles): office availability editor plus, for super admins, the user list with role and department management
+- **Light & dark themes** following the system setting, built from the same token set in `lib/theme/app_theme.dart`
 - Android Home-screen widget integration (`NextClassWidgetService`) synced automatically on changes
 - First-launch onboarding (3 pages, skippable) and replayable anytime from Settings
 - Adaptive shell (`MainNavigationScreen`): floating pill navigation bar on mobile, navigation rail on wide screens (>= 600dp), directional slide transitions, and Android 14+ predictive back support
 - Reusable component kit (`SectionHeader`, `SettingsRow`, `TimeBox`, `PinnedActionBar`, `KlasifySkeleton`)
 - Intelligent room label formatting (`formatRoom`: normalizes `304` to `Room 304` while preserving named locations like `Lab 2` and `MacLab`)
 - Real-time class status engine (`classStatusAt`: calculates `live`, `upcoming`, and `done` states relative to current minutes)
-- Unit tests for schedule calculations, time formatting, input validation, and overlap rules
+- 63-file test suite (~480 tests): schedule calculations, parsers, database rules, screen widget tests, golden design captures, and OCR accuracy benchmarks
 - Database version upgrade using validation triggers without discarding existing rows
 
 ## Weekly schedule enhancements
@@ -103,6 +108,12 @@ flutter build apk --release
 ```
 The APK is normally created at `build/app/outputs/flutter-apk/app-release.apk`.
 
+For quick on-device testing, a debug build installs without any signing setup:
+```bash
+flutter build apk --debug
+```
+It lands at `build/app/outputs/flutter-apk/app-debug.apk` (auto-signed with the debug key).
+
 Release builds are not signed with the debug key. To sign one, create `android/key.properties` (the example path is relative to `android/`) with your own values:
 
 ```properties
@@ -117,8 +128,23 @@ Keep both that file and the keystore out of source control. Without a release ke
 ### If Gradle reports an NDK installation error
 The NDK version is controlled by the Flutter SDK's `flutter.ndkVersion` setting in `android/app/build.gradle.kts`. In Android Studio SDK Manager → SDK Tools, enable **Show Package Details** under **NDK (Side by side)** and install the exact version Flutter requests. If the package is not listed, update Android SDK Command-line Tools and retry. Do not randomly change the NDK version to a newer one; use a version supported by the installed Flutter/Android Gradle Plugin.
 
+## Accounts & sync (optional, self-hosted)
+The schedule lives in SQLite whether or not a backend exists. Signing in against the bundled PHP backend additionally enables:
+- **Accounts** — email/password with forgot/reset, Google Sign-In, profile editing, password change, and account deletion. Sign-up captures name and department.
+- **Sync** — classes, class statuses, events, and campus office availability move between the device and MySQL through `SyncService` (pull + push with per-table cursors; 5-minute background timer while signed in with exponential-backoff retry after failures).
+- **Roles** — `user` / `admin` / `super_admin` plus `users.department`. The first admin is seeded via SQL; promotion and department assignment happen in-app. See [`docs/ADMIN.md`](docs/ADMIN.md) for the full rule set.
+- **Deployment** — PHP 8 + MySQL on XAMPP (no Docker, no Node). Schema, health check, firewall, and the HTTPS reverse-proxy recipe live in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md); the wire contract is [`docs/sync_api_contract.md`](docs/sync_api_contract.md).
+
+Build-time overrides:
+```bash
+flutter run \
+  --dart-define=KLASIFY_API_URL=https://api.example.com/v1 \
+  --dart-define=GOOGLE_WEB_CLIENT_ID=xxx.apps.googleusercontent.com
+```
+The compiled defaults (a LAN dev box, `http://192.168.1.67/klasify-api`) sit at the top of `lib/services/auth_service.dart`. Release builds should always set `KLASIFY_API_URL` to an HTTPS endpoint — release manifests are HTTPS-only by design, and debug/profile builds permit cleartext for local development.
+
 ## Crash reporting (optional, off by default)
-Klasify itself makes no network requests. Public distribution builds may enable opt-in crash reporting through Sentry so device-specific crashes can be found and fixed:
+With crash reporting off and when signed out, Klasify makes no network requests. Public distribution builds may enable opt-in crash reporting through Sentry so device-specific crashes can be found and fixed:
 
 1. Create a free project at https://sentry.io (Flutter platform) and copy its DSN.
 2. Build with the DSN compiled in:
@@ -161,6 +187,8 @@ lib/
   models/
     class_item.dart
     class_status.dart
+    event_item.dart
+    office_status.dart
   routes/
     app_router.dart                    # the ONLY file that lists every screen
     app_routes.dart
@@ -175,8 +203,13 @@ lib/
     reminders_screen.dart
     schedule_screen.dart
     settings_screen.dart
+    settings_privacy_screen.dart       # account, department, sync now, admin entry
+    profile/
+      admin_screen.dart                # office availability + user role management
   services/
     app_info.dart
+    auth_service.dart                  # sign-in, roles, admin API client, KLASIFY_API_URL
+    sync_service.dart                  # background pull/push with per-table cursors
     coach_tour_store.dart
     next_class_widget_service.dart
     onboarding_store.dart
@@ -198,19 +231,23 @@ lib/
     coach_tour_overlay.dart
     edit_class_time_picker_sheet.dart
     empty_state_card.dart
+    event_sheet.dart
     first_run_options.dart
     next_class_card.dart
+    office_status_strip.dart
     swipe_actions.dart
     ... (see the folder for the rest)
 test/
+php-backend/                           # optional sync/auth backend (PHP + MySQL on XAMPP)
+docs/                                  # deployment, admin rules, API contract, roadmap
 ```
 
-There is no server component. The `sentry_flutter` dependency (opt-in crash reporting) merges the Android `INTERNET` permission into release builds, but the SDK stays completely dormant unless a DSN was compiled in with `--dart-define=KLASIFY_SENTRY_DSN=...`; without it, the app opens no network connections. In debug and profile builds, Flutter development tooling additionally uses `INTERNET` as before.
+The only server component is `php-backend/` in this repo — self-hosted, described under "Accounts & sync (optional, self-hosted)". The Android `INTERNET` permission covers it, Google Sign-In, and the opt-in Sentry SDK. The `sentry_flutter` dependency (opt-in crash reporting) stays completely dormant unless a DSN was compiled in with `--dart-define=KLASIFY_SENTRY_DSN=...`; without it, and when signed out, the app opens no network connections on its own. In debug and profile builds, Flutter development tooling additionally uses `INTERNET` as before.
 
 ## Local data and safety
 - Classes are stored in `class_schedule.db` on this device only.
 - Android system backups exclude the raw schedule database and app preferences (a stale database restored onto a newer schema is worse than no restore). The **automatic JSON backup** (`files/auto_backups/`) is explicitly included, so the validated, schema-safe schedule rides with Android's device cloud backup (Google Drive) when device backup is on. The manual in-app JSON export remains the way to move a schedule on demand.
-- There is no online database, account, cloud sync, or backend service. OCR models are packaged with the app, and timetable images/PDFs are processed on-device. The automatic backup is written locally; any upload to Google's backup storage is performed by the operating system's own device-backup feature under the user's Google account, never by Klasify.
+- The device database is the source of truth. Signing in is optional and only talks to the self-hosted `php-backend/` described above; nothing is ever sent to a third-party cloud. OCR models are packaged with the app, and timetable images/PDFs are processed on-device. The automatic backup is written locally; any upload to Google's backup storage is performed by the operating system's own device-backup feature under the user's Google account, never by Klasify.
 - Crash reporting is opt-in at build time (see "Crash reporting (optional, off by default)") and transmits technical diagnostics only, never schedule content. `docs/privacy-policy.html` is the privacy statement to publish with the app.
 - Uninstalling the app may remove its local database. Back up important schedules before uninstalling or clearing app data.
 - Database upgrade from version 1 to version 2 adds validation triggers without rebuilding the classes table. Existing rows are retained; invalid legacy rows are not silently dropped. New inserts/updates must meet validation rules.
@@ -233,10 +270,10 @@ A ZIP/static-source review is not a substitute for running these commands on the
 
 Two pins are deliberate:
 
-- **Flutter 3.47.9** — the captures in `test/goldens/` are rendered by the Flutter engine. A different SDK re-rasterises the text and fails the design tests with 1-4% pixel drift even when no UI changed.
-- **Windows** — the goldens were recorded on Windows. Linux and macOS rasterise fonts differently and will report the same drift.
+- **Flutter 3.47.9** — the captures in `test/goldens/` are rendered by the Flutter engine. A different SDK re-rasterises text, and drift beyond the tolerance below still fails, so the SDK pin stays even though the suite no longer hard-requires it.
+- **Windows** — the goldens were recorded on Windows, and the CI runner matches them.
 
-Changing either pin means re-recording the goldens on the new toolchain and committing the new images in the same change:
+Since the tolerant comparator (`test/golden_tolerance.dart`) landed, the suite also runs green on Linux and macOS: up to **5% of pixels** may differ per capture (font antialiasing drift between DirectWrite and FreeType measures 0.7–3.8% on these screens), while image-size changes and larger diffs still fail with the usual diff images under `test/failures/`. Intentional UI changes still mean re-recording the goldens and committing the new images in the same change:
 ```bash
 flutter test --update-goldens test/design_capture_test.dart
 ```

@@ -11,6 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'golden_tolerance.dart';
+
 /// Captures the redesigned event sheet and its pickers exactly as they
 /// appear over the shell: the add form, the bottom-sheet date calendar,
 /// and the class editor's time wheels, in both themes.
@@ -75,6 +77,12 @@ final _rootKey = GlobalKey();
 
 void main() {
   setUpAll(() async {
+    // Same rationale as design_capture_test.dart: goldens were recorded on
+    // Windows; keep the comparison honest but tolerant of font drift.
+    goldenFileComparator = TolerantLocalFileComparator.forTest(
+      goldenFileComparator as LocalFileComparator,
+      'event_sheet_capture_test.dart',
+    );
     await _load('Roboto', [
       'roboto-regular.ttf',
       'roboto-medium.ttf',

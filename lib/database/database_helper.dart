@@ -96,7 +96,12 @@ class DatabaseHelper extends ChangeNotifier {
         // from the last successful sync).
         if (oldVersion < 9) {
           await _addColumnIfMissing(db, 'events', 'department', 'TEXT');
-          await _addColumnIfMissing(db, 'events', 'broadcast', 'INTEGER NOT NULL DEFAULT 0');
+          await _addColumnIfMissing(
+            db,
+            'events',
+            'broadcast',
+            'INTEGER NOT NULL DEFAULT 0',
+          );
           await _createOfficeStatusTable(db);
         }
       },
@@ -158,24 +163,13 @@ class DatabaseHelper extends ChangeNotifier {
   }
 
   /// Cached office availability, one row per office, in display order.
-  /// Seeds the three school-wide offices as 'open' on first read so the strip
-  /// always has something to show before the first sync completes.
+  /// A pure cache of rows pulled from the server: the school-wide offices are
+  /// seeded server-side when an admin opens the office screen (M8), so the
+  /// strip shows real values after the first pull instead of fabricated
+  /// "open" rows on a fresh offline install.
   Future<List<Map<String, Object?>>> getOfficeStatuses() async {
     final db = await _database;
-    final rows = await db.query('office_statuses', orderBy: 'office_name');
-    if (rows.isEmpty) {
-      final now = DateTime.now().toUtc().toIso8601String();
-      for (final name in const ['clinic', 'guidance', 'registrar']) {
-        await db.insert('office_statuses', {
-          'office_name': name,
-          'status': 'open',
-          'custom_message': null,
-          'updated_at': now,
-        });
-      }
-      return db.query('office_statuses', orderBy: 'office_name');
-    }
-    return rows;
+    return db.query('office_statuses', orderBy: 'office_name');
   }
 
   /// Upserts one office row pulled from the server. Office statuses have no
@@ -184,16 +178,12 @@ class DatabaseHelper extends ChangeNotifier {
     final office = data['office_name'];
     if (office is! String || office.isEmpty) return;
     final db = await _database;
-    await db.insert(
-      'office_statuses',
-      {
-        'office_name': office,
-        'status': data['status'] ?? 'open',
-        'custom_message': data['custom_message'],
-        'updated_at': data['updated_at'] ?? _stampNow,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('office_statuses', {
+      'office_name': office,
+      'status': data['status'] ?? 'open',
+      'custom_message': data['custom_message'],
+      'updated_at': data['updated_at'] ?? _stampNow,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
     notifyListeners();
   }
 
@@ -201,28 +191,57 @@ class DatabaseHelper extends ChangeNotifier {
   /// Uses ALTER TABLE (additive, non-destructive) so existing data survives.
   Future<void> _migrateToSyncSchema(DatabaseExecutor db) async {
     // Classes: add deleted, updated_at, server_id
-    await _addColumnIfMissing(db, 'classes', 'deleted', 'INTEGER NOT NULL DEFAULT 0');
+    await _addColumnIfMissing(
+      db,
+      'classes',
+      'deleted',
+      'INTEGER NOT NULL DEFAULT 0',
+    );
     await _addColumnIfMissing(db, 'classes', 'updated_at', 'TEXT');
     await _addColumnIfMissing(db, 'classes', 'server_id', 'INTEGER');
 
     // Events: add category, deleted, updated_at, server_id
-    await _addColumnIfMissing(db, 'events', 'category', "TEXT NOT NULL DEFAULT 'personal'");
-    await _addColumnIfMissing(db, 'events', 'deleted', 'INTEGER NOT NULL DEFAULT 0');
+    await _addColumnIfMissing(
+      db,
+      'events',
+      'category',
+      "TEXT NOT NULL DEFAULT 'personal'",
+    );
+    await _addColumnIfMissing(
+      db,
+      'events',
+      'deleted',
+      'INTEGER NOT NULL DEFAULT 0',
+    );
     await _addColumnIfMissing(db, 'events', 'updated_at', 'TEXT');
     await _addColumnIfMissing(db, 'events', 'server_id', 'INTEGER');
 
     // Class statuses: add updated_at, deleted, server_id
     await _addColumnIfMissing(db, 'class_status', 'updated_at', 'TEXT');
-    await _addColumnIfMissing(db, 'class_status', 'deleted', 'INTEGER NOT NULL DEFAULT 0');
+    await _addColumnIfMissing(
+      db,
+      'class_status',
+      'deleted',
+      'INTEGER NOT NULL DEFAULT 0',
+    );
     await _addColumnIfMissing(db, 'class_status', 'server_id', 'INTEGER');
 
     // Stamp once so legacy rows qualify as 'changed' exactly once on the
     // next successful sync instead of on every sync forever (a null
     // updated_at always matches the delta query).
     final stamp = DateTime.now().toUtc().toIso8601String();
-    await db.execute("UPDATE classes SET updated_at = ? WHERE updated_at IS NULL", [stamp]);
-    await db.execute("UPDATE events SET updated_at = ? WHERE updated_at IS NULL", [stamp]);
-    await db.execute("UPDATE class_status SET updated_at = ? WHERE updated_at IS NULL", [stamp]);
+    await db.execute(
+      "UPDATE classes SET updated_at = ? WHERE updated_at IS NULL",
+      [stamp],
+    );
+    await db.execute(
+      "UPDATE events SET updated_at = ? WHERE updated_at IS NULL",
+      [stamp],
+    );
+    await db.execute(
+      "UPDATE class_status SET updated_at = ? WHERE updated_at IS NULL",
+      [stamp],
+    );
   }
 
   /// Helper: add a column only if it doesn't already exist (idempotent).
@@ -327,7 +346,10 @@ class DatabaseHelper extends ChangeNotifier {
         whereArgs: [incoming.classId],
       );
       for (final entry in after) {
-        await txn.insert('class_status', entry.toMap()..['updated_at'] = _stampNow);
+        await txn.insert(
+          'class_status',
+          entry.toMap()..['updated_at'] = _stampNow,
+        );
       }
       // Re-attach tombstones whose ids the fresh state does not reuse;
       // unpushed deletions must survive the edit.
@@ -363,7 +385,10 @@ class DatabaseHelper extends ChangeNotifier {
         whereArgs: [entry.classId],
       );
       for (final kept in after) {
-        await txn.insert('class_status', kept.toMap()..['updated_at'] = _stampNow);
+        await txn.insert(
+          'class_status',
+          kept.toMap()..['updated_at'] = _stampNow,
+        );
       }
       final liveIds = {for (final e in after) e.id}.whereType<int>().toSet();
       for (final map in dead) {
@@ -393,7 +418,10 @@ class DatabaseHelper extends ChangeNotifier {
         whereArgs: [classId],
       );
       for (final entry in before) {
-        await txn.insert('class_status', entry.toMap()..['updated_at'] = _stampNow);
+        await txn.insert(
+          'class_status',
+          entry.toMap()..['updated_at'] = _stampNow,
+        );
       }
       // Rows the snapshot did not cover (earlier deletions still awaiting
       // their push) keep their tombstones; rows the snapshot revives are
@@ -579,16 +607,17 @@ class DatabaseHelper extends ChangeNotifier {
       // Tombstone rather than hard-delete: rows the server already knows
       // must push their deletion, and purging only cleans them after the
       // server acknowledges it.
-      await txn.update(
-        'classes',
-        {'deleted': 1, 'updated_at': _stampNow},
-        where: 'deleted = 0',
-      );
+      await txn.update('classes', {
+        'deleted': 1,
+        'updated_at': _stampNow,
+      }, where: 'deleted = 0');
       var inserted = 0;
       for (final item in classes) {
         await txn.insert(
           'classes',
-          item.toMap()..remove('id')..['updated_at'] = _stampNow,
+          item.toMap()
+            ..remove('id')
+            ..['updated_at'] = _stampNow,
         );
         inserted++;
       }
@@ -606,16 +635,17 @@ class DatabaseHelper extends ChangeNotifier {
     }
     final db = await _database;
     final inserted = await db.transaction((txn) async {
-      await txn.update(
-        'events',
-        {'deleted': 1, 'updated_at': _stampNow},
-        where: 'deleted = 0',
-      );
+      await txn.update('events', {
+        'deleted': 1,
+        'updated_at': _stampNow,
+      }, where: 'deleted = 0');
       var inserted = 0;
       for (final item in events) {
         await txn.insert(
           'events',
-          item.toMap()..remove('id')..['updated_at'] = _stampNow,
+          item.toMap()
+            ..remove('id')
+            ..['updated_at'] = _stampNow,
         );
         inserted++;
       }
@@ -652,7 +682,9 @@ class DatabaseHelper extends ChangeNotifier {
       for (final item in classes) {
         await txn.insert(
           'classes',
-          item.toMap()..remove('id')..['updated_at'] = _stampNow,
+          item.toMap()
+            ..remove('id')
+            ..['updated_at'] = _stampNow,
         );
         inserted++;
       }
@@ -942,7 +974,12 @@ class DatabaseHelper extends ChangeNotifier {
           whereArgs: [local['id'] as int],
         );
       } else {
-        await db.update('classes', map, where: 'id = ?', whereArgs: [local['id'] as int]);
+        await db.update(
+          'classes',
+          map,
+          where: 'id = ?',
+          whereArgs: [local['id'] as int],
+        );
       }
     }
     notifyListeners();
@@ -1003,7 +1040,12 @@ class DatabaseHelper extends ChangeNotifier {
           whereArgs: [local['id'] as int],
         );
       } else {
-        await db.update('events', map, where: 'id = ?', whereArgs: [local['id'] as int]);
+        await db.update(
+          'events',
+          map,
+          where: 'id = ?',
+          whereArgs: [local['id'] as int],
+        );
       }
     }
     notifyListeners();
@@ -1148,7 +1190,9 @@ class DatabaseHelper extends ChangeNotifier {
   }
 
   /// Returns all class statuses modified since [since] (for sync push).
-  Future<List<Map<String, Object?>>> getChangedClassStatuses(DateTime since) async {
+  Future<List<Map<String, Object?>>> getChangedClassStatuses(
+    DateTime since,
+  ) async {
     final db = await _database;
     final rows = await db.query(
       'class_status',

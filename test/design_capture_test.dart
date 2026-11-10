@@ -12,6 +12,8 @@ import 'package:klasify/widgets/first_run_options.dart';
 import 'package:klasify/widgets/next_class_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'golden_tolerance.dart';
+
 /// The Flutter SDK's font cache, resolved cross-platform. The original
 /// capture ran on Windows with a hard-coded path; derive the SDK root from
 /// the FLUTTER_ROOT environment (set by `flutter test`) or, failing that,
@@ -141,6 +143,14 @@ Future<void> _shoot(
 
 void main() {
   setUpAll(() async {
+    // Goldens were recorded on Windows; Linux antialiases Roboto slightly
+    // differently (~0.7–3% of pixels on the captures below). Judge the
+    // comparison with a small tolerance instead of failing on font drift.
+    // Sizes and everything beyond the threshold stay strict.
+    goldenFileComparator = TolerantLocalFileComparator.forTest(
+      goldenFileComparator as LocalFileComparator,
+      'design_capture_test.dart',
+    );
     await _load('Roboto', [
       'roboto-regular.ttf',
       'roboto-medium.ttf',

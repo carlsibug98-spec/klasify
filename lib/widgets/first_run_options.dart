@@ -22,8 +22,13 @@ class FirstRunOptions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final tiles = SizedBox(
-      height: 104,
+    // IntrinsicHeight, not a fixed outer height: the two tiles stay equal
+    // height and keep the 104px floor (inside _OptionTile), but grow with
+    // their content. A hard 104px box overflowed as soon as the title
+    // wrapped — on the default 800×600 test surface and harder at large
+    // accessibility text scales — and a bare stretch Row would demand an
+    // infinite height from unbounded parents (ListView, tour scroll view).
+    final tiles = IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

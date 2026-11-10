@@ -52,7 +52,13 @@ class AuthService extends ChangeNotifier {
 
   /// Base URL of the sync API. Override at build time:
   ///   flutter run --dart-define=KLASIFY_API_URL=https://api.klasify.app/v1
-  static const String _defaultBaseUrl = 'http://localhost:3000/v1';
+  ///
+  /// Defaults to the XAMPP deployment documented in php-backend/README.md and
+  /// the PHP/XAMPP migration plan (Apache serves php-backend/ as
+  /// /klasify-api on the dev PC's LAN IP; a phone reaches it over Wi-Fi).
+  /// The old Node default (http://localhost:3000/v1) pointed at the retired
+  /// Docker stack and made every plain `flutter run` fail to connect.
+  static const String _defaultBaseUrl = 'http://192.168.1.67/klasify-api';
   static String get baseUrl =>
       const String.fromEnvironment('KLASIFY_API_URL', defaultValue: _defaultBaseUrl);
 
@@ -157,9 +163,14 @@ class AuthService extends ChangeNotifier {
   Future<String> _googleIdToken() async {
     final googleSignIn = GoogleSignIn(
       scopes: const ['email', 'profile'],
+      // The web client id whose audience the backend accepts (php-backend
+      // config.php 'google_client_id'). It must be compiled into the app or
+      // google_sign_in returns no ID token at all; builds for a different
+      // backend override it with --dart-define=GOOGLE_WEB_CLIENT_ID=...
       serverClientId: const String.fromEnvironment(
         'GOOGLE_WEB_CLIENT_ID',
-        defaultValue: '',
+        defaultValue:
+            '359657054360-0v7f3rlt56caci4h78v6kc0me91v2s4m.apps.googleusercontent.com',
       ),
     );
     await googleSignIn.signOut();

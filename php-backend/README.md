@@ -11,6 +11,8 @@ Flutter app (phone or PC)  --HTTP-->  Apache + PHP (XAMPP)  --SQL-->  MySQL / Ma
 
 Every endpoint, status code, error code, and response shape matches
 `docs/sync_api_contract.md`, so the Flutter app needs only a new base URL.
+Admin rules (roles, provisioning, office availability) live in
+`docs/ADMIN.md`.
 
 ## Requirements
 
@@ -88,8 +90,10 @@ config.php       Settings (not served to browsers)
 src/common.php   Database, JSON, JWT, timestamps, rate limiting, logging
 src/auth.php     /auth/* routes
 src/sync.php     /sync/push and /sync/pull
+src/admin.php    /admin/* routes (user roles, departments, office statuses)
 src/google_jwks.php  Local RS256 verification of Google ID tokens (JWKS, 24h cache)
-storage/cache/       google_jwks.json (auto-created, gitignored)
+storage/logs/    app.log (reset codes, skipped sync rows, server errors)
+storage/cache/   google_jwks.json (auto-created, gitignored)
 ```
 
 ## Notes on the migration

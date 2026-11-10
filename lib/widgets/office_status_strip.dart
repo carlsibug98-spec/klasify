@@ -125,11 +125,7 @@ class OfficeStatusStrip extends StatelessWidget {
 }
 
 class _OfficeTile extends StatelessWidget {
-  const _OfficeTile({
-    required this.office,
-    required this.isAdmin,
-    this.onTap,
-  });
+  const _OfficeTile({required this.office, required this.isAdmin, this.onTap});
 
   final OfficeStatus office;
   final bool isAdmin;
@@ -165,40 +161,50 @@ class _OfficeTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: dot,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  office.displayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontSize: 11,
-                    height: 1.2,
-                    fontWeight: FontWeight.w600,
-                    color: foreground.withValues(alpha: 0.8),
+          // The name line is a Text, not a Row with an Expanded child: the
+          // tile shrink-wraps inside a horizontal scroll view (unbounded
+          // width) and sits under an IntrinsicHeight, so a flex child here
+          // throws "non-zero flex but incoming width constraints are
+          // unbounded" and takes the whole Today screen down with it. The
+          // dot and the admin pencil ride as inline WidgetSpans instead.
+          Text.rich(
+            TextSpan(
+              children: [
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    margin: const EdgeInsets.only(right: 5),
+                    decoration: BoxDecoration(
+                      color: dot,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
-              ),
-              if (isAdmin)
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Icon(
-                    Icons.edit_outlined,
-                    size: 13,
-                    color: foreground.withValues(alpha: 0.7),
+                TextSpan(text: office.displayName),
+                if (isAdmin)
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Icon(
+                        Icons.edit_outlined,
+                        size: 13,
+                        color: foreground.withValues(alpha: 0.7),
+                      ),
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontSize: 11,
+              height: 1.2,
+              fontWeight: FontWeight.w600,
+              color: foreground.withValues(alpha: 0.8),
+            ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -231,10 +237,7 @@ class _OfficeTile extends StatelessWidget {
     );
 
     if (isAdmin && onTap != null) {
-      return InkWell(
-        onTap: onTap,
-        child: tile,
-      );
+      return InkWell(onTap: onTap, child: tile);
     }
     return tile;
   }
