@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import '../models/office_status.dart';
@@ -5,15 +8,20 @@ import '../theme/app_theme.dart';
 
 /// The Today screen's campus-office strip (design C): one card, a column
 /// per office — a 4px status bar over the name, the state ("Open" / "On
-/// break" / "Closed") and the admin's optional note. Three columns share
-/// the width; a fourth or later scrolls sideways. Values come from the
-/// local cache, so the strip keeps showing the last synced state offline.
+/// break" / "Closed") and the admin's optional note. Up to three offices
+/// share the card's width exactly as in the approved v12 design.
+///
+/// With a fourth or later office the strip becomes a swipe pager: one
+/// office per swipe, each column 2/7 of the card so half of the next office
+/// peeks out, dissolved by a soft edge blur at the card's edge. Values come
+/// from the local cache, so the strip keeps showing the last synced state
+/// offline.
 ///
 /// Admins get a 24px edit chip (✎) on each column; tapping opens the same
 /// bottom sheet as Settings → Admin. An office whose change is still
 /// syncing shows "Syncing…" in place of its note; one whose PATCH is in
 /// flight is dimmed.
-class OfficeStatusStrip extends StatelessWidget {
+class OfficeStatusStrip extends StatefulWidget {
   const OfficeStatusStrip({
     super.key,
     required this.offices,
@@ -38,19 +46,148 @@ class OfficeStatusStrip extends StatelessWidget {
   final ValueChanged<OfficeStatus>? onEditOffice;
 
   @override
+  State<OfficeStatusStrip> createState() => _OfficeStatusStripState();
+}
+
+class _OfficeStatusStripState extends State<OfficeStatusStrip>
+    with SingleTickerProviderStateMixin {
+  /// Fixed pager tile height: 24 (top row) + 4 + 14.4 (name line) + 2 +
+  /// 19.2 (state line) + 13 (sub line) + 28 (vertical padding) ≈ 104.6.
+  /// The two text lines use fixed fontSize/height in the tile, so the sum
+  /// is deterministic; the ≤3 row keeps IntrinsicHeight and needs no
+  /// constant. (Large text scale can clip the sub line — known trade-off.)
+  static const double _kPagerTileHeight = 106.0;
+
+  double _offset = 0;
+  double _maxOffset = 0;
+  double _colWidth = 0;
+  List<double> _snaps = const [0];
+
+  double _dragStartOffset = 0;
+  double _dragStartX = 0;
+  double _lastDx = 0;
+  bool _dragging = false;
+
+  late final AnimationController _snapController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+  );
+  Animation<double>? _snapAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _snapController.addListener(() {
+      final value = _snapAnim?.value;
+      if (value != null) setState(() => _offset = value);
+    });
+  }
+
+  @override
+  void dispose() {
+    _snapController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant OfficeStatusStrip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.offices.length != oldWidget.offices.length) {
+      // Offices were added or removed (e.g. a retire landed): recompute and
+      // clamp — the pager must never rest past its new end.
+      _computeMetrics(_colWidth * 7 / 2);
+      _snapAnim = null;
+      _snapController.stop();
+    }
+  }
+
+  /// Recomputes the column width, the furthest scroll offset and the snap
+  /// positions. Snap positions are column multiples, with the clamped end
+  /// (the track's real maximum) appended when it is not itself a multiple —
+  /// so the last office can always be brought fully into view.
+  void _computeMetrics(double viewportWidth) {
+    if (viewportWidth <= 0) return;
+    _colWidth = viewportWidth * 2 / 7;
+    _maxOffset = math.max(0, widget.offices.length * _colWidth - viewportWidth);
+    _snaps = [0];
+    if (_maxOffset > 4) {
+      for (double p = _colWidth; p < _maxOffset - 4; p += _colWidth) {
+        _snaps.add(p);
+      }
+      _snaps.add(_maxOffset);
+    }
+    _offset = _offset.clamp(0.0, _maxOffset).toDouble();
+  }
+
+  int _nearestSnapIndex(double offset) {
+    var best = 0;
+    for (var i = 0; i < _snaps.length; i++) {
+      if ((_snaps[i] - offset).abs() < (_snaps[best] - offset).abs()) best = i;
+    }
+    return best;
+  }
+
+  void _animateTo(double target) {
+    final clamped = target.clamp(0.0, _maxOffset).toDouble();
+    _snapAnim = Tween<double>(begin: _offset, end: clamped).animate(
+      CurvedAnimation(parent: _snapController, curve: Curves.easeOutCubic),
+    );
+    _snapController.forward(from: 0);
+  }
+
+  void _onDragStart(DragStartDetails details) {
+    _dragging = true;
+    _lastDx = 0;
+    _dragStartOffset = _offset;
+    _dragStartX = details.globalPosition.dx;
+    _snapAnim = null;
+    _snapController.stop();
+  }
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    if (!_dragging) return;
+    _lastDx = _dragStartX - details.globalPosition.dx;
+    final target = _dragStartOffset + _lastDx;
+    // Rubber-band past either end, like the approved mockup.
+    final banded = target < 0
+        ? target * 0.35
+        : target > _maxOffset
+        ? _maxOffset + (target - _maxOffset) * 0.35
+        : target;
+    if (banded != _offset) setState(() => _offset = banded);
+  }
+
+  void _onDragEnd(DragEndDetails details) {
+    if (!_dragging) return;
+    _dragging = false;
+    final threshold = math.max(24.0, _colWidth * 0.18);
+    var index = _nearestSnapIndex(_dragStartOffset);
+    if (_lastDx.abs() > threshold) {
+      // Exactly one office per swipe: advance or retreat a single snap.
+      index = math.max(
+        0,
+        math.min(_snaps.length - 1, index + (_lastDx > 0 ? 1 : -1)),
+      );
+    } else {
+      index = _nearestSnapIndex(_offset.clamp(0.0, _maxOffset).toDouble());
+    }
+    _animateTo(_snaps[index]);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (offices.isEmpty) return const SizedBox.shrink();
+    if (widget.offices.isEmpty) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final latest = offices
+    final latest = widget.offices
         .map((o) => o.updatedAt)
         .whereType<DateTime>()
         .fold<DateTime?>(null, (a, b) => a == null || b.isAfter(a) ? b : a);
 
     final hintBits = <String>[
-      if (isAdmin) 'Tap an office to change it. Students see the change after sync.',
-      if (offices.length > 3) 'Swipe sideways to see all offices.',
+      if (widget.isAdmin) 'Tap an office to change it. Students see the change after sync.',
+      if (widget.offices.length > 3) 'Swipe sideways to see all offices.',
     ];
 
     return Padding(
@@ -93,46 +230,132 @@ class OfficeStatusStrip extends StatelessWidget {
               ],
             ),
           ),
-          // Three columns share the card's width; more offices keep that
-          // third-width and scroll horizontally (mockup: minmax(33.33%, 1fr)).
           LayoutBuilder(
             builder: (context, constraints) {
-              final tileWidth = (constraints.maxWidth / 3).clamp(110.0, double.infinity);
-              return Container(
-                decoration: BoxDecoration(
-                  color: AppTheme.cardFillColorOf(scheme),
-                  borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-                  border: Border.fromBorderSide(AppTheme.cardBorderSideOf(scheme)),
-                  boxShadow: AppTheme.cardShadowsOf(scheme),
+              final cardDecoration = BoxDecoration(
+                color: AppTheme.cardFillColorOf(scheme),
+                borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+                border: Border.fromBorderSide(
+                  AppTheme.cardBorderSideOf(scheme),
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (final (index, office) in offices.indexed) ...[
-                          if (index > 0)
-                            VerticalDivider(
-                              width: 1,
-                              thickness: 1,
-                              color: AppTheme.cardBorderSideOf(scheme).color,
+                boxShadow: AppTheme.cardShadowsOf(scheme),
+              );
+
+              // ≤3 offices: the approved v12 row, unchanged.
+              if (widget.offices.length <= 3) {
+                final tileWidth = (constraints.maxWidth / 3).clamp(
+                  110.0,
+                  double.infinity,
+                );
+                return Container(
+                  decoration: cardDecoration,
+                  clipBehavior: Clip.antiAlias,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final (index, office) in widget.offices.indexed) ...[
+                            if (index > 0)
+                              VerticalDivider(
+                                width: 1,
+                                thickness: 1,
+                                color: AppTheme.cardBorderSideOf(scheme).color,
+                              ),
+                            SizedBox(
+                              width: tileWidth,
+                              child: _OfficeTile(
+                                office: office,
+                                isAdmin: widget.isAdmin,
+                                pending: widget.pendingOffices.contains(office.office),
+                                saving: widget.savingOffice == office.office,
+                                onTap:
+                                    widget.isAdmin && widget.onEditOffice != null
+                                    ? () => widget.onEditOffice!(office)
+                                    : null,
+                              ),
                             ),
-                          SizedBox(
-                            width: tileWidth,
-                            child: _OfficeTile(
-                              office: office,
-                              isAdmin: isAdmin,
-                              pending: pendingOffices.contains(office.office),
-                              saving: savingOffice == office.office,
-                              onTap:
-                                  isAdmin && onEditOffice != null
-                                  ? () => onEditOffice!(office)
-                                  : null,
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              // 4+ offices: the pager. Metrics are recomputed on every
+              // layout; the drag handlers read them without triggering
+              // rebuilds of their own.
+              _computeMetrics(constraints.maxWidth);
+              final showRightEdge = _maxOffset > 4 && _offset < _maxOffset - 4;
+              final showLeftEdge = _offset > 4;
+
+              return Container(
+                decoration: cardDecoration,
+                clipBehavior: Clip.antiAlias,
+                child: GestureDetector(
+                  key: const Key('office_strip_pager'),
+                  behavior: HitTestBehavior.opaque,
+                  onHorizontalDragStart: _onDragStart,
+                  onHorizontalDragUpdate: _onDragUpdate,
+                  onHorizontalDragEnd: _onDragEnd,
+                  onHorizontalDragCancel: () {
+                    if (_dragging) _onDragEnd(DragEndDetails());
+                  },
+                  child: SizedBox(
+                    height: _kPagerTileHeight,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: ClipRect(
+                            child: OverflowBox(
+                              maxWidth: double.infinity,
+                              alignment: Alignment.centerLeft,
+                              child: Transform.translate(
+                                offset: Offset(-_offset, 0),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    for (final (index, office)
+                                        in widget.offices.indexed) ...[
+                                      if (index > 0)
+                                        VerticalDivider(
+                                          width: 1,
+                                          thickness: 1,
+                                          color: AppTheme.cardBorderSideOf(
+                                            scheme,
+                                          ).color,
+                                        ),
+                                      SizedBox(
+                                        width: _colWidth,
+                                        height: _kPagerTileHeight,
+                                        child: _OfficeTile(
+                                          office: office,
+                                          isAdmin: widget.isAdmin,
+                                          pending: widget.pendingOffices.contains(
+                                            office.office,
+                                          ),
+                                          saving:
+                                              widget.savingOffice == office.office,
+                                          onTap:
+                                              widget.isAdmin &&
+                                                  widget.onEditOffice != null
+                                              ? () => widget.onEditOffice!(office)
+                                              : null,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
-                        ],
+                        ),
+                        if (showRightEdge)
+                          const _EdgeBlur(side: _EdgeSide.right),
+                        if (showLeftEdge) const _EdgeBlur(side: _EdgeSide.left),
                       ],
                     ),
                   ),
@@ -152,6 +375,58 @@ class OfficeStatusStrip extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+enum _EdgeSide { left, right }
+
+/// A 52px sliver at one edge of the pager: blurs whatever peeks underneath
+/// and dissolves it into the card's own colour, fading out toward the
+/// card's middle (the multi-stop ramp from the approved mockup). The blur
+/// and the tint share one ShaderMask so they fade in together.
+class _EdgeBlur extends StatelessWidget {
+  const _EdgeBlur({required this.side});
+
+  final _EdgeSide side;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isRight = side == _EdgeSide.right;
+
+    return Positioned(
+      top: 0,
+      bottom: 0,
+      width: 52,
+      right: isRight ? 0 : null,
+      left: isRight ? null : 0,
+      child: IgnorePointer(
+        child: ClipRect(
+          child: ShaderMask(
+            blendMode: BlendMode.dstIn,
+            shaderCallback: (bounds) => LinearGradient(
+              begin: isRight ? Alignment.centerLeft : Alignment.centerRight,
+              end: isRight ? Alignment.centerRight : Alignment.centerLeft,
+              colors: const [
+                Color(0x00000000),
+                Color(0x73000000),
+                Color(0xD1000000),
+                Color(0xFF000000),
+              ],
+              stops: const [0.0, 0.4, 0.74, 1.0],
+            ).createShader(bounds),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+              child: Container(
+                color: AppTheme.cardFillColorOf(scheme).withValues(
+                  alpha: 0.26,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

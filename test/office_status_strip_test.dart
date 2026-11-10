@@ -94,4 +94,89 @@ void main() {
 
     expect(find.textContaining('Tap an office to change it.'), findsOneWidget);
   });
+
+  testWidgets('four offices switch the strip to a pager with an edge blur',
+      (tester) async {
+    await tester.pumpWidget(
+      _host([
+        _office('guidance'),
+        _office('clinic'),
+        _office('registrar'),
+        _office('library'),
+      ]),
+    );
+
+    expect(find.byType(BackdropFilter), findsOneWidget); // right edge only, offset 0
+    expect(find.byType(ShaderMask), findsOneWidget);
+  });
+
+  testWidgets('swiping advances exactly one office and flips the blur',
+      (tester) async {
+    await tester.pumpWidget(
+      _host([
+        _office('guidance'),
+        _office('clinic'),
+        _office('registrar'),
+        _office('library'),
+        _office('health_services'),
+      ]),
+    );
+
+    final before = tester.getTopLeft(find.text('Guidance')).dx;
+    expect(find.byType(BackdropFilter), findsOneWidget);
+
+    await tester.drag(
+      find.byKey(const Key('office_strip_pager')),
+      const Offset(-220, 0),
+    );
+    await tester.pumpAndSettle();
+
+    final after = tester.getTopLeft(find.text('Guidance')).dx;
+    expect(after, lessThan(before - 80)); // advanced about one column
+    expect(find.byType(BackdropFilter), findsNWidgets(2)); // mid-strip: both edges
+
+    await tester.drag(
+      find.byKey(const Key('office_strip_pager')),
+      const Offset(220, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(BackdropFilter), findsOneWidget); // back at the start
+  });
+
+  testWidgets('an empty office list renders nothing', (tester) async {
+    await tester.pumpWidget(_host(const []));
+    expect(find.byType(PageView), findsNothing);
+    expect(find.text('CAMPUS OFFICES'), findsNothing);
+  });
+
+  testWidgets('three offices keep the non-pager row layout', (tester) async {
+    await tester.pumpWidget(
+      _host([_office('guidance'), _office('clinic'), _office('registrar')]),
+    );
+    expect(find.byType(PageView), findsNothing);
+    expect(find.byType(BackdropFilter), findsNothing);
+  });
+
+  testWidgets('a tap (no drag) still opens the office sheet', (tester) async {
+    OfficeStatus? tapped;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: OfficeStatusStrip(
+            offices: [
+              _office('guidance'),
+              _office('clinic'),
+              _office('registrar'),
+              _office('library'),
+            ],
+            isAdmin: true,
+            onEditOffice: (o) => tapped = o,
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Guidance'));
+    expect(tapped?.office, 'guidance');
+  });
 }
