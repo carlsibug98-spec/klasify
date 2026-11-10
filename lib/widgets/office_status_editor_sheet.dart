@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import 'app_notification.dart';
+import 'office_name_sheet.dart';
 
 /// Availability choices, in sheet order. Keys match the server's
 /// office_statuses.status values.
@@ -15,6 +16,11 @@ const _availabilityOptions = [
 /// entry points — the ✎ chip on Today's office strip and Settings → Admin →
 /// Office availability — open this same sheet, so they can never drift.
 ///
+/// Super admins additionally get a "Manage office" section (when
+/// [onRename]/[onRetire] are provided): rename re-creates the row under a
+/// new key, retire soft-deletes it. Department admins pass neither and see
+/// only availability.
+///
 /// The sheet owns the save interaction: the CTA spins and reads "Saving…"
 /// while [onSave] runs, the sheet is not dismissible mid-save, a failure
 /// keeps the sheet open with an error toast for an immediate retry, and a
@@ -25,6 +31,9 @@ Future<bool> showOfficeStatusEditorSheet(
   required String initialStatus,
   String? initialNote,
   required Future<void> Function(String status, String? note) onSave,
+  List<String> otherOfficeNames = const [],
+  Future<void> Function(String newName)? onRename,
+  Future<void> Function()? onRetire,
 }) async {
   final saved = await showModalBottomSheet<bool>(
     context: context,
@@ -35,6 +44,9 @@ Future<bool> showOfficeStatusEditorSheet(
       initialStatus: initialStatus,
       initialNote: initialNote,
       onSave: onSave,
+      otherOfficeNames: otherOfficeNames,
+      onRename: onRename,
+      onRetire: onRetire,
     ),
   );
   return saved ?? false;
@@ -46,12 +58,24 @@ class _OfficeStatusEditorSheet extends StatefulWidget {
     required this.initialStatus,
     required this.initialNote,
     required this.onSave,
+    required this.otherOfficeNames,
+    required this.onRename,
+    required this.onRetire,
   });
 
   final String displayName;
   final String initialStatus;
   final String? initialNote;
   final Future<void> Function(String status, String? note) onSave;
+
+  /// Other offices' names, for the rename sheet's duplicate pre-check.
+  final List<String> otherOfficeNames;
+
+  /// Super-admin rename; null hides the manage rows.
+  final Future<void> Function(String newName)? onRename;
+
+  /// Super-admin retire; null hides the manage rows.
+  final Future<void> Function()? onRetire;
 
   @override
   State<_OfficeStatusEditorSheet> createState() =>
@@ -75,7 +99,10 @@ class _OfficeStatusEditorSheetState extends State<_OfficeStatusEditorSheet> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      await widget.onSave(_status, _note.text.trim().isEmpty ? null : _note.text.trim());
+      await widget.onSave(
+        _status,
+        _note.text.trim().isEmpty ? null : _note.text.trim(),
+      );
       if (mounted) Navigator.pop(context, true);
     } catch (_) {
       if (!mounted) return;
@@ -88,6 +115,70 @@ class _OfficeStatusEditorSheetState extends State<_OfficeStatusEditorSheet> {
     }
   }
 
+  Future<void> _rename() async {
+    if (_busy) return;
+    final renamed = await showOfficeNameSheet(
+      context,
+      title: 'Rename office',
+      ctaLabel: 'Rename',
+      initialName: widget.displayName,
+      takenNames: widget.otherOfficeNames,
+      onSave: widget.onRename!,
+    );
+    if (renamed && mounted) Navigator.pop(context, true);
+  }
+
+  Future<void> _confirmRetire() async {
+    if (_busy) return;
+    var retiring = false;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialog) => AlertDialog(
+          title: Text('Retire ${widget.displayName}?'),
+          content: const Text(
+            'Students will no longer see it on Today. Its record stays on file.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: retiring
+                  ? null
+                  : () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: retiring
+                  ? null
+                  : () async {
+                      setDialog(() => retiring = true);
+                      try {
+                        await widget.onRetire!();
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext, true);
+                        }
+                      } catch (_) {
+                        if (!dialogContext.mounted) return;
+                        setDialog(() => retiring = false);
+                        showAppNotification(
+                          dialogContext,
+                          "Couldn't retire ${widget.displayName}. Nothing changed. Try again.",
+                          kind: AppNotificationKind.error,
+                        );
+                      }
+                    },
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(dialogContext).colorScheme.error,
+                foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+              ),
+              child: retiring ? const Text('Retiring…') : const Text('Retire'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed == true && mounted) Navigator.pop(context, true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -98,167 +189,235 @@ class _OfficeStatusEditorSheetState extends State<_OfficeStatusEditorSheet> {
       // could tap away and never learn whether the change landed).
       canPop: !_busy,
       child: Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
         child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
-                child: Text(widget.displayName, style: theme.textTheme.titleLarge),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 2, 24, 0),
-                child: Text(
-                  'Students see this on Today, updated at the next sync.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
+                  child: Text(
+                    widget.displayName,
+                    style: theme.textTheme.titleLarge,
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                child: Text(
-                  'AVAILABILITY',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontSize: 11,
-                    height: 1.2,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
-                    color: AppTheme.groupLabelColorOf(scheme),
-                  ),
-                ),
-              ),
-              // Stacked segmented group: one surface, 1px seams, rounded
-              // outer corners; the selected row lifts to the high fill.
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Container(
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-                    border: Border.fromBorderSide(
-                      AppTheme.cardBorderSideOf(scheme),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 2, 24, 0),
+                  child: Text(
+                    'Students see this on Today, updated at the next sync.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
                     ),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final (index, option) in _availabilityOptions.indexed) ...[
-                        if (index > 0)
-                          Container(
-                            height: 1,
-                            color: AppTheme.cardBorderSideOf(scheme).color,
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                  child: Text(
+                    'AVAILABILITY',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontSize: 11,
+                      height: 1.2,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                      color: AppTheme.groupLabelColorOf(scheme),
+                    ),
+                  ),
+                ),
+                // Stacked segmented group: one surface, 1px seams, rounded
+                // outer corners; the selected row lifts to the high fill.
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Container(
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+                      border: Border.fromBorderSide(
+                        AppTheme.cardBorderSideOf(scheme),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final (index, option)
+                            in _availabilityOptions.indexed) ...[
+                          if (index > 0)
+                            Container(
+                              height: 1,
+                              color: AppTheme.cardBorderSideOf(scheme).color,
+                            ),
+                          _AvailabilityOption(
+                            label: option.$2,
+                            selected: _status == option.$1,
+                            onTap: _busy
+                                ? null
+                                : () => setState(() => _status = option.$1),
                           ),
-                        _AvailabilityOption(
-                          label: option.$2,
-                          selected: _status == option.$1,
-                          onTap: _busy ? null : () => setState(() => _status = option.$1),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(14, 9, 14, 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.cardFillColorOf(scheme),
+                      borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+                      border: Border.fromBorderSide(
+                        AppTheme.cardBorderSideOf(scheme),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Note (optional)',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontSize: 11,
+                            height: 1.2,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.placeholderFor(scheme),
+                          ),
+                        ),
+                        TextField(
+                          controller: _note,
+                          maxLength: 60,
+                          textCapitalization: TextCapitalization.sentences,
+                          enabled: !_busy,
+                          buildCounter:
+                              (
+                                _, {
+                                required currentLength,
+                                required isFocused,
+                                maxLength,
+                              }) => null,
+                          decoration: const InputDecoration.collapsed(
+                            hintText: 'Back at 2pm',
+                          ).copyWith(isCollapsed: true),
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontSize: 15,
+                            height: 1.3,
+                          ),
                         ),
                       ],
-                    ],
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(14, 9, 14, 8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.cardFillColorOf(scheme),
-                    borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-                    border: Border.fromBorderSide(
-                      AppTheme.cardBorderSideOf(scheme),
                     ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Note (optional)',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontSize: 11,
-                          height: 1.2,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.placeholderFor(scheme),
-                        ),
-                      ),
-                      TextField(
-                        controller: _note,
-                        maxLength: 60,
-                        textCapitalization: TextCapitalization.sentences,
-                        enabled: !_busy,
-                        buildCounter:
-                            (
-                              _, {
-                              required currentLength,
-                              required isFocused,
-                              maxLength,
-                            }) => null,
-                        decoration: const InputDecoration.collapsed(
-                          hintText: 'Back at 2pm',
-                        ).copyWith(isCollapsed: true),
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          fontSize: 15,
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-                child: SizedBox(
-                  height: 52,
-                  child: FilledButton(
-                    onPressed: _busy ? null : _save,
-                    style: FilledButton.styleFrom(
-                      shape: RoundedRectangleBorder(
+                if (widget.onRename != null || widget.onRetire != null) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 14, 24, 8),
+                    child: Text(
+                      'MANAGE OFFICE',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontSize: 11,
+                        height: 1.2,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                        color: AppTheme.groupLabelColorOf(scheme),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Container(
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(
-                          AppTheme.controlRadius,
+                          AppTheme.cardRadius,
+                        ),
+                        border: Border.fromBorderSide(
+                          AppTheme.cardBorderSideOf(scheme),
                         ),
                       ),
-                    ),
-                    child: _busy
-                        ? Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox.square(
-                                dimension: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.2,
-                                  color: scheme.onPrimary,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              const Text('Saving…'),
-                            ],
-                          )
-                        : const Text('Update availability'),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                child: SizedBox(
-                  height: 40,
-                  child: TextButton(
-                    onPressed: _busy ? null : () => Navigator.pop(context, false),
-                    style: TextButton.styleFrom(
-                      foregroundColor: scheme.onSurfaceVariant,
-                      textStyle: theme.textTheme.labelLarge?.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (widget.onRename != null)
+                            _ManageRow(
+                              label: 'Rename office',
+                              icon: Icons.chevron_right_rounded,
+                              destructive: false,
+                              enabled: !_busy,
+                              onTap: _rename,
+                            ),
+                          if (widget.onRename != null &&
+                              widget.onRetire != null)
+                            Container(
+                              height: 1,
+                              color: AppTheme.cardBorderSideOf(scheme).color,
+                            ),
+                          if (widget.onRetire != null)
+                            _ManageRow(
+                              label: 'Retire office',
+                              icon: Icons.delete_outline_rounded,
+                              destructive: true,
+                              enabled: !_busy,
+                              onTap: _confirmRetire,
+                            ),
+                        ],
                       ),
                     ),
-                    child: const Text('Cancel'),
+                  ),
+                ],
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                  child: SizedBox(
+                    height: 52,
+                    child: FilledButton(
+                      onPressed: _busy ? null : _save,
+                      style: FilledButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.controlRadius,
+                          ),
+                        ),
+                      ),
+                      child: _busy
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox.square(
+                                  dimension: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: scheme.onPrimary,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Text('Saving…'),
+                              ],
+                            )
+                          : const Text('Update availability'),
+                    ),
                   ),
                 ),
-              ),
-            ],
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                  child: SizedBox(
+                    height: 40,
+                    child: TextButton(
+                      onPressed: _busy
+                          ? null
+                          : () => Navigator.pop(context, false),
+                      style: TextButton.styleFrom(
+                        foregroundColor: scheme.onSurfaceVariant,
+                        textStyle: theme.textTheme.labelLarge?.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -286,7 +445,9 @@ class _AvailabilityOption extends StatelessWidget {
       onTap: onTap,
       child: Container(
         height: 56,
-        color: selected ? scheme.surfaceContainerHigh : AppTheme.cardFillColorOf(scheme),
+        color: selected
+            ? scheme.surfaceContainerHigh
+            : AppTheme.cardFillColorOf(scheme),
         padding: const EdgeInsets.symmetric(horizontal: 14),
         child: Row(
           children: [
@@ -318,6 +479,54 @@ class _AvailabilityOption extends StatelessWidget {
                   ? Icon(Icons.check_rounded, size: 14, color: scheme.onPrimary)
                   : null,
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One row of the "Manage office" group. Same 56px height and hairline
+/// container language as the availability options above it.
+class _ManageRow extends StatelessWidget {
+  const _ManageRow({
+    required this.label,
+    required this.icon,
+    required this.destructive,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool destructive;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final color = destructive ? scheme.error : scheme.onSurface;
+
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ),
+            Icon(icon, size: 22, color: color),
           ],
         ),
       ),
