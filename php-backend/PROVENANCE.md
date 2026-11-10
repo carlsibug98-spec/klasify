@@ -34,3 +34,14 @@
   unknown `kid`, and stale-cache fallback on a failed fetch. `config.php`
   gained `google_verify` (`KLASIFY_GOOGLE_VERIFY`, default `jwt_jwks`); `auth.php`
   dispatches on it, keeping `verify_google_id_token` as the `tokeninfo` fallback.
+- 2026-11-10 (office management): `src/admin.php` — super-admin office CRUD:
+  `POST /admin/offices` (201 with the created row), `PATCH /admin/offices/{office}`
+  (rename = tombstone the old key + insert the new one, keeping status + note),
+  `DELETE /admin/offices/{office}` (retire = soft delete, permanent in-app).
+  `GET /admin/office-statuses` no longer seeds the hardcoded
+  guidance/clinic/registrar rows (an empty list is valid on a fresh install);
+  `PATCH /admin/office-statuses/{office}` now requires an existing active row
+  (404 `OFFICE_NOT_FOUND`) and lost its create-on-PATCH branch. Name rules:
+  trim, 1–40 chars (422), unique case-insensitively (409 `OFFICE_EXISTS`).
+  The frozen contract was updated in the same commit
+  (`docs/sync_api_contract.md`); deployed to `C:\xampp\htdocs\klasify-api`.
