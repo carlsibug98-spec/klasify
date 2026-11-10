@@ -143,6 +143,33 @@ void main() {
     expect(find.byType(BackdropFilter), findsOneWidget); // back at the start
   });
 
+  testWidgets('overscroll rubber-bands at the start and snaps back',
+      (tester) async {
+    await tester.pumpWidget(
+      _host([
+        _office('guidance'),
+        _office('clinic'),
+        _office('registrar'),
+        _office('library'),
+      ]),
+    );
+
+    final before = tester.getTopLeft(find.text('Guidance')).dx;
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(const Key('office_strip_pager'))),
+    );
+    await gesture.moveBy(const Offset(400, 0));
+    await tester.pump();
+
+    final banded = tester.getTopLeft(find.text('Guidance')).dx;
+    expect(banded, greaterThan(before)); // pulled right with the finger
+    expect(banded, lessThan(before + 400)); // but rubber-banded, not full travel
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.text('Guidance')).dx, before); // snapped back
+  });
+
   testWidgets('an empty office list renders nothing', (tester) async {
     await tester.pumpWidget(_host(const []));
     expect(find.byType(PageView), findsNothing);

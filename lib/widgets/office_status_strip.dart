@@ -96,6 +96,7 @@ class _OfficeStatusStripState extends State<OfficeStatusStrip>
       // Offices were added or removed (e.g. a retire landed): recompute and
       // clamp — the pager must never rest past its new end.
       _computeMetrics(_colWidth * 7 / 2);
+      _offset = _offset.clamp(0.0, _maxOffset).toDouble();
       _snapAnim = null;
       _snapController.stop();
     }
@@ -104,7 +105,10 @@ class _OfficeStatusStripState extends State<OfficeStatusStrip>
   /// Recomputes the column width, the furthest scroll offset and the snap
   /// positions. Snap positions are column multiples, with the clamped end
   /// (the track's real maximum) appended when it is not itself a multiple —
-  /// so the last office can always be brought fully into view.
+  /// so the last office can always be brought fully into view. Deliberately
+  /// does not clamp [_offset]: a rubber-banded drag rests past the end and
+  /// must survive the rebuild it triggers; the clamp happens on drag end and
+  /// on office-count changes.
   void _computeMetrics(double viewportWidth) {
     if (viewportWidth <= 0) return;
     _colWidth = viewportWidth * 2 / 7;
@@ -116,7 +120,6 @@ class _OfficeStatusStripState extends State<OfficeStatusStrip>
       }
       _snaps.add(_maxOffset);
     }
-    _offset = _offset.clamp(0.0, _maxOffset).toDouble();
   }
 
   int _nearestSnapIndex(double offset) {
@@ -288,6 +291,11 @@ class _OfficeStatusStripState extends State<OfficeStatusStrip>
               // layout; the drag handlers read them without triggering
               // rebuilds of their own.
               _computeMetrics(constraints.maxWidth);
+              // Rest outside a drag (rotation, office added) must clamp; a
+              // rubber-banded drag keeps its overshoot until release.
+              if (!_dragging) {
+                _offset = _offset.clamp(0.0, _maxOffset).toDouble();
+              }
               final showRightEdge = _maxOffset > 4 && _offset < _maxOffset - 4;
               final showLeftEdge = _offset > 4;
 
