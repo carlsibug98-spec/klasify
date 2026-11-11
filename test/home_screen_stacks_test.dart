@@ -77,6 +77,49 @@ void main() {
         .toList();
   }
 
+  /// The wall-clock fixture window for the live-hero stack test: a
+  /// 90-minute live class anchored to the real clock, then, when it fits, a
+  /// 60-minute upcoming class 40 minutes after the live one ends.
+  ///
+  /// Kept as a pure function so its day-end arithmetic can be checked at
+  /// every minute of the day instead of only when the suite happens to run
+  /// in the failing window.
+  ({int liveStart, int liveEnd, bool roomForNextUp}) liveWindowAt(int nowM) {
+    final liveStart = nowM > 0 ? nowM - 1 : 0;
+    final liveEnd = liveStart + 90 > 1440 ? 1440 : liveStart + 90;
+    // The upcoming class spans liveEnd+40 .. liveEnd+100, so the whole
+    // window — not just its start — must fit before midnight. Checking only
+    // the start let the fixture run past 24:00 between 20:52 and 21:51 and
+    // fail validateClass in the test setup.
+    final roomForNextUp = liveEnd + 100 <= 1440;
+    return (
+      liveStart: liveStart,
+      liveEnd: liveEnd,
+      roomForNextUp: roomForNextUp,
+    );
+  }
+
+  test('the live-window fixture is valid at every minute of the day', () {
+    for (var nowM = 0; nowM < 1440; nowM++) {
+      final window = liveWindowAt(nowM);
+      expect(window.liveStart, inInclusiveRange(0, 1439), reason: 'nowM=$nowM');
+      expect(
+        window.liveEnd,
+        inInclusiveRange(window.liveStart + 1, 1440),
+        reason: 'nowM=$nowM',
+      );
+      if (window.roomForNextUp) {
+        // The upcoming class is inserted at liveEnd+40 .. liveEnd+100 and
+        // must pass DatabaseHelper.validateClass in full.
+        expect(
+          window.liveEnd + 100,
+          lessThanOrEqualTo(1440),
+          reason: 'nowM=$nowM',
+        );
+      }
+    }
+  });
+
   testWidgets('a live hero leaves the next-up emphasis on the row below it', (
     tester,
   ) async {
@@ -88,11 +131,12 @@ void main() {
     final nowM = now.hour * 60 + now.minute;
     // The chain (done -> live -> upcoming) must fit before midnight. The
     // live window always hugs the real clock; the upcoming row only
-    // exists while there is room for it, and the last-hour runs instead
-    // assert the day-end fallback (live hero, no next-up row below).
-    final liveStart = nowM > 0 ? nowM - 1 : 0;
-    final liveEnd = (liveStart + 90 > 1440 ? 1440 : liveStart + 90);
-    final bool roomForNextUp = liveEnd + 40 <= 1440;
+    // exists while its whole 60-minute span fits, and late-evening runs
+    // instead assert the day-end fallback (live hero, no next-up row).
+    final window = liveWindowAt(nowM);
+    final liveStart = window.liveStart;
+    final liveEnd = window.liveEnd;
+    final bool roomForNextUp = window.roomForNextUp;
     await tester.runAsync(() async {
       await db.replaceAll([]);
       final doneId = await db.insert(
