@@ -84,7 +84,7 @@ Klasify is an Android-first Flutter app for students. Its core jobs:
 - Flutter: `>= 3.44.0`, Dart `>= 3.12.0`
 - Local database: SQLite via `sqflite`, schema **version 9**, file `class_schedule.db`
 - Backend: PHP 8 + MySQL/MariaDB (XAMPP-compatible), JWT HS256, bcrypt cost 12
-- Tests: 70 Dart test files, 547 tests, all passing (verified Nov 14, 2026);
+- Tests: 70 Dart test files, 552 tests, all passing (verified Nov 14, 2026);
   plus 56 PHP parity tests
 
 ---
@@ -441,7 +441,7 @@ database is the last line of defense, so no door can corrupt the schedule.
 
 ## Part 6 — Every file, explained
 
-The repository has 505 tracked files. The sections below cover all source
+The repository has 506 tracked files. The sections below cover all source
 files; test fixtures and generated assets are grouped at the end.
 
 ### 6.1 Root files
@@ -612,7 +612,7 @@ files; test fixtures and generated assets are grouped at the end.
 | `week_agenda_view.dart` | Week agenda layout + break threshold |
 | `weekday_tile.dart` | Weekday tile in the strip |
 
-### 6.11 `lib/features/schedule_import/` (36 files)
+### 6.11 `lib/features/schedule_import/` (37 files)
 
 **Entry and model**
 
@@ -638,6 +638,7 @@ files; test fixtures and generated assets are grouped at the end.
 |---|---|
 | `utils/parse_chain.dart` | Parser cascade + scoring across candidates |
 | `utils/import_review_analysis.dart` | Pure review logic: draft → `ClassItem`, conflict/invalid notes, OCR and room flags, classes that remain per mode |
+| `utils/import_reminder_notice.dart` | Pure choice of the post-save reminder notice (warning, info, or none) from an `ImportSaveResult` |
 | `utils/sectioned_schedule_parser.dart` | Header bands, day sections, exam records, day-less blocks |
 | `utils/schedule_text_parser.dart` | Lower-level text line parsing |
 | `utils/timetable_parser.dart` | Line-oriented timetable parser with no-guess fallback |
@@ -1338,7 +1339,7 @@ security identity; the JWT is.
 ### 11.1 Flutter tests
 
 - `flutter analyze` must be clean.
-- `flutter test` runs 70 files / 547 tests.
+- `flutter test` runs 70 files / 552 tests.
 - Database tests use `sqflite_common_ffi` with a test-specific database name.
 - Golden tests render screens and compare PNGs with a tolerance.
 - OCR benchmarks shell out to Tesseract in CI because the native PaddleOCR
@@ -1539,7 +1540,7 @@ timetable does not shift when the phone travels. Sync timestamps are stored in
 UTC. Reminders are scheduled in the phone's current local time zone.
 
 **Q: How do you know the app still works?**
-A: 527 Flutter tests, 68 files, golden screenshots, OCR benchmark fixtures, PHP
+A: 552 Flutter tests, 70 files, golden screenshots, OCR benchmark fixtures, PHP
 parity tests, and CI on a pinned Windows/Flutter toolchain.
 
 ### 12.4 Terms to define confidently

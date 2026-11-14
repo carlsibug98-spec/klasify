@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -218,6 +220,167 @@ void main() {
 
       expect(find.text('Algorithms'), findsNothing);
       expect(row, findsNothing);
+    });
+  });
+
+  group('import save reminder feedback', () {
+    const warningCopy =
+        'Classes saved, but reminders could not be updated. '
+        'Check notification permission.';
+    const disabledCopy =
+        'Turn on class reminders in Settings to get notifications when '
+        'the app is closed.';
+
+    Future<void> pumpManualImportReview(WidgetTester tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(800, 1400);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.runAsync(() async {
+        DatabaseHelper.databaseName =
+            'import_save_reminder_${DateTime.now().microsecondsSinceEpoch}.db';
+        await DatabaseHelper.instance.resetForTesting();
+        await DatabaseHelper.instance.getAll();
+      });
+
+      // No file and no OCR service: import this class through the real
+      // manual-entry route the picker card opens.
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          onGenerateRoute: AppRouter.onGenerateRoute,
+          home: const ImportScheduleScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Enter classes manually'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const Key('edit_class_subject_field')),
+        'Algorithms',
+      );
+      await tester.enterText(
+        find.byKey(const Key('edit_class_room_field')),
+        'Lab 4',
+      );
+      await tester.tap(find.byKey(const Key('edit_class_save_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Review your timetable'), findsOneWidget);
+      expect(find.text('Algorithms'), findsOneWidget);
+
+      // Let the "added to review" toast retire so the post-save
+      // notifications have the queue to themselves.
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> saveManualImport(WidgetTester tester) async {
+      await tester.tap(find.text('Import 1 class'));
+      // The review footer shows an indeterminate progress bar until the save
+      // finishes, so poll for the success card instead of settling. Each poll
+      // yields to the real event loop, where the reminder plugin reply lands.
+      await tester.pump();
+      for (var i = 0; i < 100; i++) {
+        await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+        await tester.pump(const Duration(milliseconds: 50));
+        if (find.text('Import complete').evaluate().isNotEmpty) break;
+      }
+      expect(find.text('Import complete'), findsOneWidget);
+      await tester.pumpAndSettle();
+    }
+
+    /// Advances fake time through queued notifications until [text] is shown
+    /// or the budget runs out.
+    Future<void> pumpUntilText(
+      WidgetTester tester,
+      String text, {
+      int maxSteps = 80,
+      Duration step = const Duration(milliseconds: 250),
+    }) async {
+      for (var i = 0; i < maxSteps; i++) {
+        if (find.text(text).evaluate().isNotEmpty) return;
+        await tester.pump(step);
+      }
+    }
+
+    testWidgets(
+      'a real reminder failure keeps the manually added class and warns',
+      (tester) async {
+        // Premise: this host has no timezone plugin, so the real
+        // ReminderService.sync() fails after the database write. Assert that
+        // instead of injecting a fake service failure.
+        final timezoneError = await tester.runAsync(() async {
+          try {
+            await FlutterTimezone.getLocalTimezone();
+            return null;
+          } on MissingPluginException catch (error) {
+            return error;
+          }
+        });
+        expect(
+          timezoneError,
+          isA<MissingPluginException>(),
+          reason:
+              'This warning test needs the host timezone plugin to be absent.',
+        );
+
+        SharedPreferences.setMockInitialValues({
+          'class_reminders_enabled': true,
+        });
+
+        await pumpManualImportReview(tester);
+        // The service logs the expected plugin failure; keep the run quiet.
+        final originalDebugPrint = debugPrint;
+        debugPrint = (String? message, {int? wrapWidth}) {};
+        try {
+          await saveManualImport(tester);
+        } finally {
+          debugPrint = originalDebugPrint;
+        }
+
+        // The class still landed, even though reminders could not refresh.
+        final rows = await tester.runAsync(
+          () => DatabaseHelper.instance.getAll(),
+        );
+        expect(rows, hasLength(1));
+        expect(rows!.single.subject, 'Algorithms');
+        expect(rows.single.room, 'Lab 4');
+
+        expect(find.text('Import complete'), findsOneWidget);
+
+        // The success notification is shown first; the warning is queued
+        // behind it.
+        await pumpUntilText(tester, warningCopy);
+        await tester.pumpAndSettle();
+        expect(find.text(warningCopy), findsOneWidget);
+
+        await tester.runAsync(DatabaseHelper.instance.resetForTesting);
+      },
+    );
+
+    testWidgets('reminders off explains how to turn them on after saving', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({
+        'class_reminders_enabled': false,
+      });
+
+      await pumpManualImportReview(tester);
+      await saveManualImport(tester);
+
+      expect(find.text('Import complete'), findsOneWidget);
+
+      await pumpUntilText(tester, disabledCopy);
+      await tester.pumpAndSettle();
+      expect(find.text(disabledCopy), findsOneWidget);
+
+      await tester.runAsync(DatabaseHelper.instance.resetForTesting);
     });
   });
 }

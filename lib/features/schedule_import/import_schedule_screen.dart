@@ -18,6 +18,7 @@ import 'models/import_mode.dart';
 import 'services/import_save_service.dart';
 import 'services/schedule_ocr_service.dart';
 import 'services/timetable_grid_scanner.dart';
+import 'utils/import_reminder_notice.dart';
 import 'utils/import_review_analysis.dart';
 import 'utils/parse_chain.dart';
 import 'utils/sectioned_schedule_parser.dart';
@@ -790,17 +791,12 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
       );
       // Reminder problems get their own notification instead of being appended
       // to the success message, so each one has its own kind and timing.
-      if (!result.remindersUpdated) {
+      final reminderNotice = importReminderNotice(result);
+      if (reminderNotice != null) {
         showAppNotification(
           context,
-          'Classes saved, but reminders could not be updated. Check notification permission.',
-          kind: AppNotificationKind.warning,
-        );
-      } else if (!result.remindersEnabled) {
-        showAppNotification(
-          context,
-          'Turn on class reminders in Settings to get notifications when the app is closed.',
-          kind: AppNotificationKind.info,
+          reminderNotice.message,
+          kind: reminderNotice.kind,
         );
       }
     } catch (e, st) {

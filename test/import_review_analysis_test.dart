@@ -2,8 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:klasify/features/schedule_import/models/import_draft.dart';
 import 'package:klasify/features/schedule_import/models/import_mode.dart';
 import 'package:klasify/features/schedule_import/services/import_save_service.dart';
+import 'package:klasify/features/schedule_import/utils/import_reminder_notice.dart';
 import 'package:klasify/features/schedule_import/utils/import_review_analysis.dart';
 import 'package:klasify/models/class_item.dart';
+import 'package:klasify/widgets/app_notification.dart';
 
 ClassItem _saved({
   int? id,
@@ -208,6 +210,57 @@ void main() {
       expect(
         ImportSaveService.successMessage(ImportMode.replaceSelected, 1),
         'Replaced selected classes with 1 imported class.',
+      );
+    });
+  });
+
+  group('importReminderNotice', () {
+    test('a failed reminder update warns without hiding the save', () {
+      final notice = importReminderNotice(
+        const ImportSaveResult(
+          count: 1,
+          remindersUpdated: false,
+          remindersEnabled: true,
+        ),
+      );
+
+      expect(notice, isNotNull);
+      expect(
+        notice!.message,
+        'Classes saved, but reminders could not be updated. '
+        'Check notification permission.',
+      );
+      expect(notice.kind, AppNotificationKind.warning);
+    });
+
+    test('disabled reminders explain how to turn them on', () {
+      final notice = importReminderNotice(
+        const ImportSaveResult(
+          count: 2,
+          remindersUpdated: true,
+          remindersEnabled: false,
+        ),
+      );
+
+      expect(notice, isNotNull);
+      expect(
+        notice!.message,
+        'Turn on class reminders in Settings to get notifications when '
+        'the app is closed.',
+      );
+      expect(notice.kind, AppNotificationKind.info);
+    });
+
+    test('healthy reminders need no notice', () {
+      expect(
+        importReminderNotice(
+          const ImportSaveResult(
+            count: 1,
+            remindersUpdated: true,
+            remindersEnabled: true,
+          ),
+        ),
+        isNull,
       );
     });
   });
