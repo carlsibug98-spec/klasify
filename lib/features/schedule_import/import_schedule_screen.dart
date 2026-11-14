@@ -22,8 +22,11 @@ import 'utils/import_review_analysis.dart';
 import 'utils/parse_chain.dart';
 import 'utils/sectioned_schedule_parser.dart';
 import 'utils/timetable_parser.dart';
+import 'widgets/import_picker_card.dart';
+import 'widgets/import_replacement_options.dart';
 import 'widgets/import_review_widgets.dart';
 import 'widgets/import_source_preview_screen.dart';
+import 'widgets/import_success_card.dart';
 
 /// The reason the import review raised its warnings.
 enum _ReviewIssue { review, noClasses }
@@ -608,6 +611,22 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
     unawaited(_addManualClass());
   }
 
+  /// Returns to the app shell and opens its Week tab. Pushing /schedule here
+  /// would replace this page with a bare ScheduleScreen that has no bottom
+  /// navigation.
+  void _viewSchedule() {
+    MainNavigationScreen.tabRequest.value = MainNavigationScreen.weekTab;
+    Navigator.of(context).popUntil(
+      (route) => route.settings.name == AppRoutes.home || route.isFirst,
+    );
+  }
+
+  void _importAnother() {
+    setState(() {
+      _completedImportMessage = null;
+    });
+  }
+
   void _refreshAnalysis() {
     _notes = analyzeImportDrafts(
       drafts: _drafts,
@@ -953,8 +972,22 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
                                     _completedImportMessage == null
                                         ? (_working
                                               ? const SizedBox.shrink()
-                                              : _pickerCard(context))
-                                        : _importSuccessCard(context),
+                                              : ImportPickerCard(
+                                                  selectedFilePath:
+                                                      _selectedFilePath,
+                                                  working: _working,
+                                                  onScan: () => _chooseFile(
+                                                    _selectedFilePath,
+                                                  ),
+                                                  onChooseFile: () =>
+                                                      _chooseFile(),
+                                                  onManual: _enterManualClasses,
+                                                ))
+                                        : ImportSuccessCard(
+                                            message: _completedImportMessage!,
+                                            onViewSchedule: _viewSchedule,
+                                            onImportAnother: _importAnother,
+                                          ),
                                   if (_working && reviewing)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 8),
@@ -1050,7 +1083,15 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
                                       title: 'A few details need review',
                                       message: reviewMessages.join('\n'),
                                     ),
-                                  if (reviewing) _replacementOptions(context),
+                                  if (reviewing)
+                                    ImportReplacementOptions(
+                                      existing: _existing,
+                                      mode: _importMode,
+                                      selectedIds: _selectedReplacementIds,
+                                      working: _working,
+                                      onModeChanged: _setImportMode,
+                                      onToggle: _toggleReplacement,
+                                    ),
                                   if (_warnings.isNotEmpty)
                                     ImportAttentionBanner(
                                       title: _warningTitle,
@@ -1256,536 +1297,6 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
               ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _replacementOptions(BuildContext context) {
-    if (_existing.isEmpty) return const SizedBox.shrink();
-
-    final scheme = Theme.of(context).colorScheme;
-    Widget option(ImportMode mode, String title, String subtitle) {
-      final selected = _importMode == mode;
-      return Card(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        color: selected ? scheme.primaryContainer : scheme.surfaceContainer,
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-        ),
-        child: InkWell(
-          onTap: _working ? null : () => _setImportMode(mode),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            child: Row(
-              children: [
-                Radio<ImportMode>(value: mode),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              title,
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                          if (mode == ImportMode.add) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: scheme.surfaceContainerLowest,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                'Recommended',
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(
-                                      color: scheme.primary,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return RadioGroup<ImportMode>(
-      groupValue: _importMode,
-      onChanged: (value) {
-        if (!_working && value != null) _setImportMode(value);
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(0, 8, 0, 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Import options',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  'Choose how these classes should update your saved schedule.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          option(
-            ImportMode.add,
-            'Add to schedule',
-            'Keep saved classes and add these classes.',
-          ),
-          option(
-            ImportMode.replaceAll,
-            'Replace entire schedule',
-            'Remove every saved class and use this import.',
-          ),
-          if (_importMode == ImportMode.replaceAll)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
-                    size: 18,
-                    color: scheme.error,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'All saved classes will be removed after you confirm.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.error,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          option(
-            ImportMode.replaceSelected,
-            'Choose classes to replace',
-            'Select saved classes to remove before importing.',
-          ),
-          if (_importMode == ImportMode.replaceSelected) ...[
-            const Divider(height: 16),
-            for (final item in _existing)
-              CheckboxListTile(
-                value:
-                    item.id != null &&
-                    _selectedReplacementIds.contains(item.id),
-                onChanged: _working || item.id == null
-                    ? null
-                    : (value) => _toggleReplacement(item, value ?? false),
-                title: Text(
-                  item.subject,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(
-                  '${item.dayName} · ${item.timeRange} · ${formatRoom(item.room)}',
-                ),
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              ),
-            if (_selectedReplacementIds.isEmpty)
-              Container(
-                margin: const EdgeInsets.fromLTRB(12, 6, 12, 4),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(AppTheme.controlRadius),
-                ),
-                child: Text(
-                  'Select at least one saved class, or switch to Add to schedule.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              )
-            else
-              Container(
-                margin: const EdgeInsets.fromLTRB(12, 6, 12, 4),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: scheme.errorContainer,
-                  borderRadius: BorderRadius.circular(AppTheme.controlRadius),
-                ),
-                child: Text(
-                  '${_selectedReplacementIds.length} saved ${_selectedReplacementIds.length == 1 ? 'class' : 'classes'} will be removed after confirmation.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onErrorContainer,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _importSuccessCard(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    return Card(
-      color: scheme.secondaryContainer,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.check_circle_rounded,
-                  color: scheme.onSecondaryContainer,
-                  size: 24,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Import complete',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      color: scheme.onSecondaryContainer,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _completedImportMessage!,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: scheme.onSecondaryContainer,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Wrap(
-              spacing: AppTheme.itemGap,
-              runSpacing: AppTheme.itemGap,
-              children: [
-                FilledButton.icon(
-                  // Go back to the app shell and open its Week tab. Pushing
-                  // /schedule here would replace this page with a bare
-                  // ScheduleScreen that has no bottom navigation.
-                  onPressed: () {
-                    MainNavigationScreen.tabRequest.value =
-                        MainNavigationScreen.weekTab;
-                    Navigator.of(context).popUntil(
-                      (route) =>
-                          route.settings.name == AppRoutes.home ||
-                          route.isFirst,
-                    );
-                  },
-                  icon: const Icon(Icons.calendar_month_rounded),
-                  label: const Text('View schedule'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => setState(() {
-                    _completedImportMessage = null;
-                  }),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Import another'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _pickerCard(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    return Card(
-      margin: const EdgeInsets.only(top: 12, bottom: 8),
-      color: scheme.surfaceContainerLowest,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-        side: BorderSide(color: scheme.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: scheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(AppTheme.controlRadius),
-                  ),
-                  child: Icon(
-                    Icons.table_view_rounded,
-                    color: scheme.onPrimaryContainer,
-                    size: 28,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: scheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.offline_bolt_outlined,
-                        size: 16,
-                        color: scheme.onPrimaryContainer,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        'Works offline',
-                        style: textTheme.labelMedium?.copyWith(
-                          color: scheme.onPrimaryContainer,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Bring in your timetable',
-              style: textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Choose a schedule image or PDF, then review every class before saving.',
-              style: textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final format in ['PDF', 'JPG', 'PNG', 'WEBP'])
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 11,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerLowest,
-                      border: Border.all(color: scheme.outlineVariant),
-                      borderRadius: BorderRadius.circular(AppTheme.chipRadius),
-                    ),
-                    child: Text(
-                      format,
-                      style: textTheme.labelMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 11,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerLowest,
-                    border: Border.all(color: scheme.outlineVariant),
-                    borderRadius: BorderRadius.circular(AppTheme.chipRadius),
-                  ),
-                  child: Text(
-                    'Up to 20 MB',
-                    style: textTheme.labelMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (_selectedFilePath != null) ...[
-              const SizedBox(height: 16),
-              _selectedFileName(context),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: _working
-                      ? null
-                      : () => _chooseFile(_selectedFilePath),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(54),
-                  ),
-                  icon: const Icon(Icons.document_scanner_outlined),
-                  label: const Text('Scan timetable'),
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: _selectedFilePath != null
-                  ? OutlinedButton.icon(
-                      onPressed: _working ? null : () => _chooseFile(),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(50),
-                      ),
-                      icon: const Icon(Icons.file_open_outlined),
-                      label: const Text('Choose another file'),
-                    )
-                  : FilledButton.icon(
-                      onPressed: _working ? null : () => _chooseFile(),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(54),
-                      ),
-                      icon: const Icon(Icons.file_open_outlined),
-                      label: const Text('Choose a timetable'),
-                    ),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _enterManualClasses,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                ),
-                icon: const Icon(Icons.edit_note_rounded),
-                label: Text(
-                  _working
-                      ? 'Enter manually instead'
-                      : 'Enter classes manually',
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'Your timetable stays on your device. No internet connection '
-              'is needed.',
-              textAlign: TextAlign.center,
-              style: textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _selectedFileName(BuildContext context) {
-    final path = _selectedFilePath!;
-    final isPdf = p.extension(path).toLowerCase() == '.pdf';
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      // Option-C edge (holdouts board §5): the file tile joins the card
-      // family — card fill + hairline + ambient; the icon chip lifts one
-      // step so it survives the new fill.
-      decoration: BoxDecoration(
-        color: AppTheme.cardFillColorOf(scheme),
-        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-        border: Border.fromBorderSide(AppTheme.cardBorderSideOf(scheme)),
-        boxShadow: AppTheme.cardShadowsOf(scheme),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: scheme.brightness == Brightness.dark
-                  ? scheme.surfaceContainerHigh
-                  : scheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(AppTheme.controlRadius),
-            ),
-            child: Icon(
-              isPdf ? Icons.picture_as_pdf_outlined : Icons.image_outlined,
-              color: scheme.onSecondaryContainer,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Selected file',
-                  style: textTheme.labelMedium?.copyWith(
-                    color: scheme.onSecondaryContainer,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  p.basename(path),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSecondaryContainer,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -441,7 +441,7 @@ database is the last line of defense, so no door can corrupt the schedule.
 
 ## Part 6 — Every file, explained
 
-The repository has 498 tracked files. The sections below cover all source
+The repository has 503 tracked files. The sections below cover all source
 files; test fixtures and generated assets are grouped at the end.
 
 ### 6.1 Root files
@@ -611,7 +611,7 @@ files; test fixtures and generated assets are grouped at the end.
 | `week_agenda_view.dart` | Week agenda layout + break threshold |
 | `weekday_tile.dart` | Weekday tile in the strip |
 
-### 6.11 `lib/features/schedule_import/` (32 files)
+### 6.11 `lib/features/schedule_import/` (36 files)
 
 **Entry and model**
 
@@ -663,6 +663,10 @@ files; test fixtures and generated assets are grouped at the end.
 | File | Purpose |
 |---|---|
 | `widgets/import_review_widgets.dart` | Review cards, badges, banners, replacement pickers |
+| `widgets/import_picker_card.dart` | Empty-state card: choose/scan a file, manual entry, offline copy |
+| `widgets/import_selected_file_tile.dart` | Selected-file name, type icon, filename ellipsis |
+| `widgets/import_replacement_options.dart` | Add / replace-all / replace-selected controls and confirmation copy |
+| `widgets/import_success_card.dart` | Import-complete card with View schedule / Import another |
 | `widgets/import_source_preview_screen.dart` | Zoomable source image/PDF preview |
 
 ### 6.12 `test/` (67 Dart test files)
@@ -677,7 +681,7 @@ The suite is organized by risk area:
 | Auth/legal | `auth_legal_test`, `signup_department_test`, `app_info_test` |
 | Sync/backup | `auto_backup_test`, `reminder_service_test`, `crash_reporting_test` |
 | Onboarding/coach | `onboarding_test`, `coach_tour_test`, `coach_tour_store_test`, `coach_tour_trigger_test`, `first_class_coach_store_test`, `home_first_class_coach_test` |
-| Import/OCR | `import_draft_test`, `import_review_analysis_test`, `import_review_edit_test`, `import_timetable_cancel_test`, `import_weak_grid_rescue_test`, `schedule_text_parser_test`, `sectioned_schedule_parser_test`, `cor_schedule_parser_test`, `timetable_parser_test`, `timetable_grid_scanner_test`, `timetable_grid_geometry_test`, `timetable_grid_pixels_test`, `timetable_clock_ticks_test`, `ocr_image_size_test`, `adaptive_ocr_threshold_test`, `skew_profile_estimator_test`, `pdf_page_image_test`, `pdf_timetable_text_test`, `pdf_timetable_scan_result_test`, `non_timetable_schedule_test` |
+| Import/OCR | `import_draft_test`, `import_review_analysis_test`, `import_review_edit_test`, `import_timetable_cancel_test`, `import_weak_grid_rescue_test`, `import_widgets_test`, `schedule_text_parser_test`, `sectioned_schedule_parser_test`, `cor_schedule_parser_test`, `timetable_parser_test`, `timetable_grid_scanner_test`, `timetable_grid_geometry_test`, `timetable_grid_pixels_test`, `timetable_clock_ticks_test`, `ocr_image_size_test`, `adaptive_ocr_threshold_test`, `skew_profile_estimator_test`, `pdf_page_image_test`, `pdf_timetable_text_test`, `pdf_timetable_scan_result_test`, `non_timetable_schedule_test` |
 | Benchmarks | `bench3_round_test`, `bench4_round_test`, `bench5_scan_speed_test`, `bench6_accuracy_test`, `bench7_cor_accuracy_test`, `scan_improvements_test` |
 | Visual/golden | `app_look_capture_test`, `design_capture_test`, `event_sheet_capture_test`, `widget_test` |
 

@@ -175,15 +175,22 @@ lib/
       import_schedule_screen.dart
       models/
         import_draft.dart
+        import_mode.dart
       services/
+        import_save_service.dart
         ocr_image_preprocessor.dart
         schedule_ocr_service.dart
         timetable_grid_scanner.dart
       utils/                           # parsers, grid geometry, PDF helpers
+        import_review_analysis.dart
         timetable_parser.dart
       widgets/
+        import_picker_card.dart
+        import_replacement_options.dart
         import_review_widgets.dart
+        import_selected_file_tile.dart
         import_source_preview_screen.dart
+        import_success_card.dart
   models/
     class_item.dart
     class_status.dart
