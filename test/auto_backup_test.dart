@@ -179,10 +179,17 @@ void main() {
     final id = await db.insert(original);
 
     await AutoBackupService.instance.attach();
-    // Debounce is zero in tests; the launch refresh is asynchronous.
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    expect(await mainFile().exists(), isTrue,
-        reason: 'attach must refresh the quiet copy on launch');
+    // Debounce is zero in tests, but the queued write is still asynchronous
+    // and competes with the rest of the suite. Poll instead of assuming a
+    // fixed delay is enough.
+    final file = mainFile();
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while (!await file.exists()) {
+      if (DateTime.now().isAfter(deadline)) {
+        fail('attach must refresh the quiet copy on launch');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
 
     await db.delete(id);
   });
