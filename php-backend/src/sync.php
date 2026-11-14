@@ -126,8 +126,12 @@ function sync_push(): void
     $nowDt = now_mysql();
 
     // The caller's role and department decide which broadcasts are allowed.
-    $caller = fetch_one('SELECT role, department FROM users WHERE id = ? AND deleted = 0 LIMIT 1', [$userId])
-        ?? ['role' => 'user', 'department' => null];
+    // require_auth() already rejected deleted/missing users; failing closed
+    // here too means a future auth change cannot silently grant `user` scope.
+    $caller = fetch_one('SELECT role, department FROM users WHERE id = ? AND deleted = 0 LIMIT 1', [$userId]);
+    if ($caller === null) {
+        throw new ApiError(401, 'User not found', 'UNAUTHORIZED');
+    }
     $callerIsAdmin = in_array($caller['role'], ['admin', 'super_admin'], true);
 
     $result = [

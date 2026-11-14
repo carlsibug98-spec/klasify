@@ -173,8 +173,12 @@ function act_as(int $userId): void
         unset($_SERVER['HTTP_AUTHORIZATION']);
         return;
     }
-    $row = fetch_one('SELECT email FROM users WHERE id = ?', [$userId]);
-    $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . jwt_sign_token($userId, (string)($row['email'] ?? ''));
+    $row = fetch_one('SELECT email, token_version FROM users WHERE id = ?', [$userId]);
+    $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . jwt_sign_token(
+        $userId,
+        (string)($row['email'] ?? ''),
+        (int)($row['token_version'] ?? 0)
+    );
 }
 
 /// Inject the request body for read_json_body() (the adopted test seam).
@@ -207,16 +211,23 @@ function run_handler(callable $handler, mixed ...$args): array
 }
 
 /// HS256 token in the same shape as jwt_sign_token, with backdated claims,
-/// for the /auth/refresh-accepts-expired path.
-function make_expired_token(int $userId, string $email): string
-{
+/// for the /auth/refresh paths. `$expiredSecondsAgo` controls how far past
+/// expiry the token is (used to prove the refresh grace window is bounded).
+function make_expired_token(
+    int $userId,
+    string $email,
+    int $tokenVersion = 0,
+    int $expiredSecondsAgo = 10
+): string {
     $header = b64url_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
     $now = time();
+    $exp = $now - $expiredSecondsAgo;
     $payload = b64url_encode(json_encode([
         'user_id' => $userId,
         'email' => $email,
-        'iat' => $now - TOKEN_TTL_SECONDS,
-        'exp' => $now - 10,
+        'tv' => $tokenVersion,
+        'iat' => $exp - TOKEN_TTL_SECONDS,
+        'exp' => $exp,
     ], JSON_UNESCAPED_SLASHES));
     $sig = b64url_encode(hash_hmac('sha256', "$header.$payload", cfg('jwt_secret'), true));
     return "$header.$payload.$sig";

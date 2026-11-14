@@ -28,6 +28,7 @@ CREATE TABLE users (
   display_name  VARCHAR(100) NOT NULL DEFAULT '',
   role          VARCHAR(20)  NOT NULL DEFAULT 'user',   -- 'user' | 'admin' | 'super_admin'
   department    VARCHAR(100) NULL,             -- department scope for dept admins; NULL = school-wide
+  token_version INT UNSIGNED NOT NULL DEFAULT 0, -- bump to revoke all JWTs (password change/reset/delete)
   created_at    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   deleted       TINYINT(1)   NOT NULL DEFAULT 0,

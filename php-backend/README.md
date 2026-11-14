@@ -48,8 +48,18 @@ Edit `config.php` (or set the matching environment variables):
 | `db_host` / `db_port` | `127.0.0.1` / `3306` | XAMPP's MySQL |
 | `db_name` | `klasify_sync` | created by the schema file |
 | `db_user` / `db_pass` | `root` / *(empty)* | XAMPP's defaults |
-| `jwt_secret` | placeholder | **change it** to a long random string before real use |
+| `jwt_secret` | placeholder | **change it** to a long random string before real use; rotating it signs everyone out |
 | `google_verify` | `jwt_jwks` | `jwt_jwks` (default) verifies Google ID tokens locally against the JWKS; `tokeninfo` falls back to Google's endpoint |
+| `debug_reset_codes` | off | dev only: set `KLASIFY_DEBUG_RESET_CODES=1` to log plaintext reset codes |
+
+Existing databases need the revocable-session migration:
+
+```
+mysql -u root klasify_sync < docs/migrations/2026-11-14_token_version.sql
+```
+
+Keep MySQL bound to `127.0.0.1` in `my.ini`; the API reaches it over loopback
+and the database must not be LAN-visible.
 
 ## Running the Flutter app against it
 
@@ -71,8 +81,10 @@ Notes:
 
 ## Password reset codes
 
-No email server is configured yet. Reset codes are written to
-`storage/logs/app.log`. Open that file to read the 6-digit code during testing.
+No email server is configured yet. To read the 6-digit code during local
+testing, start the API with `KLASIFY_DEBUG_RESET_CODES=1` (or set
+`'debug_reset_codes' => '1'` in `config.php`) and open
+`storage/logs/app.log`. Leave the flag off in production and wire a mailer.
 
 ## Google sign-in troubleshooting
 
@@ -92,7 +104,7 @@ src/auth.php     /auth/* routes
 src/sync.php     /sync/push and /sync/pull
 src/admin.php    /admin/* routes (user roles, departments, office statuses)
 src/google_jwks.php  Local RS256 verification of Google ID tokens (JWKS, 24h cache)
-storage/logs/    app.log (reset codes, skipped sync rows, server errors)
+storage/logs/    app.log (reset codes only with the dev flag; sync skips, errors)
 storage/cache/   google_jwks.json (auto-created, gitignored)
 ```
 

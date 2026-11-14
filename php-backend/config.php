@@ -13,4 +13,7 @@ return [
     'jwt_secret'       => getenv('KLASIFY_JWT_SECRET') ?: 'change-this-to-a-long-random-string-in-production',
     'google_client_id' => getenv('GOOGLE_CLIENT_ID') ?: '359657054360-0v7f3rlt56caci4h78v6kc0me91v2s4m.apps.googleusercontent.com',
     'google_verify'     => getenv('KLASIFY_GOOGLE_VERIFY') ?: 'jwt_jwks',
+    // Development-only: write plaintext password-reset codes to app.log.
+    // Off by default; production must use a real mailer instead.
+    'debug_reset_codes' => getenv('KLASIFY_DEBUG_RESET_CODES') === '1' ? '1' : '0',
 ];

@@ -59,8 +59,28 @@ class AuthService extends ChangeNotifier {
   /// The old Node default (http://localhost:3000/v1) pointed at the retired
   /// Docker stack and made every plain `flutter run` fail to connect.
   static const String _defaultBaseUrl = 'http://192.168.1.67/klasify-api';
-  static String get baseUrl =>
-      const String.fromEnvironment('KLASIFY_API_URL', defaultValue: _defaultBaseUrl);
+  static const String _configuredBaseUrl =
+      String.fromEnvironment('KLASIFY_API_URL', defaultValue: _defaultBaseUrl);
+
+  /// Release builds must never send credentials or bearer tokens over plain
+  /// HTTP. Debug/profile builds keep the LAN default for the demo workflow.
+  static String get baseUrl {
+    if (kReleaseMode && !isSecureApiUrl(_configuredBaseUrl)) {
+      throw StateError(
+        'Klasify release builds require an HTTPS KLASIFY_API_URL '
+        '(configured: $_configuredBaseUrl).',
+      );
+    }
+    return _configuredBaseUrl;
+  }
+
+  /// True when [url] is an absolute HTTPS URL with a host. Exposed for tests
+  /// so the release policy is pinned without switching build modes.
+  @visibleForTesting
+  static bool isSecureApiUrl(String url) {
+    final uri = Uri.tryParse(url);
+    return uri != null && uri.scheme == 'https' && uri.host.isNotEmpty;
+  }
 
   final _storage = const FlutterSecureStorage();
   static const _tokenKey = 'klasify_auth_token';
@@ -328,6 +348,11 @@ class AuthService extends ChangeNotifier {
       'current_password': currentPassword,
       'new_password': newPassword,
     });
+    // The server bumps token_version, which revokes this token as well.
+    // Drop the local session instead of leaving the UI in a half-signed-in
+    // state that fails on the next request.
+    await _clearSession();
+    notifyListeners();
   }
 
   /// POST /auth/forgot-password — requests a 6-digit reset code. Responds

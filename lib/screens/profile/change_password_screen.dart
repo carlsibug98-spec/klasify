@@ -71,9 +71,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password updated.')),
+        const SnackBar(
+          content: Text('Password updated. Please sign in again.'),
+        ),
       );
-      Navigator.of(context).pop();
+      // The session is gone, so the security hub's "Active" panel would be
+      // stale. Return to the profile tab, which reflects the signed-out state.
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } on AuthApiException catch (e) {
       if (!mounted) return;
       if (e.code == 'INVALID_CREDENTIALS') {

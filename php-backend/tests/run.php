@@ -6,6 +6,8 @@
 declare(strict_types=1);
 
 putenv('KLASIFY_DB_NAME=klasify_test');
+// Tests read the plaintext reset code from app.log; production leaves this off.
+putenv('KLASIFY_DEBUG_RESET_CODES=1');
 
 require __DIR__ . '/bootstrap.php';
 

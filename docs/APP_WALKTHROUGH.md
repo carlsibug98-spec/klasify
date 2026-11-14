@@ -691,7 +691,7 @@ for the next start/end plus a minute tick. It also listens for
 | File | Purpose |
 |---|---|
 | `.htaccess` | Rewrite everything to `index.php`; pass Authorization header; deny `config.php` |
-| `config.php` | DB/JWT/Google settings with env overrides |
+| `config.php` | DB/JWT/Google settings with env overrides, plus the dev-only reset-code log flag |
 | `index.php` | CORS, route table, error → JSON mapping |
 | `src/common.php` | PDO/MySQL, JSON, JS coercions, timestamps, JWT, auth guard, rate limit, logging |
 | `src/auth.php` | Register/login/Google/refresh/profile/password/delete |
@@ -706,7 +706,7 @@ for the next start/end plus a minute tick. It also listens for
 | `tests/sync_test.php` | Sync parity tests |
 | `tests/admin_test.php` | Admin parity tests |
 | `tests/google_jwks_test.php` | Google verification tests |
-| `storage/logs/` | App log (password reset codes in development) |
+| `storage/logs/` | App log (plaintext reset codes only when the dev flag is on) |
 
 ### 6.15 `docs/` (31 files)
 
@@ -1121,15 +1121,26 @@ manager. This is deliberate for XAMPP deployment.
 - **Google:** verify ID token via Google JWKS (or tokeninfo in fallback mode),
   require verified email, find by `google_sub` then email, optionally create in
   `signup` mode.
-- **Refresh:** accepts an expired token if the signature is valid, re-reads role
-  and department from the DB, issues a new 7-day token.
-- **JWT:** HS256, claims `{user_id, email, iat, exp}`, 7-day TTL.
-- **Auth guard:** `require_auth()` reads `Authorization: Bearer`, verifies, returns user id.
+- **Refresh:** accepts an expired token only for 30 days after `exp`; a valid
+  signature alone is not enough. It re-reads role, department and
+  `token_version` from the DB, then issues a new 7-day token.
+- **JWT:** HS256, claims `{user_id, email, tv, iat, exp}`, 7-day TTL. `tv` must
+  match `users.token_version`.
+- **Auth guard:** `require_auth()` reads `Authorization: Bearer`, verifies the
+  JWT, then loads the user row. Missing/deleted users and revoked `tv` values
+  are rejected on every request, not only at refresh time.
+- **Revocation:** password change, password reset, and account deletion bump
+  `token_version`, so every older token dies immediately. The app signs out
+  after a password change because its own token is revoked too.
+- **Rate limits:** register 10/hour/IP; login 10/minute/email and 30/minute/IP;
+  forgot-password 5/hour/email and 20/hour/IP; reset-password 10/hour/email and
+  30/hour/IP; Google 30/minute. Exceeding any bucket returns 429.
 - **Password reset:** always returns 200 to avoid account enumeration; 6-digit
-  code hashed with bcrypt, 15-minute expiry, 5 requests/hour/email; development
-  writes the code to `storage/logs/app.log` because no mailer is configured.
-- **Delete account:** soft-deletes the user and their classes/events/statuses;
-  local phone data stays.
+  code hashed with bcrypt, 15-minute expiry. Plaintext codes reach
+  `storage/logs/app.log` only when `KLASIFY_DEBUG_RESET_CODES=1` (local dev);
+  production needs a mailer.
+- **Delete account:** soft-deletes the user and their classes/events/statuses,
+  bumps `token_version`, and leaves local phone data alone.
 
 ### 9.3 Sync push
 
@@ -1178,7 +1189,7 @@ retried next cycle.
 
 | Table | Role |
 |---|---|
-| `users` | Account, bcrypt hash, Google sub, role, department, soft delete |
+| `users` | Account, bcrypt hash, Google sub, role, department, token_version, soft delete |
 | `classes` | Per-user weekly rows, `local_id` mapping, soft delete |
 | `events` | Per-user or broadcast rows, department scope, soft delete |
 | `class_statuses` | Date ranges linked to server class ids |
@@ -1193,12 +1204,16 @@ and `deleted`.
 ### 9.7 Deployment (XAMPP)
 
 1. Copy `php-backend/` under `htdocs/klasify-api`.
-2. Create the database with `docs/mysql_schema.sql`.
-3. Set `config.php` values (or env vars).
-4. Enable `mod_rewrite`.
-5. Point the app at the host:
+2. Create the database with `docs/mysql_schema.sql` (existing installs apply
+   `docs/migrations/2026-11-14_token_version.sql`).
+3. Set `config.php` values (or env vars), including a random `jwt_secret`;
+   never ship the repository placeholder.
+4. Keep MySQL on `bind-address=127.0.0.1`; do not expose port 3306 to the LAN.
+5. Enable `mod_rewrite`.
+6. Point the app at the host:
    `flutter run --dart-define=KLASIFY_API_URL=http://<LAN-IP>/klasify-api`.
-6. Health check: `GET /health` → `{"status":"ok","version":"1.0.0"}`.
+   Release builds require an absolute `https://` URL and throw otherwise.
+7. Health check: `GET /health` → `{"status":"ok","version":"1.0.0"}`.
 
 The default URL in `auth_service.dart` is the dev PC's LAN address; it is a
 compile-time default, not a hardcoded account or school.
@@ -1405,21 +1420,25 @@ The automatic file lives in the app support directory and keeps six dated copies
 
 **Q: What does the backend use for auth?**
 A: Email/password with bcrypt cost 12 and a 7-day HS256 JWT; optional Google
-sign-in. Refresh accepts an expired token with a valid signature, re-reads the
-role, and issues a new token.
+sign-in. Tokens carry a `tv` claim tied to `users.token_version`. Refresh
+accepts an expired token only inside a 30-day grace window, re-reads the role
+and `token_version`, and refuses revoked sessions.
 
 **Q: How are passwords reset?**
-A: A 6-digit code, bcrypt-hashed, valid 15 minutes, 5 requests/hour/email. The
-endpoint always returns 200 so it cannot be used to discover registered emails.
-In development the code is written to the server log because no mailer is set up.
+A: A 6-digit code, bcrypt-hashed, valid 15 minutes, 5 requests/hour/email.
+Reset attempts are also capped (10/hour/email, 30/hour/IP). The endpoint always
+returns 200 so it cannot be used to discover registered emails. A successful
+reset revokes existing sessions. In development the plaintext code reaches the
+server log only with `KLASIFY_DEBUG_RESET_CODES=1`; production needs a mailer.
 
 **Q: How do you prevent SQL injection?**
 A: Every query uses PDO prepared statements with bound parameters
 (`ATTR_EMULATE_PREPARES = false`).
 
 **Q: How do you prevent unauthorized admin actions?**
-A: `require_auth` validates the JWT; `admin_caller` checks the role from the
-database; `admin_super_caller` narrows destructive/role-changing routes to
+A: `require_auth` validates the JWT and re-checks the user row (deleted users
+and revoked token versions fail), `admin_caller` reads the role from the
+database, and `admin_super_caller` narrows destructive/role-changing routes to
 super admins. Self-demotion is blocked.
 
 **Q: How do office statuses reach students?**
@@ -1441,10 +1460,12 @@ behavioral port of the earlier Node API; the contract and tests are preserved.
 decision.
 
 **Q: Is the app secure?**
-A: Passwords are bcrypt-hashed; tokens are signed; the transport should be HTTPS
-in production (the dev default is HTTP on a LAN). The token is in secure storage,
-not plain preferences. SQL is parameterized. The main production TODO is TLS and
-a real JWT secret.
+A: Passwords are bcrypt-hashed; tokens are signed with a deployment-specific
+secret and carry a revocable `tv`; deleted accounts fail closed; login,
+register, and reset endpoints are rate-limited. Release builds refuse a
+non-HTTPS API URL (debug keeps LAN HTTP for the demo). The token is in secure
+storage, not plain preferences. SQL is parameterized. Remaining production
+work is the TLS endpoint itself, a real mailer, and tightening CORS.
 
 **Q: What is not implemented?**
 A: Campus navigation, mini-map, live room occupancy, and turn-by-turn directions.
@@ -1477,7 +1498,7 @@ timetable does not shift when the phone travels. Sync timestamps are stored in
 UTC. Reminders are scheduled in the phone's current local time zone.
 
 **Q: How do you know the app still works?**
-A: 526 Flutter tests, 67 files, golden screenshots, OCR benchmark fixtures, PHP
+A: 527 Flutter tests, 68 files, golden screenshots, OCR benchmark fixtures, PHP
 parity tests, and CI on a pinned Windows/Flutter toolchain.
 
 ### 12.4 Terms to define confidently
@@ -1498,9 +1519,10 @@ parity tests, and CI on a pinned Windows/Flutter toolchain.
 ### 12.5 Honest limitations to admit
 
 - Navigation/mini-map/live occupancy are roadmap items, not code.
-- No mailer is configured; reset codes go to the server log in development.
-- The default API URL is a LAN HTTP address; production needs HTTPS and a real
-  JWT secret.
+- No mailer is configured; reset codes are only logged when the explicit dev
+  flag is on. Production needs SMTP.
+- The default API URL is a LAN HTTP address for debug; release builds enforce
+  HTTPS, but the demo deployment has not been put behind TLS yet.
 - Sync is last-write-wins, not a CRDT; simultaneous edits on two devices can
   lose one side's text.
 - The backend is single-tenant per user for classes; there is no shared class

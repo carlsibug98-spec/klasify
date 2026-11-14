@@ -8,6 +8,9 @@
 date_default_timezone_set('UTC');
 
 const TOKEN_TTL_SECONDS = 7 * 24 * 3600; // 7 days, same as the Node API
+/// How long after expiry /auth/refresh still accepts a token. Without this
+/// bound an expired token could be refreshed forever.
+const REFRESH_GRACE_SECONDS = 30 * 24 * 3600; // 30 days
 const BCRYPT_COST = 12;
 
 /// An error that maps straight onto the contract's error response.
@@ -246,9 +249,9 @@ function is_future_utc(string $mysqlTimestamp): bool
 }
 
 // ---------------------------------------------------------------------
-// JWT (HS256). Tokens carry { user_id, email, iat, exp }, the same claims
-// the Node API issued, so existing sessions keep working when the secret
-// is unchanged.
+// JWT (HS256). Tokens carry { user_id, email, tv, iat, exp }. `tv` is the
+// user's token_version; bumping it revokes every token issued before the
+// bump (password change, reset, account deletion).
 // ---------------------------------------------------------------------
 
 function b64url_encode(string $raw): string
@@ -266,13 +269,14 @@ function b64url_decode(string $encoded): string
     return (string)base64_decode($encoded, true);
 }
 
-function jwt_sign_token(int $userId, string $email): string
+function jwt_sign_token(int $userId, string $email, int $tokenVersion = 0): string
 {
     $header = b64url_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT'], JSON_THROW_ON_ERROR));
     $now = time();
     $payload = b64url_encode(json_encode([
         'user_id' => $userId,
         'email' => $email,
+        'tv' => $tokenVersion,
         'iat' => $now,
         'exp' => $now + TOKEN_TTL_SECONDS,
     ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
@@ -324,6 +328,8 @@ function bearer_token(): ?string
 }
 
 /// Requires a valid Bearer token and returns the user id it carries.
+/// The user row is checked on every request so deleted accounts and revoked
+/// tokens stop working immediately, not only when /auth/refresh is called.
 function require_auth(): int
 {
     $token = bearer_token();
@@ -334,7 +340,28 @@ function require_auth(): int
     if ($claims === null || !isset($claims['user_id'])) {
         throw new ApiError(401, 'Invalid or expired token', 'TOKEN_EXPIRED');
     }
-    return (int)$claims['user_id'];
+
+    $userId = (int)$claims['user_id'];
+    $row = fetch_one(
+        'SELECT token_version FROM users WHERE id = ? AND deleted = 0 LIMIT 1',
+        [$userId]
+    );
+    if ($row === null) {
+        throw new ApiError(401, 'User not found', 'UNAUTHORIZED');
+    }
+    if ((int)($claims['tv'] ?? 0) !== (int)$row['token_version']) {
+        throw new ApiError(401, 'Invalid or expired token', 'TOKEN_EXPIRED');
+    }
+    return $userId;
+}
+
+/// Best-effort client address for per-IP rate limits. X-Forwarded-For is
+/// deliberately ignored: the API is served directly by Apache, so a client
+/// could spoof that header.
+function client_ip(): string
+{
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    return is_string($ip) && $ip !== '' ? substr($ip, 0, 45) : 'unknown';
 }
 
 // ---------------------------------------------------------------------

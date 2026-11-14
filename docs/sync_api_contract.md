@@ -4,6 +4,18 @@ Base URL: `https://api.klasify.app` (configurable; local dev against the PHP API
 
 All endpoints except `/auth/*` require `Authorization: Bearer <jwt>`.
 
+## Session tokens
+
+JWTs are HS256 and carry `{ "user_id", "email", "tv", "iat", "exp" }`.
+`tv` is the account's `users.token_version`. Every authenticated request
+re-reads the user row, so a deleted account or a token whose `tv` no longer
+matches is rejected immediately with 401 (no waiting for expiry).
+
+`token_version` is bumped by password change, password reset, and account
+deletion. All sessions issued before the bump are revoked. The current client
+signs out after a successful password change because its own token is revoked
+too.
+
 ## Authentication
 
 ### POST /auth/register
@@ -19,7 +31,8 @@ All endpoints except `/auth/*` require `Authorization: Bearer <jwt>`.
 ```
 
 `department` is optional on the wire but the app requires it at sign-up
-(`IT`, `AIS`, `BA`, `EDUC`).
+(`IT`, `AIS`, `BA`, `EDUC`). Registration is limited to 10 attempts per hour
+per source IP; over the limit returns 429 `RATE_LIMITED`.
 
 ### POST /auth/login
 ```json
@@ -31,6 +44,9 @@ All endpoints except `/auth/*` require `Authorization: Bearer <jwt>`.
              "role": "user", "department": null },
   "token": "<jwt>", "expires_at": "..." }
 ```
+
+Login is limited to 10 attempts per minute per email and 30 per minute per
+source IP; over either limit returns 429 `RATE_LIMITED`.
 
 ### POST /auth/google
 Verifies a Google ID token (audience = the configured web client id) and
@@ -77,6 +93,11 @@ Authorization: Bearer <expired_jwt>
 department-scoped admins. Refresh re-reads both from the DB, so promotions
 land without a new sign-in.
 
+An expired token is accepted only for **30 days after `exp`**. Older tokens
+return 401 `TOKEN_EXPIRED` ("Refresh window expired"), as do tokens whose `tv`
+no longer matches the account ("Session revoked"). The client must sign in
+again in either case.
+
 ### PATCH /auth/me
 Partial profile edit. Send `display_name` and/or `email`.
 
@@ -103,6 +124,8 @@ Partial profile edit. Send `display_name` and/or `email`.
 ```
 
 Wrong current password: 401 `INVALID_CREDENTIALS`. Short new password: 422 `VALIDATION_ERROR`.
+Success bumps `token_version`, revoking every existing session (including the
+one that made the request); the app signs out and asks for the new password.
 
 ### POST /auth/forgot-password
 Always responds `200 { "ok": true }` — never reveals whether the email is registered.
@@ -116,9 +139,11 @@ Creates a 6-digit code that lives 15 minutes (one active code per account).
 { "ok": true }
 ```
 
-Max 5 requests per email per hour, then 429 `RATE_LIMITED`. Email delivery requires SMTP in
-production; while no mailer is configured the code is written to the server log
-(`storage/logs/app.log` on the API server) so the flow stays testable in development.
+Max 5 requests per email per hour and 20 per source IP per hour, then 429
+`RATE_LIMITED`. Email delivery requires SMTP in production. While no mailer is
+configured, a plaintext code is written to `storage/logs/app.log` **only** when
+the server has `KLASIFY_DEBUG_RESET_CODES=1`; this is a local-development
+switch and must stay off in production.
 
 ### POST /auth/reset-password
 ```json
@@ -130,10 +155,13 @@ production; while no mailer is configured the code is written to the server log
 
 The code is single-use. Invalid code, unknown email, expired code, or short password:
 422 `VALIDATION_ERROR` ("The reset code is invalid or expired" / validation message).
-Sign in normally with the new password afterwards.
+Max 10 attempts per email per hour and 30 per source IP per hour, then 429
+`RATE_LIMITED`. A successful reset bumps `token_version`, revoking every
+existing session. Sign in normally with the new password afterwards.
 
 ### DELETE /auth/account
-Deletes the user and all their data (cascade). Returns 204.
+Soft-deletes the user and their data (cascade), bumps `token_version`, and
+returns 204. The caller's token stops working immediately.
 
 ## Sync
 
@@ -240,7 +268,8 @@ All errors return JSON: `{ "error": "message", "code": "ERROR_CODE" }`
 | Code | HTTP | Meaning |
 |---|---|---|
 | INVALID_CREDENTIALS | 401 | Wrong email/password |
-| TOKEN_EXPIRED | 401 | JWT expired, call /auth/refresh |
+| UNAUTHORIZED | 401 | Missing token, or the account no longer exists |
+| TOKEN_EXPIRED | 401 | Bad/expired JWT or revoked `tv`; refresh if inside the 30-day grace window |
 | OFFICE_NOT_FOUND | 404 | No such active office |
 | EMAIL_EXISTS | 409 | Registration with existing email |
 | OFFICE_EXISTS | 409 | Office name already in use |

@@ -26,6 +26,7 @@ T()->test('register contract shape + tokens', function () {
     $claims = json_decode(b64url_decode(explode('.', $r['body']['token'])[1]), true);
     T()->truthy(isset($claims['user_id']) && isset($claims['email']) && isset($claims['iat']) && isset($claims['exp']), 'jwt claims present');
     T()->eq($r['body']['user']['id'], $claims['user_id'], 'jwt user_id matches');
+    T()->eq(0, $claims['tv'] ?? null, 'jwt token_version starts at 0');
     T()->eq(TOKEN_TTL_SECONDS, $claims['exp'] - $claims['iat'], 'jwt ttl 7 days');
 });
 
@@ -145,6 +146,60 @@ T()->test('refresh harsh cases', function () {
     T()->eq('TOKEN_EXPIRED', $r['body']['code'] ?? null, 'soft-deleted refresh code');
 });
 
+T()->test('refresh grace window is bounded', function () {
+    db_reset();
+    $id = (int)seed_user(['email' => 'aged@test.com']);
+
+    $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . make_expired_token(
+        $id,
+        'aged@test.com',
+        0,
+        REFRESH_GRACE_SECONDS + 60
+    );
+    set_body(null);
+    $r = run_handler('auth_refresh');
+    T()->eq(401, $r['status'], 'beyond-grace refresh status');
+    T()->eq('Refresh window expired', $r['body']['error'] ?? null, 'beyond-grace refresh message');
+    T()->eq('TOKEN_EXPIRED', $r['body']['code'] ?? null, 'beyond-grace refresh code');
+
+    // Just inside the grace window still works.
+    $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . make_expired_token(
+        $id,
+        'aged@test.com',
+        0,
+        REFRESH_GRACE_SECONDS - 60
+    );
+    $r = run_handler('auth_refresh');
+    T()->eq(200, $r['status'], 'inside-grace refresh status');
+});
+
+T()->test('refresh rejects a token revoked by token_version', function () {
+    db_reset();
+    $id = (int)seed_user(['email' => 'revoked@test.com']);
+    $stale = make_expired_token($id, 'revoked@test.com', 0);
+    query('UPDATE users SET token_version = token_version + 1 WHERE id = ?', [$id]);
+
+    $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $stale;
+    set_body(null);
+    $r = run_handler('auth_refresh');
+    T()->eq(401, $r['status'], 'revoked refresh status');
+    T()->eq('Session revoked', $r['body']['error'] ?? null, 'revoked refresh message');
+    T()->eq('TOKEN_EXPIRED', $r['body']['code'] ?? null, 'revoked refresh code');
+});
+
+T()->test('deleted user token cannot call a protected endpoint', function () {
+    db_reset();
+    $id = (int)seed_user(['email' => 'removed@test.com']);
+    act_as($id);
+    query('UPDATE users SET deleted = 1 WHERE id = ?', [$id]);
+
+    set_body(['display_name' => 'Nope']);
+    $r = run_handler('auth_update_me');
+    T()->eq(401, $r['status'], 'deleted token protected status');
+    T()->eq('User not found', $r['body']['error'] ?? null, 'deleted token protected message');
+    T()->eq('UNAUTHORIZED', $r['body']['code'] ?? null, 'deleted token protected code');
+});
+
 T()->test('me partial edits + duplicate email + empty body', function () {
     db_reset();
     $id = seed_user(['email' => 'me@test.com', 'display_name' => 'Before']);
@@ -193,6 +248,17 @@ T()->test('change-password cycle incl. reset-code purge', function () {
         fetch_one('SELECT id FROM password_resets WHERE user_id = ?', [$uid]) === null,
         'outstanding reset codes purged on password change'
     );
+    T()->eq(
+        1,
+        (int)query('SELECT token_version FROM users WHERE id = ?', [$uid])->fetchColumn(),
+        'password change bumps token_version'
+    );
+
+    // The token that authorized the change is now revoked too.
+    set_body(['display_name' => 'Still me']);
+    $r = run_handler('auth_update_me');
+    T()->eq(401, $r['status'], 'pre-change token rejected after password change');
+    T()->eq('TOKEN_EXPIRED', $r['body']['code'] ?? null, 'pre-change token revocation code');
 
     act_as(0);
     set_body(['email' => 'pw@test.com', 'password' => 'changed123']);
@@ -227,6 +293,11 @@ T()->test('account deletion cascades tombstones', function () {
     T()->eq(204, $r['status'], 'delete account status');
     T()->eq('', $r['raw'], 'delete account empty body');
     T()->truthy((int)query('SELECT deleted FROM users WHERE id = ?', [$uid])->fetchColumn() === 1, 'users tombstone');
+    T()->eq(
+        1,
+        (int)query('SELECT token_version FROM users WHERE id = ?', [$uid])->fetchColumn(),
+        'account deletion bumps token_version'
+    );
     T()->truthy((int)query('SELECT deleted FROM classes WHERE user_id = ?', [$uid])->fetchColumn() === 1, 'classes tombstone');
     T()->truthy((int)query('SELECT deleted FROM events WHERE user_id = ?', [$uid])->fetchColumn() === 1, 'events tombstone');
     T()->truthy((int)query('SELECT deleted FROM class_statuses WHERE user_id = ?', [$uid])->fetchColumn() === 1, 'class_statuses tombstone');
@@ -255,6 +326,11 @@ T()->test('forgot + reset round trip', function () {
     set_body(['email' => 'reset@test.com', 'code' => $code, 'new_password' => 'secondpass']);
     $r = run_handler('auth_reset_password');
     T()->eq(204, $r['status'], 'reset status 204');
+    T()->eq(
+        1,
+        (int)query("SELECT token_version FROM users WHERE email = 'reset@test.com'")->fetchColumn(),
+        'password reset bumps token_version'
+    );
 
     set_body(['email' => 'reset@test.com', 'password' => 'secondpass']);
     $r = run_handler('auth_login');
@@ -298,6 +374,42 @@ T()->test('google rate limit 429 (30 per minute, google bucket)', function () {
     $first30 = array_slice($statuses, 0, 30);
     T()->truthy(max($first30) === 401 && min($first30) === 401, 'first 30 google calls 401');
     T()->eq(429, $statuses[30], '31st google call throttled');
+});
+
+T()->test('login rate limit 429 (10 per minute per email)', function () {
+    db_reset();
+    $statuses = [];
+    for ($i = 0; $i < 11; $i++) {
+        set_body(['email' => 'nosuch@test.com', 'password' => 'wrongpass']);
+        $statuses[] = run_handler('auth_login')['status'];
+    }
+    T()->eq(array_fill(0, 10, 401), array_slice($statuses, 0, 10), 'first 10 login attempts 401');
+    T()->eq(429, $statuses[10], '11th login attempt throttled');
+    set_body(['email' => 'nosuch@test.com', 'password' => 'wrongpass']);
+    $r = run_handler('auth_login');
+    T()->eq('RATE_LIMITED', $r['body']['code'] ?? null, 'login throttle code');
+});
+
+T()->test('register rate limit 429 (10 per hour per IP)', function () {
+    db_reset();
+    $statuses = [];
+    for ($i = 0; $i < 11; $i++) {
+        set_body(['email' => "not-an-email-{$i}", 'password' => 'min12345', 'display_name' => 'X']);
+        $statuses[] = run_handler('auth_register')['status'];
+    }
+    T()->eq(array_fill(0, 10, 422), array_slice($statuses, 0, 10), 'first 10 register attempts 422');
+    T()->eq(429, $statuses[10], '11th register attempt throttled');
+});
+
+T()->test('reset-password rate limit 429 (10 per hour per email)', function () {
+    db_reset();
+    $statuses = [];
+    for ($i = 0; $i < 11; $i++) {
+        set_body(['email' => 'nobody@test.com', 'code' => '123456', 'new_password' => 'longenough']);
+        $statuses[] = run_handler('auth_reset_password')['status'];
+    }
+    T()->eq(array_fill(0, 10, 422), array_slice($statuses, 0, 10), 'first 10 reset attempts 422');
+    T()->eq(429, $statuses[10], '11th reset attempt throttled');
 });
 
 /// ISO-8601 with milliseconds + Z (the sync/auth dialect).

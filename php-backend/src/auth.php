@@ -39,6 +39,12 @@ function auth_register(): void
     $password = js_text($body['password'] ?? null);
     $displayName = trim(js_text($body['display_name'] ?? null));
 
+    // Account creation is cheap to spam (and sends email later); cap it per
+    // source address before doing any validation or database work.
+    if (!rate_limit_allow('register:ip:' . client_ip(), 10, 3600)) {
+        throw new ApiError(429, 'Too many requests, please try again later', 'RATE_LIMITED');
+    }
+
     if (!valid_email($email)) {
         throw new ApiError(422, 'Invalid email address', 'VALIDATION_ERROR');
     }
@@ -81,8 +87,16 @@ function auth_login(): void
         throw new ApiError(422, 'Email and password are required', 'VALIDATION_ERROR');
     }
 
+    // Two buckets: one slows password guessing against a single account, the
+    // other stops one host from spraying many accounts.
+    if (!rate_limit_allow('login:email:' . strtolower($email), 10, 60)
+        || !rate_limit_allow('login:ip:' . client_ip(), 30, 60)
+    ) {
+        throw new ApiError(429, 'Too many requests, please try again later', 'RATE_LIMITED');
+    }
+
     $user = fetch_one(
-        'SELECT id, email, password_hash, display_name, role, department FROM users WHERE email = ? AND deleted = 0 LIMIT 1',
+        'SELECT id, email, password_hash, display_name, role, department, token_version FROM users WHERE email = ? AND deleted = 0 LIMIT 1',
         [$email]
     );
     if ($user === null || !password_verify($password, (string)($user['password_hash'] ?? ''))) {
@@ -91,7 +105,7 @@ function auth_login(): void
 
     send_json(200, [
         'user' => user_json($user),
-        'token' => jwt_sign_token((int)$user['id'], $user['email']),
+        'token' => jwt_sign_token((int)$user['id'], $user['email'], (int)$user['token_version']),
         'expires_at' => expires_at_iso(),
     ]);
 }
@@ -167,7 +181,7 @@ function auth_google(): void
         ? nonempty_or_null(mb_substr(trim(js_string($body['department'])), 0, 100))
         : null;
 
-    $columns = 'SELECT id, email, password_hash, display_name, google_sub, role, department FROM users WHERE ';
+    $columns = 'SELECT id, email, password_hash, display_name, google_sub, role, department, token_version FROM users WHERE ';
 
     // Look up by Google subject first, then by email (backfilling google_sub on match).
     $user = fetch_one($columns . 'google_sub = ? AND deleted = 0 LIMIT 1', [$googleSub]);
@@ -197,20 +211,22 @@ function auth_google(): void
             [$email, $googleSub, $createdName, $department]
         );
         $user = fetch_one(
-            'SELECT id, email, password_hash, display_name, google_sub, role, department FROM users WHERE id = ?',
+            'SELECT id, email, password_hash, display_name, google_sub, role, department, token_version FROM users WHERE id = ?',
             [(int)db()->lastInsertId()]
         );
     }
 
     send_json(200, [
         'user' => user_json($user),
-        'token' => jwt_sign_token((int)$user['id'], $user['email']),
+        'token' => jwt_sign_token((int)$user['id'], $user['email'], (int)$user['token_version']),
         'expires_at' => expires_at_iso(),
     ]);
 }
 
-/// POST /auth/refresh: accepts an expired token and reissues a fresh one.
-/// Role and department are re-read from the database.
+/// POST /auth/refresh: accepts an expired token inside a bounded grace
+/// window and reissues a fresh one. Role, department and token_version are
+/// re-read from the database, so promotions, deletions and password changes
+/// take effect on the next refresh.
 function auth_refresh(): void
 {
     $token = bearer_token();
@@ -218,21 +234,29 @@ function auth_refresh(): void
         throw new ApiError(401, 'Missing token', 'UNAUTHORIZED');
     }
     $claims = jwt_verify($token, true);
-    if ($claims === null || !isset($claims['user_id'])) {
+    if ($claims === null || !isset($claims['user_id'], $claims['exp'])) {
         throw new ApiError(401, 'Invalid token', 'TOKEN_EXPIRED');
     }
 
+    // Bound how long an expired token stays refreshable.
+    if ((int)$claims['exp'] < time() - REFRESH_GRACE_SECONDS) {
+        throw new ApiError(401, 'Refresh window expired', 'TOKEN_EXPIRED');
+    }
+
     $user = fetch_one(
-        'SELECT id, email, display_name, role, department FROM users WHERE id = ? AND deleted = 0 LIMIT 1',
+        'SELECT id, email, display_name, role, department, token_version FROM users WHERE id = ? AND deleted = 0 LIMIT 1',
         [(int)$claims['user_id']]
     );
     if ($user === null) {
         throw new ApiError(401, 'User not found', 'TOKEN_EXPIRED');
     }
+    if ((int)($claims['tv'] ?? 0) !== (int)$user['token_version']) {
+        throw new ApiError(401, 'Session revoked', 'TOKEN_EXPIRED');
+    }
 
     send_json(200, [
         'user' => user_json($user),
-        'token' => jwt_sign_token((int)$user['id'], $user['email']),
+        'token' => jwt_sign_token((int)$user['id'], $user['email'], (int)$user['token_version']),
         'expires_at' => expires_at_iso(),
     ]);
 }
@@ -241,7 +265,7 @@ function auth_refresh(): void
 function auth_delete_account(): void
 {
     $userId = require_auth();
-    query('UPDATE users SET deleted = 1 WHERE id = ?', [$userId]);
+    query('UPDATE users SET deleted = 1, token_version = token_version + 1 WHERE id = ?', [$userId]);
     query('UPDATE classes SET deleted = 1 WHERE user_id = ?', [$userId]);
     query('UPDATE events SET deleted = 1 WHERE user_id = ?', [$userId]);
     query('UPDATE class_statuses SET deleted = 1 WHERE user_id = ?', [$userId]);
@@ -310,7 +334,12 @@ function auth_change_password(): void
         throw new ApiError(401, 'Current password is incorrect', 'INVALID_CREDENTIALS');
     }
 
-    query('UPDATE users SET password_hash = ? WHERE id = ?', [hash_password($new), $userId]);
+    // Bumping token_version revokes every existing session, including the
+    // caller's current token, so a stolen token dies with the old password.
+    query(
+        'UPDATE users SET password_hash = ?, token_version = token_version + 1 WHERE id = ?',
+        [hash_password($new), $userId]
+    );
     // Any outstanding reset codes are meaningless now.
     query('DELETE FROM password_resets WHERE user_id = ?', [$userId]);
     send_no_content();
@@ -326,7 +355,9 @@ function auth_forgot_password(): void
     if (!valid_email($email)) {
         throw new ApiError(422, 'Invalid email address', 'VALIDATION_ERROR');
     }
-    if (!rate_limit_allow('forgot:' . strtolower($email), 5, 3600)) {
+    if (!rate_limit_allow('forgot:' . strtolower($email), 5, 3600)
+        || !rate_limit_allow('forgot:ip:' . client_ip(), 20, 3600)
+    ) {
         throw new ApiError(429, 'Too many requests. Try again later.', 'RATE_LIMITED');
     }
 
@@ -345,9 +376,12 @@ function auth_forgot_password(): void
             ]
         );
 
-        // No mailer is configured yet, so the code goes to the log file
-        // (storage/logs/app.log) to keep the flow testable in development.
-        app_log("Password reset code for {$email}: {$code}");
+        // No mailer is configured yet. Plaintext codes are written to the
+        // log only when explicitly enabled for local development/testing;
+        // production deployments must wire a mailer instead.
+        if (cfg('debug_reset_codes') === '1') {
+            app_log("Password reset code for {$email}: {$code}");
+        }
     }
 
     send_json(200, ['ok' => true]);
@@ -369,6 +403,13 @@ function auth_reset_password(): void
         );
     }
 
+    // Slow down code guessing after a reset code has been requested.
+    if (!rate_limit_allow('reset:email:' . strtolower($email), 10, 3600)
+        || !rate_limit_allow('reset:ip:' . client_ip(), 30, 3600)
+    ) {
+        throw new ApiError(429, 'Too many requests, please try again later', 'RATE_LIMITED');
+    }
+
     $ok = false;
     $user = fetch_one('SELECT id FROM users WHERE email = ? AND deleted = 0 LIMIT 1', [$email]);
     if ($user !== null) {
@@ -382,7 +423,11 @@ function auth_reset_password(): void
             && is_future_utc((string)$reset['expires_at'])
         ) {
             $ok = true;
-            query('UPDATE users SET password_hash = ? WHERE id = ?', [hash_password($newPassword), $userId]);
+            // A reset revokes every session issued under the old password.
+            query(
+                'UPDATE users SET password_hash = ?, token_version = token_version + 1 WHERE id = ?',
+                [hash_password($newPassword), $userId]
+            );
             query('DELETE FROM password_resets WHERE user_id = ?', [$userId]);
         }
     }
