@@ -10,13 +10,15 @@ import '../../data/database_helper.dart';
 import '../../models/class_item.dart';
 import '../../routes/app_routes.dart';
 import '../../screens/main_navigation_screen.dart';
-import '../../services/reminder_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_notification.dart';
 import '../../widgets/swipe_actions.dart';
 import 'models/import_draft.dart';
+import 'models/import_mode.dart';
+import 'services/import_save_service.dart';
 import 'services/schedule_ocr_service.dart';
 import 'services/timetable_grid_scanner.dart';
+import 'utils/import_review_analysis.dart';
 import 'utils/parse_chain.dart';
 import 'utils/sectioned_schedule_parser.dart';
 import 'utils/timetable_parser.dart';
@@ -48,6 +50,7 @@ class ImportScheduleScreen extends StatefulWidget {
 
 class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
   final _db = DatabaseHelper.instance;
+  late final ImportSaveService _saveService = ImportSaveService();
   late final ScheduleOcrService _ocrService =
       widget.ocrService ?? ScheduleOcrService();
   bool _working = false;
@@ -69,7 +72,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
 
   /// Saved classes, cached so row badges can be recomputed instantly while editing.
   List<ClassItem> _existing = [];
-  _ImportMode _importMode = _ImportMode.add;
+  ImportMode _importMode = ImportMode.add;
   final Set<int> _selectedReplacementIds = {};
 
   /// Draft -> short explanation for rows with conflicts / invalid details.
@@ -503,9 +506,9 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
       setState(() {
         _existing = existing;
         _drafts = parsed;
-        _importMode = _ImportMode.add;
+        _importMode = ImportMode.add;
         _selectedReplacementIds.clear();
-        _notes = _analyze(existing);
+        _notes = analyzeImportDrafts(drafts: parsed, existing: existing);
         _working = false;
         _scanStage = ImportScanStage.idle;
         _scanProgress = 0;
@@ -548,7 +551,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
     final result = await Navigator.of(context, rootNavigator: true)
         .pushNamed<Object?>(
           AppRoutes.importDraftEditor,
-          arguments: _toItem(draft),
+          arguments: classItemFromDraft(draft),
         );
     if (!mounted || result is! ClassItem) return false;
     setState(() {
@@ -605,93 +608,21 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
     unawaited(_addManualClass());
   }
 
-  ClassItem _toItem(ImportDraft d) => ClassItem(
-    subject: d.subject.trim(),
-    room: d.room.trim(),
-    professor: d.professor.trim().length < 2
-        ? unspecifiedProfessor
-        : d.professor.trim(),
-    day: d.day,
-    startMinutes: d.start,
-    endMinutes: d.end,
-  );
-
-  static bool _isUnknownRoom(String room) {
-    final r = room.trim().toLowerCase();
-    return r.isEmpty || r == 'unknown room' || r == 'room to confirm';
-  }
-
-  static bool _needsOcrReview(ImportDraft draft) =>
-      (draft.ocrConfidence != null && draft.ocrConfidence! < .75) ||
-      TimetableParser.looksLikeOcrTextIssue(draft.subject);
-
-  static String? _ocrReviewLabel(ImportDraft draft) {
-    final confidence = draft.ocrConfidence;
-    if (confidence != null && confidence < .75) {
-      return 'Low OCR score · ${(confidence * 100).round()}%';
-    }
-    return TimetableParser.looksLikeOcrTextIssue(draft.subject)
-        ? 'Check scanned text'
-        : null;
-  }
-
-  /// Returns a short explanation for every draft that cannot be imported yet:
-  /// invalid details, or an overlap with a saved class / an earlier draft.
-  Map<ImportDraft, ImportNote> _analyze(List<ClassItem> existing) {
-    final notes = <ImportDraft, ImportNote>{};
-    final accepted = <ClassItem>[];
-    for (final d in _drafts) {
-      final current = _toItem(d);
-      try {
-        DatabaseHelper.validateClass(current);
-      } on ArgumentError {
-        notes[d] = const ImportNote(
-          'Missing or invalid details',
-          ImportNoteKind.invalid,
-        );
-        continue;
-      }
-      final overlap = [...existing, ...accepted]
-          .where(
-            (c) =>
-                c.day == current.day &&
-                current.startMinutes < c.endMinutes &&
-                c.startMinutes < current.endMinutes,
-          )
-          .toList();
-      if (overlap.isNotEmpty) {
-        notes[d] = ImportNote(
-          'Overlaps ${overlap.map((c) => c.subject).join(', ')}',
-          ImportNoteKind.conflict,
-        );
-      } else {
-        accepted.add(current);
-      }
-    }
-    return notes;
-  }
-
-  List<ClassItem> _classesThatRemain(List<ClassItem> existing) {
-    switch (_importMode) {
-      case _ImportMode.add:
-        return existing;
-      case _ImportMode.replaceAll:
-        return const [];
-      case _ImportMode.replaceSelected:
-        return existing
-            .where((item) => !_selectedReplacementIds.contains(item.id))
-            .toList();
-    }
-  }
-
   void _refreshAnalysis() {
-    _notes = _analyze(_classesThatRemain(_existing));
+    _notes = analyzeImportDrafts(
+      drafts: _drafts,
+      existing: classesThatRemain(
+        existing: _existing,
+        mode: _importMode,
+        selectedIds: _selectedReplacementIds,
+      ),
+    );
   }
 
   void _syncExistingClasses(List<ClassItem> existing) {
     _existing = existing;
     if (existing.isEmpty) {
-      _importMode = _ImportMode.add;
+      _importMode = ImportMode.add;
       _selectedReplacementIds.clear();
       return;
     }
@@ -703,7 +634,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
     _selectedReplacementIds.removeWhere((id) => !existingIds.contains(id));
   }
 
-  void _setImportMode(_ImportMode mode) {
+  void _setImportMode(ImportMode mode) {
     setState(() {
       _importMode = mode;
       _refreshAnalysis();
@@ -742,7 +673,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
 
   Future<void> _save() async {
     if (_drafts.isEmpty || _working) return;
-    if (_importMode == _ImportMode.replaceSelected &&
+    if (_importMode == ImportMode.replaceSelected &&
         _selectedReplacementIds.isEmpty) {
       _showError(
         'Select at least one saved class to replace, or choose Add to schedule.',
@@ -751,14 +682,16 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
     }
     setState(() => _working = true);
     try {
-      final roomsToConfirm = _drafts
-          .where((draft) => _isUnknownRoom(draft.room))
-          .length;
-      final namesToReview = _drafts.where(_needsOcrReview).length;
-      if (roomsToConfirm > 0 || namesToReview > 0) {
+      final preflight = reviewImport(
+        drafts: _drafts,
+        existing: _existing,
+        mode: _importMode,
+        selectedIds: _selectedReplacementIds,
+      );
+      if (preflight.roomsToConfirm > 0 || preflight.namesToReview > 0) {
         final confirmed = await _confirmFlaggedImport(
-          roomsToConfirm,
-          namesToReview,
+          preflight.roomsToConfirm,
+          preflight.namesToReview,
         );
         if (!mounted) return;
         if (!confirmed) {
@@ -769,24 +702,27 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
       // Re-read saved classes immediately before validating to reduce the chance
       // of importing against stale schedule data.
       final existing = await _db.getAll();
-      final notes = _analyze(_classesThatRemain(existing));
-      if (notes.isNotEmpty) {
+      final review = reviewImport(
+        drafts: _drafts,
+        existing: existing,
+        mode: _importMode,
+        selectedIds: _selectedReplacementIds,
+      );
+      if (review.hasNotes) {
         if (!mounted) return;
         setState(() {
           _working = false;
           _syncExistingClasses(existing);
-          _notes = notes;
+          _notes = review.notes;
           _warnings = [];
         });
         _showError('Resolve schedule conflicts before importing.');
         return;
       }
-      final imports = _drafts.map(_toItem).toList();
-      final int count;
-      if (_importMode == _ImportMode.replaceAll) {
+      if (_importMode == ImportMode.replaceAll) {
         final confirmed = await _confirmReplacement(
           existing.length,
-          imports.length,
+          review.imports.length,
         );
         if (!confirmed) {
           if (mounted) {
@@ -794,14 +730,10 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
           }
           return;
         }
-        count = await _db.replaceAll(imports);
-      } else if (_importMode == _ImportMode.replaceSelected) {
-        final selectedCount = existing
-            .where((item) => _selectedReplacementIds.contains(item.id))
-            .length;
+      } else if (_importMode == ImportMode.replaceSelected) {
         final confirmed = await _confirmReplacement(
-          selectedCount,
-          imports.length,
+          review.selectedCount,
+          review.imports.length,
         );
         if (!confirmed) {
           if (mounted) {
@@ -809,33 +741,17 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
           }
           return;
         }
-        count = await _db.replaceSelected(
-          _selectedReplacementIds.toList(),
-          imports,
-        );
-      } else {
-        count = await _db.insertMany(imports);
       }
-      var remindersUpdated = true;
-      var remindersEnabled = false;
-      try {
-        // Keep background reminders in sync with this import. The scheduler
-        // is local-only and safely does nothing when reminders are disabled.
-        remindersEnabled = await ReminderService.instance.isEnabled;
-        await ReminderService.instance.sync();
-      } catch (e, st) {
-        remindersUpdated = false;
-        debugPrint('Imported classes, but reminder sync failed: $e\n$st');
-      }
+      final result = await _saveService.save(
+        imports: review.imports,
+        mode: _importMode,
+        selectedIds: _selectedReplacementIds,
+      );
       if (!mounted) return;
-      final classLabel = count == 1 ? 'class' : 'classes';
-      final successStatus = switch (_importMode) {
-        _ImportMode.add => 'Imported $count $classLabel successfully.',
-        _ImportMode.replaceAll =>
-          'Replaced the schedule with $count $classLabel.',
-        _ImportMode.replaceSelected =>
-          'Replaced selected classes with $count imported $classLabel.',
-      };
+      final successStatus = ImportSaveService.successMessage(
+        _importMode,
+        result.count,
+      );
       setState(() {
         _working = false;
         _completedImportMessage = successStatus;
@@ -844,7 +760,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
         _selectedFilePath = null;
         _existing = [];
         _selectedReplacementIds.clear();
-        _importMode = _ImportMode.add;
+        _importMode = ImportMode.add;
         _warnings = [];
       });
       showAppNotification(
@@ -855,13 +771,13 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
       );
       // Reminder problems get their own notification instead of being appended
       // to the success message, so each one has its own kind and timing.
-      if (!remindersUpdated) {
+      if (!result.remindersUpdated) {
         showAppNotification(
           context,
           'Classes saved, but reminders could not be updated. Check notification permission.',
           kind: AppNotificationKind.warning,
         );
-      } else if (!remindersEnabled) {
+      } else if (!result.remindersEnabled) {
         showAppNotification(
           context,
           'Turn on class reminders in Settings to get notifications when the app is closed.',
@@ -961,14 +877,14 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final reviewing = _drafts.isNotEmpty;
-    final unknownCount = _drafts.where((d) => _isUnknownRoom(d.room)).length;
-    final ocrReviewCount = _drafts.where(_needsOcrReview).length;
+    final unknownCount = _drafts.where((d) => isUnknownRoom(d.room)).length;
+    final ocrReviewCount = _drafts.where(needsOcrReview).length;
     final canImport =
         reviewing &&
         !_working &&
         _warnings.isEmpty &&
         _notes.isEmpty &&
-        (_importMode != _ImportMode.replaceSelected ||
+        (_importMode != ImportMode.replaceSelected ||
             (_existing.isNotEmpty && _selectedReplacementIds.isNotEmpty));
     final importStatus = _working
         ? 'Checking and saving your schedule…'
@@ -976,7 +892,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
         ? 'Review and acknowledge the scan warnings above to continue.'
         : _notes.isNotEmpty
         ? 'Fix ${_notes.length} flagged ${_notes.length == 1 ? 'class' : 'classes'} above to continue.'
-        : _importMode == _ImportMode.replaceSelected &&
+        : _importMode == ImportMode.replaceSelected &&
               _selectedReplacementIds.isEmpty
         ? 'Select at least one saved class above to continue.'
         : 'Conflicts are checked again before your schedule is updated.';
@@ -1199,13 +1115,13 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
                                     child: ImportDraftCard(
                                       draft: _drafts[i],
                                       note: _notes[_drafts[i]],
-                                      unknownRoom: _isUnknownRoom(
+                                      unknownRoom: isUnknownRoom(
                                         _drafts[i].room,
                                       ),
-                                      ocrReviewNeeded: _needsOcrReview(
+                                      ocrReviewNeeded: needsOcrReview(
                                         _drafts[i],
                                       ),
-                                      ocrReviewLabel: _ocrReviewLabel(
+                                      ocrReviewLabel: ocrReviewLabel(
                                         _drafts[i],
                                       ),
                                       onTap: () => _edit(_drafts[i]),
@@ -1348,7 +1264,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
     if (_existing.isEmpty) return const SizedBox.shrink();
 
     final scheme = Theme.of(context).colorScheme;
-    Widget option(_ImportMode mode, String title, String subtitle) {
+    Widget option(ImportMode mode, String title, String subtitle) {
       final selected = _importMode == mode;
       return Card(
         margin: const EdgeInsets.symmetric(vertical: 4),
@@ -1363,7 +1279,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             child: Row(
               children: [
-                Radio<_ImportMode>(value: mode),
+                Radio<ImportMode>(value: mode),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1377,7 +1293,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
                                   ?.copyWith(fontWeight: FontWeight.w700),
                             ),
                           ),
-                          if (mode == _ImportMode.add) ...[
+                          if (mode == ImportMode.add) ...[
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -1417,7 +1333,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
       );
     }
 
-    return RadioGroup<_ImportMode>(
+    return RadioGroup<ImportMode>(
       groupValue: _importMode,
       onChanged: (value) {
         if (!_working && value != null) _setImportMode(value);
@@ -1447,16 +1363,16 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
             ),
           ),
           option(
-            _ImportMode.add,
+            ImportMode.add,
             'Add to schedule',
             'Keep saved classes and add these classes.',
           ),
           option(
-            _ImportMode.replaceAll,
+            ImportMode.replaceAll,
             'Replace entire schedule',
             'Remove every saved class and use this import.',
           ),
-          if (_importMode == _ImportMode.replaceAll)
+          if (_importMode == ImportMode.replaceAll)
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
               child: Row(
@@ -1481,11 +1397,11 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
               ),
             ),
           option(
-            _ImportMode.replaceSelected,
+            ImportMode.replaceSelected,
             'Choose classes to replace',
             'Select saved classes to remove before importing.',
           ),
-          if (_importMode == _ImportMode.replaceSelected) ...[
+          if (_importMode == ImportMode.replaceSelected) ...[
             const Divider(height: 16),
             for (final item in _existing)
               CheckboxListTile(
@@ -1874,5 +1790,3 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
     );
   }
 }
-
-enum _ImportMode { add, replaceAll, replaceSelected }

@@ -441,7 +441,7 @@ database is the last line of defense, so no door can corrupt the schedule.
 
 ## Part 6 — Every file, explained
 
-The repository has 491 tracked files. The sections below cover all source
+The repository has 498 tracked files. The sections below cover all source
 files; test fixtures and generated assets are grouped at the end.
 
 ### 6.1 Root files
@@ -611,15 +611,16 @@ files; test fixtures and generated assets are grouped at the end.
 | `week_agenda_view.dart` | Week agenda layout + break threshold |
 | `weekday_tile.dart` | Weekday tile in the strip |
 
-### 6.11 `lib/features/schedule_import/` (29 files)
+### 6.11 `lib/features/schedule_import/` (32 files)
 
 **Entry and model**
 
 | File | Purpose |
 |---|---|
-| `import_schedule_screen.dart` | Orchestrates pick → scan → parse → review → save; preserves drafts while paused |
+| `import_schedule_screen.dart` | Orchestrates pick → scan → parse → review → save; owns dialogs/notifications; preserves drafts while paused |
 | `import_route_cache.dart` | Keeps an in-progress import route mounted when visiting Today |
 | `models/import_draft.dart` | Editable row before it becomes a `ClassItem`; note kinds |
+| `models/import_mode.dart` | Add / replace-all / replace-selected choice |
 
 **Services**
 
@@ -628,12 +629,14 @@ files; test fixtures and generated assets are grouped at the end.
 | `services/schedule_ocr_service.dart` | PaddleOCR lifecycle, image/PDF scanning, cancellation, page windows |
 | `services/timetable_grid_scanner.dart` | Finds weekday headers, time rules, and cells; merges OCR blocks spatially |
 | `services/ocr_image_preprocessor.dart` | Crop, deskew, enhance, upscale, threshold for OCR |
+| `services/import_save_service.dart` | Commits reviewed rows with the chosen mode, syncs reminders, builds the success copy |
 
 **Utils — parsing and geometry**
 
 | File | Purpose |
 |---|---|
 | `utils/parse_chain.dart` | Parser cascade + scoring across candidates |
+| `utils/import_review_analysis.dart` | Pure review logic: draft → `ClassItem`, conflict/invalid notes, OCR and room flags, classes that remain per mode |
 | `utils/sectioned_schedule_parser.dart` | Header bands, day sections, exam records, day-less blocks |
 | `utils/schedule_text_parser.dart` | Lower-level text line parsing |
 | `utils/timetable_parser.dart` | Line-oriented timetable parser with no-guess fallback |
@@ -674,7 +677,7 @@ The suite is organized by risk area:
 | Auth/legal | `auth_legal_test`, `signup_department_test`, `app_info_test` |
 | Sync/backup | `auto_backup_test`, `reminder_service_test`, `crash_reporting_test` |
 | Onboarding/coach | `onboarding_test`, `coach_tour_test`, `coach_tour_store_test`, `coach_tour_trigger_test`, `first_class_coach_store_test`, `home_first_class_coach_test` |
-| Import/OCR | `import_draft_test`, `import_review_edit_test`, `import_timetable_cancel_test`, `import_weak_grid_rescue_test`, `schedule_text_parser_test`, `sectioned_schedule_parser_test`, `cor_schedule_parser_test`, `timetable_parser_test`, `timetable_grid_scanner_test`, `timetable_grid_geometry_test`, `timetable_grid_pixels_test`, `timetable_clock_ticks_test`, `ocr_image_size_test`, `adaptive_ocr_threshold_test`, `skew_profile_estimator_test`, `pdf_page_image_test`, `pdf_timetable_text_test`, `pdf_timetable_scan_result_test`, `non_timetable_schedule_test` |
+| Import/OCR | `import_draft_test`, `import_review_analysis_test`, `import_review_edit_test`, `import_timetable_cancel_test`, `import_weak_grid_rescue_test`, `schedule_text_parser_test`, `sectioned_schedule_parser_test`, `cor_schedule_parser_test`, `timetable_parser_test`, `timetable_grid_scanner_test`, `timetable_grid_geometry_test`, `timetable_grid_pixels_test`, `timetable_clock_ticks_test`, `ocr_image_size_test`, `adaptive_ocr_threshold_test`, `skew_profile_estimator_test`, `pdf_page_image_test`, `pdf_timetable_text_test`, `pdf_timetable_scan_result_test`, `non_timetable_schedule_test` |
 | Benchmarks | `bench3_round_test`, `bench4_round_test`, `bench5_scan_speed_test`, `bench6_accuracy_test`, `bench7_cor_accuracy_test`, `scan_improvements_test` |
 | Visual/golden | `app_look_capture_test`, `design_capture_test`, `event_sheet_capture_test`, `widget_test` |
 
@@ -872,7 +875,7 @@ Pick file (PNG/JPG/WEBP/PDF, ≤20 MB)
         ├─ edit row → returns a draft, not a save
         ├─ add manual row
         ├─ choose Add / Replace all / Replace selected
-        └─ Save → insertMany / replaceAll / replaceSelected
+        └─ Save → ImportSaveService → insertMany / replaceAll / replaceSelected
 ```
 
 Important behaviors:
