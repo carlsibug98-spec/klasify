@@ -167,9 +167,17 @@ Without the define, the Sentry SDK is never initialized, nothing is queued or se
 ```text
 lib/
   main.dart
-  database/
-    database_helper.dart
+  data/
+    app_database.dart                 # connection owner, schema v9, migrations
+    database_helper.dart              # change-notifying facade (public DB API)
+    db_timestamps.dart                # UTC timestamp helper for sync
+    repositories/                     # all SQL, one file per aggregate
+    validation/                       # class and event rules shared by all doors
   features/
+    auth/
+      admin_api.dart
+      auth_api.dart
+      session_store.dart
     schedule_import/
       import_route_cache.dart
       import_schedule_screen.dart

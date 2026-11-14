@@ -10,8 +10,8 @@ import 'app_notification.dart';
 /// Deletes a single class immediately and offers a five-second undo action.
 /// Undo uses the app-level messenger, so it survives route changes.
 ///
-/// [actions] supplies the data operations; callers pass
-/// [ClassDeleteActions.database] in the app and a fake in tests.
+/// [actions] supplies the data operations; callers always pass
+/// [ClassDeleteActions.database].
 Future<bool> deleteClassWithUndo(
   BuildContext context,
   ClassItem item, {

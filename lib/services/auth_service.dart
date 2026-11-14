@@ -38,6 +38,12 @@ class AuthService extends ChangeNotifier {
   ///   flutter run --dart-define=KLASIFY_API_URL=https://api.klasify.app/v1
   static String get baseUrl => AuthApi.baseUrl;
 
+  /// Test hook: routes requests to a local HTTP server. Null in production.
+  @visibleForTesting
+  static String? get baseUrlOverride => AuthApi.baseUrlOverride;
+  @visibleForTesting
+  static set baseUrlOverride(String? value) => AuthApi.baseUrlOverride = value;
+
   /// True when [url] is an absolute HTTPS URL with a host. Exposed for tests
   /// so the release policy is pinned without switching build modes.
   @visibleForTesting

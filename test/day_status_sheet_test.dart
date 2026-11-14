@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:klasify/data/database_helper.dart';
 import 'package:klasify/models/class_item.dart';
 import 'package:klasify/models/class_status.dart';
 import 'package:klasify/services/widget_data_actions.dart';
 import 'package:klasify/theme/app_theme.dart';
 import 'package:klasify/widgets/day_status_sheet.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart' as sqflite;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-final _actions = DayStatusActions(
-  setStatus: (_) async => <ClassStatusEntry>[],
-  clearStatus: (_, {required String day}) async => <ClassStatusEntry>[],
-);
-
-const _item = ClassItem(
-  id: 7,
+const _draft = ClassItem(
   subject: 'Advanced Mathematics',
   room: '304',
   professor: 'Prof. Santos',
@@ -22,6 +20,9 @@ const _item = ClassItem(
 );
 
 final _date = DateTime(2026, 10, 27); // Tuesday
+
+late ClassItem _item;
+late int _classId;
 
 Widget _host({ClassStatusEntry? current}) => MaterialApp(
   theme: AppTheme.light(),
@@ -34,7 +35,7 @@ Widget _host({ClassStatusEntry? current}) => MaterialApp(
             item: _item,
             date: _date,
             current: current,
-            actions: _actions,
+            actions: DayStatusActions.database,
           ),
           child: const Text('Open mark class'),
         ),
@@ -49,13 +50,35 @@ Future<void> _open(WidgetTester tester, {ClassStatusEntry? current}) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _close(WidgetTester tester) async {
-  await tester.binding.handlePopRoute();
+/// Taps a button that may sit below the fold on the test surface.
+Future<void> _tapVisible(WidgetTester tester, String label) async {
+  await tester.ensureVisible(find.text(label));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label));
   await tester.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('mark class sheet matches the design and enables the action', (
+  setUpAll(() {
+    sqfliteFfiInit();
+    sqflite.databaseFactory = databaseFactoryFfiNoIsolate;
+  });
+
+  setUp(() async {
+    // Reminder sync short-circuits, so the save path is deterministic.
+    SharedPreferences.setMockInitialValues({'class_reminders_enabled': false});
+    DatabaseHelper.databaseName =
+        'day_status_sheet_${DateTime.now().microsecondsSinceEpoch}.db';
+    await DatabaseHelper.instance.resetForTesting();
+    _classId = await DatabaseHelper.instance.insert(_draft);
+    _item = (await DatabaseHelper.instance.getAll()).single;
+  });
+
+  tearDown(() async {
+    await DatabaseHelper.instance.resetForTesting();
+  });
+
+  testWidgets('mark class sheet matches the design and saves a real mark', (
     tester,
   ) async {
     await _open(tester);
@@ -100,20 +123,35 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('From Tue 27 Oct until you clear it.'), findsOneWidget);
 
-    await _close(tester);
+    // Save through the real database-backed action bundle.
+    await _tapVisible(tester, 'Mark as Finished');
+
+    final marks = await tester.runAsync(
+      () => DatabaseHelper.instance.statusesForClass(_classId),
+    );
+    expect(marks, isNotNull);
+    expect(marks!, hasLength(1));
+    expect(marks.single.classId, _classId);
+    expect(marks.single.status, DayStatus.finished);
+    expect(marks.single.startDate, '2026-10-27');
+    expect(marks.single.endDate, isNull, reason: 'Until I clear is open-ended');
   });
 
-  testWidgets('mark class sheet opens in edit mode with clear action', (
+  testWidgets('mark class sheet edits and clears a real saved mark', (
     tester,
   ) async {
-    await _open(
-      tester,
-      current: const ClassStatusEntry(
-        classId: 7,
+    await DatabaseHelper.instance.setClassStatus(
+      ClassStatusEntry(
+        classId: _classId,
         status: DayStatus.notAttending,
         startDate: '2026-10-27',
       ),
     );
+    final current = (await DatabaseHelper.instance.statusesForClass(
+      _classId,
+    )).single;
+
+    await _open(tester, current: current);
 
     expect(find.text('Marked: Not attending · until cleared'), findsOneWidget);
     expect(find.text('You’re skipping this class.'), findsOneWidget);
@@ -121,10 +159,22 @@ void main() {
     expect(find.text('Update'), findsOneWidget);
     expect(find.text('Clear status'), findsOneWidget);
 
-    await _close(tester);
+    await _tapVisible(tester, 'Clear status');
+
+    // Clearing one day of an open-ended mark keeps the later days marked:
+    // the remainder starts the next day. This also proves the real database
+    // write ran rather than the seeded row merely still being present.
+    final marks = await tester.runAsync(
+      () => DatabaseHelper.instance.statusesForClass(_classId),
+    );
+    expect(marks, isNotNull);
+    expect(marks!, hasLength(1));
+    expect(marks.single.status, DayStatus.notAttending);
+    expect(marks.single.startDate, '2026-10-28');
+    expect(marks.single.endDate, isNull);
   });
 
-  testWidgets('cancelled copy and the span lock follow the design', (
+  testWidgets('cancelled copy and the saved status follow the design', (
     tester,
   ) async {
     await _open(tester);
@@ -137,6 +187,15 @@ void main() {
     expect(find.text('The class won’t meet.'), findsOneWidget);
     expect(find.text('Mark as Cancelled'), findsOneWidget);
 
-    await _close(tester);
+    await _tapVisible(tester, 'Mark as Cancelled');
+
+    final marks = await tester.runAsync(
+      () => DatabaseHelper.instance.statusesForClass(_classId),
+    );
+    expect(marks, isNotNull);
+    expect(marks!, hasLength(1));
+    expect(marks.single.status, DayStatus.cancelled);
+    expect(marks.single.startDate, '2026-10-27');
+    expect(marks.single.endDate, '2026-10-27');
   });
 }

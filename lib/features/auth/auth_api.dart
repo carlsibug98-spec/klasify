@@ -125,9 +125,18 @@ class AuthApi {
     defaultValue: _defaultBaseUrl,
   );
 
+  /// Test hook: points requests at a local HTTP server. Null in production.
+  /// (The `@visibleForTesting` annotation lives on the public
+  /// `AuthService.baseUrlOverride` forwarder.)
+  static String? baseUrlOverride;
+
   /// Release builds must never send credentials or bearer tokens over plain
   /// HTTP. Debug/profile builds keep the LAN default for the demo workflow.
   static String get baseUrl {
+    final override = baseUrlOverride;
+    // Release builds ignore the test hook, so the HTTPS policy below can
+    // never be bypassed by a field that ships in the binary.
+    if (!kReleaseMode && override != null) return override;
     if (kReleaseMode && !isSecureApiUrl(_configuredBaseUrl)) {
       throw StateError(
         'Klasify release builds require an HTTPS KLASIFY_API_URL '

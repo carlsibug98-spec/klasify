@@ -32,7 +32,7 @@ Status definitions:
 | Status banner | `widgets/status_banner.dart` | Implemented in source; verification required | Verify semantic colors, wrapping, dismissal, and use on all relevant screens. |
 | Notification toast | `widgets/app_notification.dart` | Implemented in source; verification required | Verify duration, queuing, semantics, and screen transitions. |
 | Notification with undo | `widgets/class_delete_undo.dart` | Implemented in source; verification required | Test undo timing, repeated deletes, database failure, and reminder resynchronization. |
-| Delete with undo flow | `widgets/class_delete_undo.dart`, `database/database_helper.dart` | Implemented in source; verification required | End-to-end test deletion, undo, expiration, and app lifecycle. |
+| Delete with undo flow | `widgets/class_delete_undo.dart`, `data/database_helper.dart` | Implemented in source; verification required | End-to-end test deletion, undo, expiration, and app lifecycle. |
 | Empty state | `widgets/empty_state_card.dart`, `screens/home_screen.dart`, `screens/schedule_screen.dart` | Partial / verification required | Confirm each empty state has the correct message and reference actions, especially Today’s two actions. |
 | Settings group and row | `screens/settings_screen.dart`, `widgets/component_kit.dart` | Partial; section header shared | Shared `SettingsRow` is now used in compact mode by the Settings screen; screenshot verification remains outstanding. |
 | Home-screen widget | `services/next_class_widget_service.dart` | Verification required | Validate platform integration, refresh timing, empty state, and actual device presentation. |

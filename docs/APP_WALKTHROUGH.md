@@ -84,7 +84,7 @@ Klasify is an Android-first Flutter app for students. Its core jobs:
 - Flutter: `>= 3.44.0`, Dart `>= 3.12.0`
 - Local database: SQLite via `sqflite`, schema **version 9**, file `class_schedule.db`
 - Backend: PHP 8 + MySQL/MariaDB (XAMPP-compatible), JWT HS256, bcrypt cost 12
-- Tests: 67 Dart test files, 526 tests, all passing (verified Nov 11, 2026);
+- Tests: 70 Dart test files, 547 tests, all passing (verified Nov 14, 2026);
   plus 56 PHP parity tests
 
 ---
@@ -441,7 +441,7 @@ database is the last line of defense, so no door can corrupt the schedule.
 
 ## Part 6 — Every file, explained
 
-The repository has 504 tracked files. The sections below cover all source
+The repository has 505 tracked files. The sections below cover all source
 files; test fixtures and generated assets are grouped at the end.
 
 ### 6.1 Root files
@@ -670,7 +670,7 @@ files; test fixtures and generated assets are grouped at the end.
 | `widgets/import_success_card.dart` | Import-complete card with View schedule / Import another |
 | `widgets/import_source_preview_screen.dart` | Zoomable source image/PDF preview |
 
-### 6.12 `test/` (67 Dart test files)
+### 6.12 `test/` (70 Dart test files)
 
 The suite is organized by risk area:
 
@@ -679,7 +679,7 @@ The suite is organized by risk area:
 | Database | `database_crud_test`, `database_validation_test`, `events_db_test`, `office_statuses_db_test`, `class_status_db_test`, `class_status_migration_test` |
 | Models/rules | `class_status_test`, `event_item_test`, `next_class_test`, `schedule_rules_test`, `office_status_test`, `schedule_backup_codec_test` |
 | Screens/widgets | `edit_class_screen_test`, `home_screen_hero_test`, `home_screen_stacks_test`, `events_home_test`, `weekly_schedule_view_test`, `ui_widgets_test`, `day_status_sheet_test`, `office_editor_manage_test`, `office_status_strip_test`, `office_name_sheet_test`, `swipe_actions_test`, `large_text_test`, `component_kit_test` |
-| Auth/legal | `auth_legal_test`, `signup_department_test`, `app_info_test` |
+| Auth/legal | `auth_http_test`, `auth_legal_test`, `auth_service_url_test`, `signup_department_test`, `app_info_test` |
 | Sync/backup | `auto_backup_test`, `reminder_service_test`, `crash_reporting_test` |
 | Onboarding/coach | `onboarding_test`, `coach_tour_test`, `coach_tour_store_test`, `coach_tour_trigger_test`, `first_class_coach_store_test`, `home_first_class_coach_test` |
 | Import/OCR | `import_draft_test`, `import_review_analysis_test`, `import_review_edit_test`, `import_timetable_cancel_test`, `import_weak_grid_rescue_test`, `import_widgets_test`, `schedule_text_parser_test`, `sectioned_schedule_parser_test`, `cor_schedule_parser_test`, `timetable_parser_test`, `timetable_grid_scanner_test`, `timetable_grid_geometry_test`, `timetable_grid_pixels_test`, `timetable_clock_ticks_test`, `ocr_image_size_test`, `adaptive_ocr_threshold_test`, `skew_profile_estimator_test`, `pdf_page_image_test`, `pdf_timetable_text_test`, `pdf_timetable_scan_result_test`, `non_timetable_schedule_test` |
@@ -1338,7 +1338,7 @@ security identity; the JWT is.
 ### 11.1 Flutter tests
 
 - `flutter analyze` must be clean.
-- `flutter test` runs 67 files / 526 tests.
+- `flutter test` runs 70 files / 547 tests.
 - Database tests use `sqflite_common_ffi` with a test-specific database name.
 - Golden tests render screens and compare PNGs with a tolerance.
 - OCR benchmarks shell out to Tesseract in CI because the native PaddleOCR

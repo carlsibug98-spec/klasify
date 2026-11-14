@@ -35,12 +35,9 @@ String _resolveFontDir() {
 final String _fontDir = _resolveFontDir();
 
 /// The capture test only opens and navigates the form, so no save ever runs.
-final _actions = EventActions(
-  insert: (_) async => 0,
-  update: (_) async => 0,
-  delete: (_) async => 0,
-  restore: (_) async => 0,
-);
+/// It still uses the real database-backed bundle: nothing about the sheet is
+/// rendered from a stand-in action set.
+final _actions = EventActions.database;
 
 Future<void> _load(String family, List<String> files) async {
   final loader = FontLoader(family);

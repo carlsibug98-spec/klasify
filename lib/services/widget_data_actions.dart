@@ -6,8 +6,8 @@ import '../models/event_item.dart';
 /// Database operations the class delete/undo surface needs.
 ///
 /// Widgets receive these as callbacks instead of reaching for
-/// [DatabaseHelper] directly, so the UI layer stays out of the data layer and
-/// tests can drive the same flow with a fake.
+/// [DatabaseHelper] directly, so the UI layer stays out of the data layer.
+/// The `.database` bundles below are the production wiring.
 class ClassDeleteActions {
   const ClassDeleteActions({
     required this.marksForClass,
