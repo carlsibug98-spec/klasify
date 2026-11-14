@@ -142,7 +142,11 @@ screens  →  services  →  DatabaseHelper  →  repositories  →  SQLite
 - `AppDatabase` is the only class that opens the connection, creates schema,
   or runs migrations.
 - `sync_service.dart` is the only class that calls `/sync/*`.
-- `auth_service.dart` is the only class that calls `/auth/*` and `/admin/*`.
+- Screens call `auth_service.dart`; it is a thin facade over
+  `features/auth/auth_api.dart` (every `/auth/*` call) and
+  `features/auth/admin_api.dart` (every `/admin/*` call).
+- `features/auth/session_store.dart` is the only class that reads or writes
+  the secure-storage session keys.
 
 This is why the app is teachable: each layer has one job.
 
@@ -437,7 +441,7 @@ database is the last line of defense, so no door can corrupt the schedule.
 
 ## Part 6 — Every file, explained
 
-The repository has 479 tracked files. The sections below cover all source
+The repository has 491 tracked files. The sections below cover all source
 files; test fixtures and generated assets are grouped at the end.
 
 ### 6.1 Root files
@@ -499,7 +503,7 @@ files; test fixtures and generated assets are grouped at the end.
 
 | File | Purpose |
 |---|---|
-| `auth_service.dart` | Secure session storage, login/register/Google, silent refresh, profile/password, admin API, base URL |
+| `auth_service.dart` | `ChangeNotifier` facade: sign-in/out state, role getters, silent refresh orchestration, profile/password, admin forwarders, base URL. Delegates to `features/auth/` |
 | `sync_service.dart` | Push → pull orchestration, cursors, device id, 5-minute timer, backoff, auth gating |
 | `reminder_service.dart` | Local notification channel, permissions, weekly class reminders, event alarms, pruning |
 | `auto_backup_service.dart` | Debounced atomic JSON backup to app support dir, rolling copies, status |
@@ -511,6 +515,14 @@ files; test fixtures and generated assets are grouped at the end.
 | `first_class_coach_store.dart` | "Has the empty-schedule coach been dismissed?" flag |
 | `swipe_hint_store.dart` | "Has the swipe hint been dismissed?" flag |
 | `app_info.dart` | App version/build label and release copy |
+
+**Auth implementation (`lib/features/auth/`)**
+
+| File | Purpose |
+|---|---|
+| `session_store.dart` | Secure-storage keys, restore, token read for authorized calls, save/refresh/clear, in-memory user map, expiry |
+| `auth_api.dart` | HTTP for register/login/Google/reset/profile/password, refresh outcome model, `AuthApiException`, base URL + release HTTPS policy, one-shot refresh-and-retry |
+| `admin_api.dart` | User, role, department, and office admin endpoints; request shaping and response unwrapping |
 
 ### 6.7 `lib/theme/`
 
@@ -1230,8 +1242,9 @@ and `deleted`.
    Release builds require an absolute `https://` URL and throw otherwise.
 7. Health check: `GET /health` → `{"status":"ok","version":"1.0.0"}`.
 
-The default URL in `auth_service.dart` is the dev PC's LAN address; it is a
-compile-time default, not a hardcoded account or school.
+The default URL in `features/auth/auth_api.dart` (re-exported as
+`AuthService.baseUrl`) is the dev PC's LAN address; it is a compile-time
+default, not a hardcoded account or school.
 
 ---
 
