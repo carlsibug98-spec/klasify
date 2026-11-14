@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../database/database_helper.dart';
+import '../data/database_helper.dart';
 import '../models/class_item.dart';
 import '../models/class_status.dart';
 import '../theme/compose_colors.dart';

@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:klasify/database/database_helper.dart';
+import 'package:klasify/data/database_helper.dart';
 import 'package:klasify/screens/home_screen.dart';
 import 'package:klasify/services/first_class_coach_store.dart';
 import 'package:klasify/theme/app_theme.dart';

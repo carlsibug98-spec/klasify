@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:klasify/database/database_helper.dart';
+import 'package:klasify/data/database_helper.dart';
 import 'package:klasify/models/class_item.dart';
 import 'package:klasify/services/auto_backup_service.dart';
 import 'package:klasify/utils/schedule_backup_codec.dart';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../database/database_helper.dart';
+import '../data/database_helper.dart';
 import '../models/class_item.dart' show formatMinutes, formatRoom;
 import '../models/class_status.dart' show dateKey, shortDateLabel;
 import '../models/event_item.dart'

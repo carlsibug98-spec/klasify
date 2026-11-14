@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'package:klasify/database/database_helper.dart';
+import 'package:klasify/data/database_helper.dart';
 import 'package:klasify/features/schedule_import/import_schedule_screen.dart';
 import 'package:klasify/features/schedule_import/services/schedule_ocr_service.dart';
 import 'package:klasify/features/schedule_import/services/timetable_grid_scanner.dart';

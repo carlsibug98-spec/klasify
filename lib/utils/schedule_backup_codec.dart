@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import '../database/database_helper.dart';
+import '../data/database_helper.dart';
 import '../models/class_item.dart';
 import '../models/event_item.dart';
 

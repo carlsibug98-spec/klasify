@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../database/database_helper.dart';
+import '../data/database_helper.dart';
 import '../models/class_item.dart';
 import '../routes/app_router.dart';
 import '../routes/app_routes.dart';

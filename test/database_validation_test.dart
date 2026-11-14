@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:klasify/database/database_helper.dart';
+import 'package:klasify/data/database_helper.dart';
 import 'package:klasify/models/class_item.dart';
 
 ClassItem validClass({

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:klasify/database/database_helper.dart';
+import 'package:klasify/data/database_helper.dart';
 import 'package:klasify/theme/app_theme.dart';
 import 'package:klasify/widgets/event_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';

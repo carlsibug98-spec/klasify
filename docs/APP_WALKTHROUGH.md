@@ -109,7 +109,10 @@ Klasify is an Android-first Flutter app for students. Its core jobs:
                                 │ CRUD + change notifications
 ┌───────────────────────────────▼─────────────────────────────────────┐
 │ LOCAL PERSISTENCE                                                   │
-│  database/database_helper.dart → SQLite (class_schedule.db)         │
+│  data/database_helper.dart  → change-notifying facade               │
+│  data/app_database.dart     → SQLite connection, schema, migrations │
+│  data/repositories/*.dart   → all SQL, one file per aggregate       │
+│  SQLite file: class_schedule.db                                     │
 │  SharedPreferences: preferences, cursors, device id, onboarding     │
 │  FlutterSecureStorage: JWT + cached user JSON                       │
 └───────────────────────────────┬─────────────────────────────────────┘
@@ -125,16 +128,19 @@ Klasify is an Android-first Flutter app for students. Its core jobs:
 ### 2.2 The dependency rule
 
 ```
-screens  →  services  →  database  →  SQLite
-   │            │
-   └────────────┴────→  models / utils (pure, no I/O)
+screens  →  services  →  DatabaseHelper  →  repositories  →  SQLite
+   │            │              (facade)          (all SQL)
+   └────────────┴────→  models / validation / utils (pure, no I/O)
 ```
 
 - A **widget** never talks to SQLite directly.
 - A **screen** may call `DatabaseHelper` for reads/writes, and services for
   cross-cutting work (sync, reminders, backups).
 - A **model** never imports a screen or a service.
-- `DatabaseHelper` is the only class that owns SQL.
+- SQL lives only in `lib/data/repositories/`; `DatabaseHelper` is the
+  change-notifying facade that preserves the existing public API.
+- `AppDatabase` is the only class that opens the connection, creates schema,
+  or runs migrations.
 - `sync_service.dart` is the only class that calls `/sync/*`.
 - `auth_service.dart` is the only class that calls `/auth/*` and `/admin/*`.
 
@@ -474,11 +480,20 @@ files; test fixtures and generated assets are grouped at the end.
 | `event_item.dart` | Event row; reminder fire-time math; upcoming checks; category enum |
 | `office_status.dart` | Office cache row; `fromMap`; display name; open/closed helpers |
 
-### 6.5 `lib/database/`
+### 6.5 `lib/data/`
 
 | File | Purpose |
 |---|---|
-| `database_helper.dart` | Singleton DB owner: schema, migrations, CRUD, validation, status ranges, sync upserts, purge |
+| `database_helper.dart` | `ChangeNotifier` facade: preserves the public API and notification semantics; delegates every call |
+| `app_database.dart` | Singleton connection owner: schema v9, migrations, validation triggers, `resetForTesting` |
+| `db_timestamps.dart` | `utcStamp()` and `parseInstant()` shared by repositories |
+| `validation/class_rules.dart` | `validateClass`, `validateNoOverlaps` |
+| `validation/event_rules.dart` | `validateEvent`, `dateKeyForEvent` |
+| `repositories/class_repository.dart` | Class CRUD, overlap checks, replace/import, restore, server upsert, class server ids |
+| `repositories/event_repository.dart` | Event CRUD, replace, server upsert, event server ids |
+| `repositories/status_repository.dart` | Status ranges, undo snapshots, status tombstones, status server upsert/ids |
+| `repositories/office_repository.dart` | Office availability cache read + server upsert |
+| `repositories/sync_repository.dart` | Purges already-pushed tombstones across classes, events, and statuses |
 
 ### 6.6 `lib/services/`
 

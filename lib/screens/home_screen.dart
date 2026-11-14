@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../database/database_helper.dart';
+import '../data/database_helper.dart';
 import '../routes/app_routes.dart';
 import '../models/class_item.dart';
 import '../models/class_status.dart';

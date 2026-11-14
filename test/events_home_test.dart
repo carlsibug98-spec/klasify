@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:klasify/database/database_helper.dart';
+import 'package:klasify/data/database_helper.dart';
 import 'package:klasify/models/class_status.dart' show dateKey;
 import 'package:klasify/models/event_item.dart' show EventItem, shortWeekdayNames;
 import 'package:klasify/screens/home_screen.dart';

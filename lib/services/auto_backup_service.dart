@@ -6,7 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../database/database_helper.dart';
+import '../data/database_helper.dart';
 import '../utils/schedule_backup_codec.dart';
 
 /// Quietly keeps a fresh schedule backup on disk after every schedule change.

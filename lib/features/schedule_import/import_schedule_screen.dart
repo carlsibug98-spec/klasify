@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path/path.dart' as p;
 
-import '../../database/database_helper.dart';
+import '../../data/database_helper.dart';
 import '../../models/class_item.dart';
 import '../../routes/app_routes.dart';
 import '../../screens/main_navigation_screen.dart';

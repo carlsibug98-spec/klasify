@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'auth_service.dart';
-import '../database/database_helper.dart';
+import '../data/database_helper.dart';
 
 /// Configurable sync backend client. Syncs local SQLite data to the
 /// MySQL-backed API. All operations are best-effort: failures are queued

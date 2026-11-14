@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
-import '../database/database_helper.dart';
+import '../data/database_helper.dart';
 import '../models/class_item.dart';
 import '../models/class_status.dart';
 import '../models/event_item.dart';
