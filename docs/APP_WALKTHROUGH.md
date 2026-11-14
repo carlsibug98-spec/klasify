@@ -441,7 +441,7 @@ database is the last line of defense, so no door can corrupt the schedule.
 
 ## Part 6 — Every file, explained
 
-The repository has 503 tracked files. The sections below cover all source
+The repository has 504 tracked files. The sections below cover all source
 files; test fixtures and generated assets are grouped at the end.
 
 ### 6.1 Root files
@@ -504,6 +504,7 @@ files; test fixtures and generated assets are grouped at the end.
 | File | Purpose |
 |---|---|
 | `auth_service.dart` | `ChangeNotifier` facade: sign-in/out state, role getters, silent refresh orchestration, profile/password, admin forwarders, base URL. Delegates to `features/auth/` |
+| `widget_data_actions.dart` | Database callbacks injected into the class delete/undo, Mark class, and event sheets so the widgets stay out of the data layer |
 | `sync_service.dart` | Push → pull orchestration, cursors, device id, 5-minute timer, backoff, auth gating |
 | `reminder_service.dart` | Local notification channel, permissions, weekly class reminders, event alarms, pruning |
 | `auto_backup_service.dart` | Debounced atomic JSON backup to app support dir, rolling copies, status |
@@ -835,7 +836,9 @@ The sheet offers:
 - span: This class / Until date / Until I clear.
 
 `setClassStatus` runs in one transaction and returns the class's previous
-ranges so the sheet can undo:
+ranges so the sheet can undo. The sheet writes through `DayStatusActions`
+injected by the caller (`DayStatusActions.database` in the app), so it never
+imports the database directly:
 1. Builds an incoming range (single date, date→chosen date, or date→∞).
 2. Calls `replaceStatusRange`, which cuts any overlapping existing ranges into
    before/after segments. Split segments get fresh ids — reusing the source id
@@ -850,6 +853,9 @@ instead of deleting the whole range.
 
 ### 7.5 Events (`event_sheet.dart`, `event_item.dart`)
 
+The sheet saves and deletes through `EventActions` injected by the caller
+(`EventActions.database` in the app), keeping `DatabaseHelper` out of the
+widget. It offers:
 - Add/edit title, venue, date, start time, category, reminder switch, lead time.
 - School events are visible to everyone; personal events belong to the user.
 - Admins can broadcast a school/department event. Broadcast rows are read-only
@@ -1027,13 +1033,13 @@ No network call is required. If signed in, the next sync push sends the row.
 ### Flow 2 — Delete a class and undo
 
 ```
-Swipe/long-press → deleteClassWithUndo
-  → DatabaseHelper.delete(id)
+Swipe/long-press → deleteClassWithUndo(ClassDeleteActions.database)
+  → deleteClass(id)
        ├─ classes.deleted = 1, updated_at = now
        ├─ class_status.deleted = 1 for that class
        └─ notifyListeners()
   → snackbar with Undo
-  → Undo: restoreDeleted(class) + restore status rows
+  → Undo: restoreClass(class) + restoreMarks(id, marks)
        ├─ re-check overlaps
        ├─ deleted = 0, updated_at = now
        └─ notifyListeners()

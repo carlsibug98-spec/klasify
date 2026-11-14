@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../data/database_helper.dart';
 import '../models/class_item.dart' show formatMinutes, formatRoom;
 import '../models/class_status.dart' show dateKey, shortDateLabel;
 import '../models/event_item.dart'
     show EventItem, eventDefaultLeadMinutes, eventLeadChoices, eventKickLabel, EventCategory;
 import '../services/auth_service.dart';
 import '../services/reminder_service.dart';
+import '../services/widget_data_actions.dart';
 import '../theme/app_theme.dart';
 import 'app_notification.dart';
 import 'edit_class_time_picker_sheet.dart';
@@ -16,13 +16,17 @@ import 'event_date_picker_sheet.dart';
 /// Deletes one event immediately and offers a five-second undo action, the
 /// same arrangement as deleteClassWithUndo. Events have no dependent rows,
 /// so undo restores the row and the reminders resync around it.
-Future<bool> deleteEventWithUndo(BuildContext context, EventItem event) async {
+Future<bool> deleteEventWithUndo(
+  BuildContext context,
+  EventItem event, {
+  required EventActions actions,
+}) async {
   final id = event.id;
   final messenger = ScaffoldMessenger.maybeOf(context);
   if (id == null || messenger == null) return false;
   final scheme = Theme.of(context).colorScheme;
 
-  final deleted = await DatabaseHelper.instance.deleteEvent(id);
+  final deleted = await actions.delete(id);
   if (deleted == 0) {
     debugPrint('Event delete failed: row ${event.id} was not found.');
     showAppNotificationOnMessenger(
@@ -56,7 +60,7 @@ Future<bool> deleteEventWithUndo(BuildContext context, EventItem event) async {
     actionLabel: 'Undo',
     onAction: () async {
       try {
-        await DatabaseHelper.instance.restoreDeletedEvent(event);
+        await actions.restore(event);
         var restoredRemindersOk = true;
         try {
           await ReminderService.instance.sync();
@@ -96,11 +100,16 @@ Future<void> showEventSheet(
   BuildContext context, {
   EventItem? initial,
   bool readOnly = false,
+  required EventActions actions,
 }) =>
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => EventSheet(initial: initial, readOnly: readOnly),
+      builder: (_) => EventSheet(
+        initial: initial,
+        readOnly: readOnly,
+        actions: actions,
+      ),
     );
 
 /// The one event form the mockups specify: name, when & where, and the
@@ -108,7 +117,15 @@ Future<void> showEventSheet(
 /// the phone's local database — the footnote says exactly that, because the
 /// account sync that will carry events to other devices does not exist yet.
 class EventSheet extends StatefulWidget {
-  const EventSheet({super.key, this.initial, this.readOnly = false});
+  const EventSheet({
+    super.key,
+    required this.actions,
+    this.initial,
+    this.readOnly = false,
+  });
+
+  /// Database operations for saving and deleting this event.
+  final EventActions actions;
 
   /// The event being edited; null creates a new one.
   final EventItem? initial;
@@ -331,9 +348,9 @@ class _EventSheetState extends State<EventSheet> {
     );
     try {
       if (widget.initial == null) {
-        await DatabaseHelper.instance.insertEvent(event);
+        await widget.actions.insert(event);
       } else {
-        await DatabaseHelper.instance.updateEvent(event);
+        await widget.actions.update(event);
       }
     } catch (error, stackTrace) {
       debugPrint('Event save failed: $error\n$stackTrace');
@@ -368,7 +385,11 @@ class _EventSheetState extends State<EventSheet> {
   Future<void> _delete() async {
     final initial = widget.initial;
     if (initial == null) return;
-    final ok = await deleteEventWithUndo(context, initial);
+    final ok = await deleteEventWithUndo(
+      context,
+      initial,
+      actions: widget.actions,
+    );
     if (ok && mounted) Navigator.of(context).pop();
   }
 

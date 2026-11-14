@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../data/database_helper.dart';
 import '../models/class_item.dart';
 import '../models/class_status.dart';
 import '../services/reminder_service.dart';
+import '../services/widget_data_actions.dart';
 import '../theme/app_theme.dart';
 import 'app_notification.dart';
 
@@ -33,6 +33,7 @@ Future<void> showDayStatusSheet(
   required ClassItem item,
   required DateTime date,
   ClassStatusEntry? current,
+  required DayStatusActions actions,
 }) async {
   final id = item.id;
   if (id == null) return;
@@ -54,12 +55,11 @@ Future<void> showDayStatusSheet(
   );
   if (choice == null) return;
 
-  final db = DatabaseHelper.instance;
   try {
     if (choice.clear) {
       final entry = current;
       if (entry == null) return;
-      await db.clearClassStatus(entry, day: dateKey(date));
+      await actions.clearStatus(entry, day: dateKey(date));
       final synced = await _syncReminders();
       _notify(
         messenger,
@@ -80,7 +80,7 @@ Future<void> showDayStatusSheet(
       startDate: dateKey(date),
       endDate: _endFor(choice.span, date, customEnd: choice.customEndDate),
     );
-    await db.setClassStatus(entry);
+    await actions.setStatus(entry);
     final synced = await _syncReminders();
     final summary =
         '${item.subject}: ${status.label} · '

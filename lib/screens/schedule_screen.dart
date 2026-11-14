@@ -9,6 +9,7 @@ import '../models/class_status.dart';
 import '../utils/next_class.dart';
 import '../widgets/day_status_sheet.dart';
 import '../routes/app_routes.dart';
+import '../services/widget_data_actions.dart';
 import '../widgets/app_notification.dart';
 import '../widgets/app_state_transition.dart';
 import '../widgets/class_delete_undo.dart';
@@ -172,8 +173,11 @@ class _ScheduleScreenState extends State<ScheduleScreen>
     _load();
   }
 
-  Future<bool> _deleteClass(ClassItem item) =>
-      deleteClassWithUndo(context, item);
+  Future<bool> _deleteClass(ClassItem item) => deleteClassWithUndo(
+    context,
+    item,
+    actions: ClassDeleteActions.database,
+  );
 
   void _selectDay(int day) {
     if (day == _selectedDay) return;
@@ -236,6 +240,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
                       item: item,
                       date: date,
                       current: activeStatusEntry(_statuses, item.id, date),
+                      actions: DayStatusActions.database,
                     );
                   },
                   onEdit: (item) => _open(item),

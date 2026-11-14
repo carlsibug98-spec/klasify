@@ -27,6 +27,7 @@ import '../services/auth_service.dart';
 import '../services/sync_service.dart';
 import '../services/reminder_service.dart';
 import '../services/coach_tour_store.dart';
+import '../services/widget_data_actions.dart';
 import '../widgets/coach_tour_overlay.dart';
 import '../widgets/swipe_actions.dart';
 import '../theme/app_theme.dart';
@@ -397,8 +398,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _load();
   }
 
-  Future<bool> _deleteClass(ClassItem item) =>
-      deleteClassWithUndo(context, item);
+  Future<bool> _deleteClass(ClassItem item) => deleteClassWithUndo(
+    context,
+    item,
+    actions: ClassDeleteActions.database,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -516,6 +520,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           item: c,
           date: now,
           current: activeStatusEntry(_statuses, c.id, now),
+          actions: DayStatusActions.database,
         ),
         onLongPress: () => _deleteClass(c),
       );
@@ -808,7 +813,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 excludeSemantics: true,
                                 child: InkWell(
                                   key: const ValueKey('events-add'),
-                                  onTap: () => showEventSheet(context),
+                                  onTap: () => showEventSheet(
+                                    context,
+                                    actions: EventActions.database,
+                                  ),
                                   borderRadius: BorderRadius.circular(12),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
@@ -868,10 +876,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   context,
                                   initial: event,
                                   readOnly: !_canManageEvent(event),
+                                  actions: EventActions.database,
                                 ),
                                 onLongPress: _canManageEvent(event)
-                                    ? () =>
-                                        deleteEventWithUndo(context, event)
+                                    ? () => deleteEventWithUndo(
+                                        context,
+                                        event,
+                                        actions: EventActions.database,
+                                      )
                                     : null,
                               ),
                             ),

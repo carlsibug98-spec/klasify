@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klasify/models/class_item.dart';
 import 'package:klasify/models/class_status.dart';
+import 'package:klasify/services/widget_data_actions.dart';
 import 'package:klasify/theme/app_theme.dart';
 import 'package:klasify/widgets/day_status_sheet.dart';
+
+final _actions = DayStatusActions(
+  setStatus: (_) async => <ClassStatusEntry>[],
+  clearStatus: (_, {required String day}) async => <ClassStatusEntry>[],
+);
 
 const _item = ClassItem(
   id: 7,
@@ -28,6 +34,7 @@ Widget _host({ClassStatusEntry? current}) => MaterialApp(
             item: _item,
             date: _date,
             current: current,
+            actions: _actions,
           ),
           child: const Text('Open mark class'),
         ),

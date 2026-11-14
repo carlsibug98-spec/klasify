@@ -222,6 +222,7 @@ lib/
     onboarding_store.dart
     reminder_service.dart
     swipe_hint_store.dart
+    widget_data_actions.dart            # DB callbacks injected into delete/undo and sheets
   theme/
     app_theme.dart                     # light/dark themes + layout & motion tokens
     compose_colors.dart                # dark compose-mode surface tokens

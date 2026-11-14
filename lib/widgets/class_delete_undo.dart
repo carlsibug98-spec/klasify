@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../data/database_helper.dart';
 import '../models/class_item.dart';
 import '../models/class_status.dart';
 import '../services/reminder_service.dart';
+import '../services/widget_data_actions.dart';
 import 'app_notification.dart';
 
 /// Deletes a single class immediately and offers a five-second undo action.
 /// Undo uses the app-level messenger, so it survives route changes.
-Future<bool> deleteClassWithUndo(BuildContext context, ClassItem item) async {
+///
+/// [actions] supplies the data operations; callers pass
+/// [ClassDeleteActions.database] in the app and a fake in tests.
+Future<bool> deleteClassWithUndo(
+  BuildContext context,
+  ClassItem item, {
+  required ClassDeleteActions actions,
+}) async {
   final id = item.id;
   final messenger = ScaffoldMessenger.maybeOf(context);
   if (id == null || messenger == null) return false;
@@ -18,8 +25,8 @@ Future<bool> deleteClassWithUndo(BuildContext context, ClassItem item) async {
   // Read the marks first: deleting the class also deletes them.
   List<ClassStatusEntry> marks = const [];
   try {
-    marks = await DatabaseHelper.instance.statusesForClass(id);
-    final deleted = await DatabaseHelper.instance.delete(id);
+    marks = await actions.marksForClass(id);
+    final deleted = await actions.deleteClass(id);
     if (deleted == 0) throw StateError('Class was not found.');
   } catch (error, stackTrace) {
     debugPrint('Class delete failed: $error\n$stackTrace');
@@ -56,9 +63,9 @@ Future<bool> deleteClassWithUndo(BuildContext context, ClassItem item) async {
     actionLabel: 'Undo',
     onAction: () async {
       try {
-        await DatabaseHelper.instance.restoreDeleted(item);
+        await actions.restoreClass(item);
         if (marks.isNotEmpty) {
-          await DatabaseHelper.instance.restoreClassStatuses(id, marks);
+          await actions.restoreMarks(id, marks);
         }
         var restoredRemindersOk = true;
         try {

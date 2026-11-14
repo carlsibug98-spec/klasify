@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klasify/data/database_helper.dart';
+import 'package:klasify/services/widget_data_actions.dart';
 import 'package:klasify/theme/app_theme.dart';
 import 'package:klasify/widgets/event_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -32,6 +33,14 @@ String _resolveFontDir() {
 }
 
 final String _fontDir = _resolveFontDir();
+
+/// The capture test only opens and navigates the form, so no save ever runs.
+final _actions = EventActions(
+  insert: (_) async => 0,
+  update: (_) async => 0,
+  delete: (_) async => 0,
+  restore: (_) async => 0,
+);
 
 Future<void> _load(String family, List<String> files) async {
   final loader = FontLoader(family);
@@ -156,7 +165,10 @@ void main() {
       }
 
       // Add form.
-      showEventSheet(tester.element(find.byType(Scaffold).first));
+      showEventSheet(
+        tester.element(find.byType(Scaffold).first),
+        actions: _actions,
+      );
       await tester.pumpAndSettle();
       await shoot('look_event_add_$suffix');
 
