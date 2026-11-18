@@ -20,7 +20,7 @@ Skill priority: process skills first (they set the approach), then implementatio
 - Local-first Flutter timetable app with an optional self-hosted sync backend (`php-backend/`: accounts, background sync, campus offices, event broadcasts). Flutter SDK in this sandbox: `/home/z/flutter-sdk/bin/flutter` (Android SDK: `/home/z/android-sdk`).
 - Plans live in `docs/superpowers/plans/`, design specs in `docs/superpowers/specs/` (write a spec + plan there before non-trivial work).
 - Shared worklog: `/home/z/my-project/worklog.md` — read before starting, append after finishing (format: Task ID / Agent / Task / Work Log / Stage Summary, section starts with `---`).
-- Verification baseline (2026-11-18): `flutter analyze` clean; full suite green - 75 test files, 570 tests, 0 failures. Golden captures pass through the tolerant comparator (`test/golden_tolerance.dart`, ≤5% pixel drift, sizes strict); bench3-7 OCR benchmark rounds all pass. PHP harness (`php-backend/tests/run.php`, MariaDB 10.4): 82 tests, 0 failures.
+- Verification baseline (2026-11-18): `flutter analyze` clean; full suite green - 75 test files, 570 tests, 0 failures. Golden captures pass through the tolerant comparator (`test/golden_tolerance.dart`, ≤5% pixel drift, sizes strict); bench3-7 OCR benchmark rounds all pass. PHP harness (`php-backend/tests/run.php`, MariaDB 10.4): 86 tests, 0 failures.
 - APK build (verified 2026-10-27): the sandbox has no root, JRE-only system java, and a 9.9 GB rootfs — use this exact recipe:
   ```bash
   cd android && JAVA_HOME=/home/z/jdk-21 ANDROID_HOME=/home/z/android-sdk \

@@ -40,9 +40,9 @@
 --   * rate_limit_hits splits the packed bucket into scope + subject. Old
 --     counters are dropped: they are short-lived throttling state, and their
 --     bucket strings do not map cleanly to the new (scope, subject) pairs.
---   * Duplicate school-wide office rows (allowed by the old NULL-tolerant
---     unique key) are collapsed to the most recently updated row before the
---     total unique key is added.
+--   * Duplicate office rows (allowed by the old NULL-tolerant unique key, or
+--     spelled with surrounding whitespace) are collapsed to the most recently
+--     updated row per normalized scope before the total unique key is added.
 
 -- ---------------------------------------------------------------------------
 -- 1. Departments: the relation every department scope now points at.
@@ -124,13 +124,15 @@ ALTER TABLE events
 -- ---------------------------------------------------------------------------
 
 -- The old unique key (office_name, department) let any number of school-wide
--- rows through, because SQL treats every NULL as distinct. Keep only the
--- most recently updated row for each (name, scope).
+-- rows through, because SQL treats every NULL as distinct. It also treated
+-- "IT" and " IT " as different scopes even though both resolve to the same
+-- department. The collapse therefore compares the scope the new key will
+-- hold: TRIM to the department name, with blank folded into school-wide.
 DELETE older
   FROM office_statuses older
   JOIN office_statuses newer
     ON newer.office_name = older.office_name
-   AND newer.department <=> older.department
+   AND NULLIF(TRIM(newer.department), '') <=> NULLIF(TRIM(older.department), '')
    AND (newer.updated_at > older.updated_at
         OR (newer.updated_at = older.updated_at AND newer.id > older.id));
 

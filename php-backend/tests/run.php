@@ -18,7 +18,7 @@ ob_start();
 echo "== klasify parity harness ==\n";
 db_rebuild();
 
-foreach (['auth_test.php', 'mail_test.php', 'sync_test.php', 'admin_test.php', 'google_jwks_test.php', 'normalization_test.php'] as $file) {
+foreach (['auth_test.php', 'mail_test.php', 'sync_test.php', 'admin_test.php', 'google_jwks_test.php', 'normalization_test.php', 'migration_test.php'] as $file) {
     $path = __DIR__ . '/' . $file;
     if (is_file($path)) {
         require $path;

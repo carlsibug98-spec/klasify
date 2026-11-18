@@ -41,7 +41,7 @@ that were decomposed, and no BCNF exception remains.
 **Verify:** harness `db_rebuild()` parses and creates every table.
 
 **Status (2026-11-18):** done. The harness builds `klasify_test` from this file
-on every run, so all 82 tests execute against it.
+on every run, so all 86 tests execute against it.
 
 ## Task 2 — Failing backend tests
 
@@ -266,15 +266,23 @@ only key/constraint naming), and run the harness against the migrated DB.
 mixed-case and padded departments, a device shared by two accounts, and used +
 unused reset codes; every assertion passed. `mysqldump --no-data` of the
 migrated database and a fresh `docs/mysql_schema.sql` install is now identical
-(AUTO_INCREMENT values and view DEFINERs aside). Two bugs the rehearsal caught
-and fixed: the backfill join compared untrimmed department text, and MariaDB
-discarded `ORDER BY` inside `INSERT ... SELECT`, so device ownership now uses
-`ROW_NUMBER()`. The fresh schema names the three department foreign keys and
-the role check, and the debug views list columns explicitly, so both paths
-produce the same physical schema. The harness always rebuilds from
-`docs/mysql_schema.sql`; it cannot be pointed at another database, so the
-migrated database is validated by the structural diff plus the same harness
-run on that schema (82 tests).
+(AUTO_INCREMENT values and view DEFINERs aside). Bugs the rehearsal and the
+follow-up review caught and fixed: the backfill join compared untrimmed
+department text, MariaDB discarded `ORDER BY` inside `INSERT ... SELECT` so
+device ownership now uses `ROW_NUMBER()`, and the office collapse compared raw
+department spellings, so `' IT'` and `'IT '` survived into the new total unique
+key and aborted the migration with error 1062. The collapse now compares
+`NULLIF(TRIM(department), '')`, the same scope the key stores.
+
+The migration has permanent coverage: `php-backend/tests/migration_test.php`
+loads the pre-normalization schema from
+`php-backend/tests/fixtures/mysql_schema_pre_normalize.sql`, seeds the shapes
+the old schema allowed, runs the real migration file, and asserts the resulting
+rows plus structural identity with a fresh `docs/mysql_schema.sql` install.
+The harness always rebuilds `klasify_test` from `docs/mysql_schema.sql`; it
+cannot be pointed at another database, so the migrated database is validated
+by that structural comparison plus the same harness run on the schema (86
+tests).
 
 ## Task 11 — Docs and close-out
 
@@ -288,7 +296,7 @@ run on that schema (82 tests).
 
 **Status (2026-11-18):** done. `flutter analyze --no-fatal-infos` reports no
 issues; full suite passes 570 tests across 75 test files; the PHP harness
-passes 82 tests. Beyond the files named above, `docs/ADMIN.md`,
+passes 86 tests. Beyond the files named above, `docs/ADMIN.md`,
 `docs/DEPLOYMENT.md`, `docs/ROADMAP.md`, and `docs/APP_WALKTHROUGH.md` were
 corrected where they still described `office_statuses` as school-wide only, a
 rename as tombstone-plus-insert, `sync_cursors` as per user, `password_resets`
