@@ -50,7 +50,13 @@ Edit `config.php` (or set the matching environment variables):
 | `db_user` / `db_pass` | `root` / *(empty)* | XAMPP's defaults |
 | `jwt_secret` | placeholder | **change it** to a long random string before real use; rotating it signs everyone out |
 | `google_verify` | `jwt_jwks` | `jwt_jwks` (default) verifies Google ID tokens locally against the JWKS; `tokeninfo` falls back to Google's endpoint |
-| `debug_reset_codes` | off | dev only: set `KLASIFY_DEBUG_RESET_CODES=1` to log plaintext reset codes |
+| `mail_transport` | `smtp` | `smtp` sends real reset email; `mail` uses PHP `mail()`; `log` is development-only |
+| `smtp_host` / `smtp_port` | *(empty)* / `587` | SMTP server for reset email, e.g. `smtp.gmail.com` |
+| `smtp_secure` | `tls` | `tls` = STARTTLS (usually 587), `ssl` = implicit TLS (usually 465), `none` = local test only |
+| `smtp_user` / `smtp_pass` | *(empty)* | SMTP credentials; use a provider app password, not the mailbox password |
+| `smtp_verify_peer` | `1` | keep TLS certificate verification on; `0` is for local test servers only |
+| `mail_from` / `mail_from_name` | `no-reply@klasify.local` / `Klasify` | sender address shown in the reset email; the provider must allow it |
+| `debug_reset_codes` | off | dev only: logs plaintext codes and makes `log` the default transport |
 
 Existing databases need the revocable-session migration:
 
@@ -81,10 +87,28 @@ Notes:
 
 ## Password reset codes
 
-No email server is configured yet. To read the 6-digit code during local
-testing, start the API with `KLASIFY_DEBUG_RESET_CODES=1` (or set
-`'debug_reset_codes' => '1'` in `config.php`) and open
-`storage/logs/app.log`. Leave the flag off in production and wire a mailer.
+Reset codes are delivered by SMTP. Configure at least `smtp_host`, `smtp_user`,
+`smtp_pass`, and `mail_from` in `config.php` or through the matching
+`KLASIFY_*` environment variables. The code arrives by email, expires after 15
+minutes, and can be used once.
+
+Gmail example (requires 2-Step Verification and an App Password):
+
+```
+set KLASIFY_SMTP_HOST=smtp.gmail.com
+set KLASIFY_SMTP_PORT=587
+set KLASIFY_SMTP_SECURE=tls
+set KLASIFY_SMTP_USER=you@gmail.com
+set KLASIFY_SMTP_PASS=your-16-character-app-password
+set KLASIFY_MAIL_FROM=you@gmail.com
+```
+
+Delivery failures are logged to `storage/logs/app.log`, and
+`/auth/forgot-password` still answers `200 {"ok":true}` so the response never
+reveals whether an address is registered. For local testing without an SMTP
+server, set `KLASIFY_DEBUG_RESET_CODES=1`; the default transport becomes `log`
+and the plaintext code is written to `app.log` instead. Never enable that flag
+in production.
 
 ## Google sign-in troubleshooting
 
@@ -101,10 +125,11 @@ config.php       Settings (not served to browsers)
 .htaccess        Sends all requests to index.php
 src/common.php   Database, JSON, JWT, timestamps, rate limiting, logging
 src/auth.php     /auth/* routes
+src/mail.php     SMTP / mail() delivery for password-reset codes
 src/sync.php     /sync/push and /sync/pull
 src/admin.php    /admin/* routes (user roles, departments, office statuses)
 src/google_jwks.php  Local RS256 verification of Google ID tokens (JWKS, 24h cache)
-storage/logs/    app.log (reset codes only with the dev flag; sync skips, errors)
+storage/logs/    app.log (mail failures; reset codes only with the dev flag)
 storage/cache/   google_jwks.json (auto-created, gitignored)
 ```
 

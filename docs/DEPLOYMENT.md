@@ -29,7 +29,12 @@ Edit `config.php` (or set env vars):
 | `jwt_secret` | placeholder | **change it** to a long random string before real use; changing it signs out every existing session |
 | `google_client_id` | project's web client id | used to verify Google sign-in |
 | `google_verify` | `jwt_jwks` | `jwt_jwks` (local RS256) or `tokeninfo` (fallback) |
-| `debug_reset_codes` | off | dev only: writes plaintext reset codes to `app.log` (`KLASIFY_DEBUG_RESET_CODES=1`) |
+| `mail_transport` | `smtp` | `smtp` sends real reset email; `mail` uses PHP `mail()`; `log` is dev only |
+| `smtp_host` / `smtp_port` | *(empty)* / `587` | SMTP server for reset email |
+| `smtp_secure` | `tls` | `tls` (STARTTLS, 587), `ssl` (implicit TLS, 465), `none` (local test only) |
+| `smtp_user` / `smtp_pass` | *(empty)* | SMTP credentials; use a provider app password |
+| `mail_from` / `mail_from_name` | `no-reply@klasify.local` / `Klasify` | sender the provider allows |
+| `debug_reset_codes` | off | dev only: logs plaintext codes and defaults the transport to `log` |
 
 Generate a strong secret (96 hex characters) without committing it:
 
@@ -103,13 +108,18 @@ inbound firewall rule for `mysqld` is needed; remove or disable any
 
 ## Password reset codes
 
-No email server is configured yet. Plaintext reset codes are written to
-`storage/logs/app.log` **only** when the API process has
-`KLASIFY_DEBUG_RESET_CODES=1` (or `debug_reset_codes` is `'1'` in
-`config.php`). Leave it off in production and wire an SMTP mailer; otherwise
-the forgot-password flow creates a code that nobody can receive. If you enable
-it for a local demo, clear `app.log` afterwards and keep the file out of
-backups.
+The forgot-password flow sends a 6-digit code over SMTP. Set `smtp_host`,
+`smtp_user`, `smtp_pass`, and `mail_from` in `config.php`, or the matching
+`KLASIFY_SMTP_*` / `KLASIFY_MAIL_FROM` environment variables. Use port 587 with
+`smtp_secure = tls` (STARTTLS) or port 465 with `ssl` (implicit TLS); certificate
+verification stays on. Gmail and most providers require an app password rather
+than the account password, and they only accept a sender address you control.
+
+Codes expire after 15 minutes and are single-use. Delivery failures are logged
+to `storage/logs/app.log`; the endpoint still returns `200 {"ok":true}` so it
+never reveals whether an address is registered. For a local demo without SMTP,
+set `KLASIFY_DEBUG_RESET_CODES=1` to use the `log` transport, then read the code
+from `app.log`. Clear that log afterwards and keep it out of backups.
 
 ## Google sign-in troubleshooting
 

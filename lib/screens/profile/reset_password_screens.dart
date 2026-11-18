@@ -214,8 +214,9 @@ class _ResetPasswordConfirmScreenState
           if (kDebugMode) ...[
             const SizedBox(height: 6),
             Text(
-              'Dev builds: the code is written to storage/logs/app.log '
-              'on the API server.',
+              'Dev builds: when the API runs with '
+              'KLASIFY_DEBUG_RESET_CODES=1, the code is also written to '
+              'storage/logs/app.log on the API server.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppTheme.placeholderFor(
                       Theme.of(context).colorScheme,

@@ -45,3 +45,12 @@
   trim, 1–40 chars (422), unique case-insensitively (409 `OFFICE_EXISTS`).
   The frozen contract was updated in the same commit
   (`docs/sync_api_contract.md`); deployed to `C:\xampp\htdocs\klasify-api`.
+- 2026-11-18 (reset email delivery): `src/mail.php` added — dependency-free
+  SMTP client (STARTTLS/implicit TLS, AUTH LOGIN), PHP `mail()` transport, and
+  the development `log` transport. `auth_forgot_password` now actually sends
+  the code, logs delivery failures, and keeps the identical `200 {"ok":true}`
+  response on failure so account existence still cannot be probed.
+  `config.php` gained `mail_transport`, `smtp_*`, and `mail_from*` settings.
+  `tests/mail_test.php` covers header injection, transport selection, a real
+  socket-level SMTP delivery round trip (`tests/smtp_capture_server.php`), and
+  the failure path.

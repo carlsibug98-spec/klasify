@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/src/common.php';
 require dirname(__DIR__) . '/src/auth.php';
+require dirname(__DIR__) . '/src/mail.php';
 require dirname(__DIR__) . '/src/sync.php';
 require dirname(__DIR__) . '/src/admin.php';
 require dirname(__DIR__) . '/src/google_jwks.php';

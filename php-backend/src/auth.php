@@ -376,11 +376,24 @@ function auth_forgot_password(): void
             ]
         );
 
-        // No mailer is configured yet. Plaintext codes are written to the
-        // log only when explicitly enabled for local development/testing;
-        // production deployments must wire a mailer instead.
-        if (cfg('debug_reset_codes') === '1') {
-            app_log("Password reset code for {$email}: {$code}");
+        // Deliver the code. A failure must not change the response: revealing
+        // "could not send" would also reveal that the address is registered.
+        // The operator sees the failure in app.log.
+        try {
+            if (!mail_available()) {
+                throw new RuntimeException(
+                    'No mail transport configured (set KLASIFY_SMTP_HOST or KLASIFY_MAIL_TRANSPORT)'
+                );
+            }
+            send_reset_code_email($email, $code);
+            if (cfg('debug_reset_codes') === '1') {
+                app_log("Password reset code for {$email}: {$code}");
+            }
+        } catch (Throwable $e) {
+            app_log("Password reset email to {$email} failed: {$e->getMessage()}");
+            if (cfg('debug_reset_codes') === '1') {
+                app_log("Password reset code for {$email}: {$code}");
+            }
         }
     }
 

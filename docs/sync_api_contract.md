@@ -140,10 +140,12 @@ Creates a 6-digit code that lives 15 minutes (one active code per account).
 ```
 
 Max 5 requests per email per hour and 20 per source IP per hour, then 429
-`RATE_LIMITED`. Email delivery requires SMTP in production. While no mailer is
-configured, a plaintext code is written to `storage/logs/app.log` **only** when
-the server has `KLASIFY_DEBUG_RESET_CODES=1`; this is a local-development
-switch and must stay off in production.
+`RATE_LIMITED`. The 6-digit code is delivered by SMTP when `smtp_host` (and
+usually `smtp_user` / `smtp_pass`) is configured. Delivery failure is logged to
+`storage/logs/app.log` and the response stays `200 {"ok":true}` so it never
+reveals whether the address exists. For local development,
+`KLASIFY_DEBUG_RESET_CODES=1` switches the transport to `log` and writes the
+plaintext code to `app.log`; this switch must stay off in production.
 
 ### POST /auth/reset-password
 ```json

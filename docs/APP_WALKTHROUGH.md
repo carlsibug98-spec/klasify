@@ -85,7 +85,7 @@ Klasify is an Android-first Flutter app for students. Its core jobs:
 - Local database: SQLite via `sqflite`, schema **version 11**, file `class_schedule.db`
 - Backend: PHP 8 + MySQL/MariaDB (XAMPP-compatible), JWT HS256, bcrypt cost 12
 - Tests: 72 Dart test files, 558 tests, all passing (verified Nov 18, 2026);
-  plus 56 PHP parity tests
+  plus 66 PHP parity tests
 
 ---
 
@@ -758,10 +758,12 @@ for the next start/end plus a minute tick. It also listens for
 | `tests/bootstrap.php` | Test environment |
 | `tests/run.php` | Test runner |
 | `tests/auth_test.php` | Auth parity tests |
+| `tests/mail_test.php` | Reset-email construction, transport choice, real SMTP round trip |
+| `tests/smtp_capture_server.php` | Loopback SMTP sink used by the mail test |
 | `tests/sync_test.php` | Sync parity tests |
 | `tests/admin_test.php` | Admin parity tests |
 | `tests/google_jwks_test.php` | Google verification tests |
-| `storage/logs/` | App log (plaintext reset codes only when the dev flag is on) |
+| `storage/logs/` | App log (mail failures; plaintext reset codes only when the dev flag is on) |
 
 ### 6.15 `docs/` (31 files)
 
@@ -1363,7 +1365,7 @@ security identity; the JWT is.
 - Golden tests render screens and compare PNGs with a tolerance.
 - OCR benchmarks shell out to Tesseract in CI because the native PaddleOCR
   engine cannot run in the test VM.
-- The PHP parity harness (`php-backend/tests/run.php`) runs 56 tests against a
+- The PHP parity harness (`php-backend/tests/run.php`) runs 66 tests against a
   disposable `klasify_test` database rebuilt from `docs/mysql_schema.sql`.
 
 ### 11.2 CI
@@ -1580,8 +1582,11 @@ parity tests, and CI on a pinned Windows/Flutter toolchain.
 ### 12.5 Honest limitations to admit
 
 - Navigation/mini-map/live occupancy are roadmap items, not code.
-- No mailer is configured; reset codes are only logged when the explicit dev
-  flag is on. Production needs SMTP.
+- Reset email needs SMTP credentials in `config.php` / `KLASIFY_SMTP_*`. When
+  delivery is not configured or fails, the API logs it and still returns the
+  same `200 {"ok":true}`, so the user sees "check your email" but receives
+  nothing until an operator fixes the mailer. The log transport is the only
+  local-development fallback.
 - The default API URL is a LAN HTTP address for debug; release builds enforce
   HTTPS, but the demo deployment has not been put behind TLS yet.
 - Sync is last-write-wins, not a CRDT; simultaneous edits on two devices can
