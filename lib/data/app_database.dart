@@ -31,7 +31,12 @@ class AppDatabase {
     final path = join(await getDatabasesPath(), databaseName);
     return openDatabase(
       path,
-      version: 10,
+      version: 11,
+      onConfigure: (db) async {
+        // SQLite ignores foreign keys unless each connection asks for them.
+        // This runs before onCreate/onUpgrade, so the v11 rebuild is checked.
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE classes (
@@ -119,6 +124,11 @@ class AppDatabase {
         // indexes make that state unrepresentable.
         if (oldVersion < 10) {
           await _migrateToUniqueServerIds(db);
+        }
+        // Version 11: a mark must point at a class that exists. SQLite
+        // cannot add the constraint in place, so the table is rebuilt.
+        if (oldVersion < 11) {
+          await _migrateClassStatusForeignKey(db);
         }
       },
     );
@@ -320,7 +330,7 @@ class AppDatabase {
       '''
       CREATE TABLE IF NOT EXISTS $table (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        class_id INTEGER NOT NULL,
+        class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
         status TEXT NOT NULL CHECK (status IN ('finished', 'not_attending', 'cancelled')),
         start_date TEXT NOT NULL,
         end_date TEXT,
@@ -351,6 +361,36 @@ class AppDatabase {
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_class_status_class ON class_status (class_id)',
     );
+  }
+
+  /// Version 11 migration: make `class_status.class_id` a real foreign key.
+  ///
+  /// SQLite cannot add a constraint with `ALTER TABLE`, so the table is
+  /// rebuilt. Marks whose class is gone can never be displayed or pushed
+  /// (the server cascades the same way), so they are dropped first; every
+  /// other row keeps its id, mapping, and tombstone. Rebuilding drops the
+  /// table's indexes, so both are recreated afterwards.
+  Future<void> _migrateClassStatusForeignKey(DatabaseExecutor db) async {
+    await db.execute(
+      'DELETE FROM class_status '
+      'WHERE class_id NOT IN (SELECT id FROM classes)',
+    );
+    await db.execute(_classStatusSchema('class_status_v11'));
+    await db.execute('''
+      INSERT INTO class_status_v11
+        (id, class_id, status, start_date, end_date, updated_at, deleted,
+         server_id)
+      SELECT id, class_id, status, start_date, end_date, updated_at, deleted,
+             server_id
+      FROM class_status
+    ''');
+    await db.execute('DROP TABLE class_status');
+    await db.execute('ALTER TABLE class_status_v11 RENAME TO class_status');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_class_status_class '
+      'ON class_status (class_id)',
+    );
+    await _createServerIdIndexes(db);
   }
 
   Future<void> _createValidationTriggers(DatabaseExecutor db) async {

@@ -82,9 +82,9 @@ Klasify is an Android-first Flutter app for students. Its core jobs:
 
 - App version: `1.4.4+15` (`pubspec.yaml`)
 - Flutter: `>= 3.44.0`, Dart `>= 3.12.0`
-- Local database: SQLite via `sqflite`, schema **version 10**, file `class_schedule.db`
+- Local database: SQLite via `sqflite`, schema **version 11**, file `class_schedule.db`
 - Backend: PHP 8 + MySQL/MariaDB (XAMPP-compatible), JWT HS256, bcrypt cost 12
-- Tests: 71 Dart test files, 555 tests, all passing (verified Nov 18, 2026);
+- Tests: 72 Dart test files, 558 tests, all passing (verified Nov 18, 2026);
   plus 56 PHP parity tests
 
 ---
@@ -269,7 +269,7 @@ knowing the shell's internals.
 
 ### 5.1 Tables at a glance
 
-Database file: `class_schedule.db`, schema version 10.
+Database file: `class_schedule.db`, schema version 11.
 
 #### `classes`
 
@@ -338,6 +338,15 @@ keeping the live row over a tombstone, then the newest `updated_at`, then the
 oldest local id. A duplicate that loses its mapping is preserved as an
 unpushed row rather than deleted.
 
+`class_status.class_id` is a **real foreign key** to `classes(id)` with
+`ON DELETE CASCADE`, and every connection runs `PRAGMA foreign_keys = ON`.
+User deletes stay soft: the class and its marks are tombstoned, pushed, and only
+then purged. Cascade applies to that final hard delete (and any other path that
+removes a class row), so a live mark without a class is unrepresentable. Schema
+v11 rebuilt the table to add the constraint and dropped legacy marks whose class
+no longer existed; such marks could never be shown or pushed. The MySQL schema
+cascades the same way.
+
 #### `office_statuses`
 
 | Column | Type | Meaning |
@@ -352,7 +361,7 @@ a pull says an office is deleted, `upsertOfficeStatusFromServer` removes the row
 outright. The app never invents office rows; a fresh offline install shows no
 strip until the first successful pull.
 
-### 5.2 Migrations v1 → v10
+### 5.2 Migrations v1 → v11
 
 `onUpgrade` never drops user data. Each step is additive:
 
@@ -368,6 +377,7 @@ strip until the first successful pull.
 | 8 | Re-run the same idempotent migration to heal a dev-era drift |
 | 9 | Department + broadcast on events; `office_statuses` cache |
 | 10 | One local row per `server_id`; legacy duplicates are unmapped, then unique indexes are created |
+| 11 | `class_status.class_id` foreign key (cascade); orphaned marks are removed by rebuilding the table |
 
 Two teaching points:
 
@@ -680,13 +690,13 @@ files; test fixtures and generated assets are grouped at the end.
 | `widgets/import_success_card.dart` | Import-complete card with View schedule / Import another |
 | `widgets/import_source_preview_screen.dart` | Zoomable source image/PDF preview |
 
-### 6.12 `test/` (71 Dart test files)
+### 6.12 `test/` (72 Dart test files)
 
 The suite is organized by risk area:
 
 | Area | Files |
 |---|---|
-| Database | `database_crud_test`, `database_validation_test`, `events_db_test`, `office_statuses_db_test`, `class_status_db_test`, `class_status_migration_test`, `sync_mapping_integrity_test` |
+| Database | `database_crud_test`, `database_validation_test`, `events_db_test`, `office_statuses_db_test`, `class_status_db_test`, `class_status_migration_test`, `sync_mapping_integrity_test`, `foreign_key_integrity_test` |
 | Models/rules | `class_status_test`, `event_item_test`, `next_class_test`, `schedule_rules_test`, `office_status_test`, `schedule_backup_codec_test` |
 | Screens/widgets | `edit_class_screen_test`, `home_screen_hero_test`, `home_screen_stacks_test`, `events_home_test`, `weekly_schedule_view_test`, `ui_widgets_test`, `day_status_sheet_test`, `office_editor_manage_test`, `office_status_strip_test`, `office_name_sheet_test`, `swipe_actions_test`, `large_text_test`, `component_kit_test` |
 | Auth/legal | `auth_http_test`, `auth_legal_test`, `auth_service_url_test`, `signup_department_test`, `app_info_test` |
@@ -1348,7 +1358,7 @@ security identity; the JWT is.
 ### 11.1 Flutter tests
 
 - `flutter analyze` must be clean.
-- `flutter test` runs 71 files / 555 tests.
+- `flutter test` runs 72 files / 558 tests.
 - Database tests use `sqflite_common_ffi` with a test-specific database name.
 - Golden tests render screens and compare PNGs with a tolerance.
 - OCR benchmarks shell out to Tesseract in CI because the native PaddleOCR
@@ -1549,7 +1559,7 @@ timetable does not shift when the phone travels. Sync timestamps are stored in
 UTC. Reminders are scheduled in the phone's current local time zone.
 
 **Q: How do you know the app still works?**
-A: 555 Flutter tests, 71 files, golden screenshots, OCR benchmark fixtures, PHP
+A: 558 Flutter tests, 72 files, golden screenshots, OCR benchmark fixtures, PHP
 parity tests, and CI on a pinned Windows/Flutter toolchain.
 
 ### 12.4 Terms to define confidently
