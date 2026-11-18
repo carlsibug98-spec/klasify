@@ -1,6 +1,8 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
+import 'db_timestamps.dart';
+
 /// Owns the SQLite connection, schema, and migrations.
 ///
 /// Feature queries live in `lib/data/repositories/`; this class knows only how
@@ -16,13 +18,20 @@ class AppDatabase {
   // because the SQLite file name is unchanged across the Klasify rename.
   static String databaseName = 'class_schedule.db';
 
+  /// Tables whose `server_id` column maps one local row to one server row.
+  static const List<String> _serverIdTables = [
+    'classes',
+    'events',
+    'class_status',
+  ];
+
   Future<Database> get database async => _db ??= await _open();
 
   Future<Database> _open() async {
     final path = join(await getDatabasesPath(), databaseName);
     return openDatabase(
       path,
-      version: 9,
+      version: 10,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE classes (
@@ -49,6 +58,7 @@ class AppDatabase {
         await _createClassStatusTable(db);
         await _createEventTable(db);
         await _createOfficeStatusTable(db);
+        await _createServerIdIndexes(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         // Do not rebuild or delete the existing table: users' saved classes
@@ -103,6 +113,12 @@ class AppDatabase {
             'INTEGER NOT NULL DEFAULT 0',
           );
           await _createOfficeStatusTable(db);
+        }
+        // Version 10: one local row per server row. Duplicate mappings can
+        // only come from a sync race; collapse them before the unique
+        // indexes make that state unrepresentable.
+        if (oldVersion < 10) {
+          await _migrateToUniqueServerIds(db);
         }
       },
     );
@@ -231,6 +247,72 @@ class AppDatabase {
     final exists = cols.any((c) => c['name'] == column);
     if (!exists) {
       await db.execute('ALTER TABLE $table ADD COLUMN $column $definition');
+    }
+  }
+
+  /// Version 10 migration: keep one mapping per server row.
+  ///
+  /// Every local row survives. The duplicate that loses its mapping becomes
+  /// an ordinary never-pushed row, so the next push claims a fresh server row
+  /// instead of overwriting the winner. Preference order: live over tombstone
+  /// (the server row still exists), then newest [updated_at], then oldest id.
+  Future<void> _migrateToUniqueServerIds(DatabaseExecutor db) async {
+    for (final table in _serverIdTables) {
+      final rows = await db.query(
+        table,
+        columns: ['id', 'server_id', 'deleted', 'updated_at'],
+        where: 'server_id IS NOT NULL',
+      );
+      final keep = <int, Map<String, Object?>>{};
+      for (final row in rows) {
+        final serverId = row['server_id'] as int;
+        final current = keep[serverId];
+        if (current == null || _preferMapping(row, current)) {
+          keep[serverId] = row;
+        }
+      }
+      final keepIds = {for (final row in keep.values) row['id'] as int};
+      for (final row in rows) {
+        if (keepIds.contains(row['id'])) continue;
+        await db.update(
+          table,
+          {'server_id': null},
+          where: 'id = ?',
+          whereArgs: [row['id']],
+        );
+      }
+    }
+    await _createServerIdIndexes(db);
+  }
+
+  /// True when [candidate] is the better owner of a shared server mapping.
+  static bool _preferMapping(
+    Map<String, Object?> candidate,
+    Map<String, Object?> current,
+  ) {
+    final candidateDeleted = (candidate['deleted'] as int? ?? 0) != 0;
+    final currentDeleted = (current['deleted'] as int? ?? 0) != 0;
+    if (candidateDeleted != currentDeleted) return !candidateDeleted;
+
+    final candidateAt = parseInstant(candidate['updated_at']);
+    final currentAt = parseInstant(current['updated_at']);
+    if (candidateAt != null || currentAt != null) {
+      if (candidateAt == null) return false;
+      if (currentAt == null) return true;
+      final byTime = candidateAt.compareTo(currentAt);
+      if (byTime != 0) return byTime > 0;
+    }
+    return (candidate['id'] as int) < (current['id'] as int);
+  }
+
+  /// A server row may map to at most one local row. Unpushed rows (NULL) are
+  /// exempt, so offline users can still add as many rows as they need.
+  Future<void> _createServerIdIndexes(DatabaseExecutor db) async {
+    for (final table in _serverIdTables) {
+      await db.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_server_id '
+        'ON $table (server_id) WHERE server_id IS NOT NULL',
+      );
     }
   }
 

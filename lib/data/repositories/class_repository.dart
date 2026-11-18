@@ -60,7 +60,8 @@ class ClassRepository {
   }
 
   /// Replaces the full schedule in one transaction after validating every row.
-  /// Used by explicit JSON restore; a failed import leaves the current data intact.
+  /// Used by explicit JSON restore; a failed import leaves the current data
+  /// intact. The replaced classes' marks are tombstoned with them.
   Future<int> replaceAll(List<ClassItem> classes) async {
     for (final item in classes) {
       validateClass(item);
@@ -71,9 +72,17 @@ class ClassRepository {
       // Tombstone rather than hard-delete: rows the server already knows
       // must push their deletion, and purging only cleans them after the
       // server acknowledges it.
+      final stamp = utcStamp();
       await txn.update('classes', {
         'deleted': 1,
-        'updated_at': utcStamp(),
+        'updated_at': stamp,
+      }, where: 'deleted = 0');
+      // Marks belong to the replaced classes. Tombstone them in the same
+      // transaction so a restore cannot leave a live mark attached to a
+      // class that no longer exists (and its deletion still syncs).
+      await txn.update('class_status', {
+        'deleted': 1,
+        'updated_at': stamp,
       }, where: 'deleted = 0');
       var inserted = 0;
       for (final item in classes) {

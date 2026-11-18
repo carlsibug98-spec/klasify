@@ -206,7 +206,9 @@ Pushes local changes to the server. The client sends only rows changed since the
 }
 ```
 
-The client stores `server_id` in a local `sync_map` table (local_id → server_id) for future updates.
+The client stores each mapping in the row's own `server_id` column (`classes`,
+`events`, `class_status`). Unique indexes keep one local row per server row;
+rows that have never been pushed keep `server_id = NULL`.
 
 ### GET /sync/pull?since=<iso_timestamp>
 Pulls all rows changed on the server since `since`.

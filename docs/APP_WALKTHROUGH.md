@@ -82,9 +82,9 @@ Klasify is an Android-first Flutter app for students. Its core jobs:
 
 - App version: `1.4.4+15` (`pubspec.yaml`)
 - Flutter: `>= 3.44.0`, Dart `>= 3.12.0`
-- Local database: SQLite via `sqflite`, schema **version 9**, file `class_schedule.db`
+- Local database: SQLite via `sqflite`, schema **version 10**, file `class_schedule.db`
 - Backend: PHP 8 + MySQL/MariaDB (XAMPP-compatible), JWT HS256, bcrypt cost 12
-- Tests: 70 Dart test files, 552 tests, all passing (verified Nov 14, 2026);
+- Tests: 71 Dart test files, 555 tests, all passing (verified Nov 18, 2026);
   plus 56 PHP parity tests
 
 ---
@@ -269,7 +269,7 @@ knowing the shell's internals.
 
 ### 5.1 Tables at a glance
 
-Database file: `class_schedule.db`, schema version 9.
+Database file: `class_schedule.db`, schema version 10.
 
 #### `classes`
 
@@ -330,6 +330,14 @@ implement range replacement/splitting; the database just stores rows.
 Events use `CHECK` constraints only; rows have existed only since schema v6, so
 there is no legacy data for triggers to police.
 
+`classes`, `events`, and `class_status` each have a **partial unique index on
+`server_id`** (`WHERE server_id IS NOT NULL`): one server row maps to at most
+one local row. Never-pushed rows keep `NULL`, and any number of those may
+coexist. Schema v10 deduplicates legacy mappings before creating the indexes,
+keeping the live row over a tombstone, then the newest `updated_at`, then the
+oldest local id. A duplicate that loses its mapping is preserved as an
+unpushed row rather than deleted.
+
 #### `office_statuses`
 
 | Column | Type | Meaning |
@@ -344,7 +352,7 @@ a pull says an office is deleted, `upsertOfficeStatusFromServer` removes the row
 outright. The app never invents office rows; a fresh offline install shows no
 strip until the first successful pull.
 
-### 5.2 Migrations v1 → v9
+### 5.2 Migrations v1 → v10
 
 `onUpgrade` never drops user data. Each step is additive:
 
@@ -359,6 +367,7 @@ strip until the first successful pull.
 | 7 | Sync columns: `deleted`, `updated_at`, `server_id`; `category` on events |
 | 8 | Re-run the same idempotent migration to heal a dev-era drift |
 | 9 | Department + broadcast on events; `office_statuses` cache |
+| 10 | One local row per `server_id`; legacy duplicates are unmapped, then unique indexes are created |
 
 Two teaching points:
 
@@ -671,13 +680,13 @@ files; test fixtures and generated assets are grouped at the end.
 | `widgets/import_success_card.dart` | Import-complete card with View schedule / Import another |
 | `widgets/import_source_preview_screen.dart` | Zoomable source image/PDF preview |
 
-### 6.12 `test/` (70 Dart test files)
+### 6.12 `test/` (71 Dart test files)
 
 The suite is organized by risk area:
 
 | Area | Files |
 |---|---|
-| Database | `database_crud_test`, `database_validation_test`, `events_db_test`, `office_statuses_db_test`, `class_status_db_test`, `class_status_migration_test` |
+| Database | `database_crud_test`, `database_validation_test`, `events_db_test`, `office_statuses_db_test`, `class_status_db_test`, `class_status_migration_test`, `sync_mapping_integrity_test` |
 | Models/rules | `class_status_test`, `event_item_test`, `next_class_test`, `schedule_rules_test`, `office_status_test`, `schedule_backup_codec_test` |
 | Screens/widgets | `edit_class_screen_test`, `home_screen_hero_test`, `home_screen_stacks_test`, `events_home_test`, `weekly_schedule_view_test`, `ui_widgets_test`, `day_status_sheet_test`, `office_editor_manage_test`, `office_status_strip_test`, `office_name_sheet_test`, `swipe_actions_test`, `large_text_test`, `component_kit_test` |
 | Auth/legal | `auth_http_test`, `auth_legal_test`, `auth_service_url_test`, `signup_department_test`, `app_info_test` |
@@ -1339,7 +1348,7 @@ security identity; the JWT is.
 ### 11.1 Flutter tests
 
 - `flutter analyze` must be clean.
-- `flutter test` runs 70 files / 552 tests.
+- `flutter test` runs 71 files / 555 tests.
 - Database tests use `sqflite_common_ffi` with a test-specific database name.
 - Golden tests render screens and compare PNGs with a tolerance.
 - OCR benchmarks shell out to Tesseract in CI because the native PaddleOCR
@@ -1540,7 +1549,7 @@ timetable does not shift when the phone travels. Sync timestamps are stored in
 UTC. Reminders are scheduled in the phone's current local time zone.
 
 **Q: How do you know the app still works?**
-A: 552 Flutter tests, 70 files, golden screenshots, OCR benchmark fixtures, PHP
+A: 555 Flutter tests, 71 files, golden screenshots, OCR benchmark fixtures, PHP
 parity tests, and CI on a pinned Windows/Flutter toolchain.
 
 ### 12.4 Terms to define confidently
