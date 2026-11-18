@@ -129,7 +129,8 @@ one that made the request); the app signs out and asks for the new password.
 
 ### POST /auth/forgot-password
 Always responds `200 { "ok": true }` — never reveals whether the email is registered.
-Creates a 6-digit code that lives 15 minutes (one active code per account).
+Creates a 6-digit code that lives 15 minutes. A user has at most one live code:
+requesting a new one replaces the previous code, so only the newest code works.
 
 ```json
 // Request
@@ -170,10 +171,17 @@ returns 204. The caller's token stops working immediately.
 ### POST /sync/push
 Pushes local changes to the server. The client sends only rows changed since the last push.
 
+`device_id` is required. It is minted by the phone for the signed-in account
+and belongs to exactly one user on the server; signing into another account
+mints a new id rather than reusing the old one. The server records each
+pushed row's `local_id` in a per-device map (`class_local_map`,
+`event_local_map`, `status_local_map`), so two phones may both call their
+first class `local_id: 5` without colliding.
+
 ```json
 // Request
 {
-  "device_id": "abc123",
+  "device_id": "3f9a...c1",
   "last_push_at": "2026-11-06T09:00:00.000Z",   // null on first push
   "classes": [
     { "local_id": 5, "subject": "Math", "room": "302", "professor": "Prof. X",
@@ -187,12 +195,20 @@ Pushes local changes to the server. The client sends only rows changed since the
       "lead_minutes": 30, "updated_at": "2026-11-06T09:30:00.000Z", "deleted": false }
   ],
   "class_statuses": [
-    { "local_id": 1, "local_class_id": 5, "status": "finished",
+    { "local_id": 1, "server_class_id": 42, "local_class_id": 5,
+      "status": "finished",
       "start_date": "2026-11-06", "end_date": null,
       "updated_at": "2026-11-06T09:30:00.000Z", "deleted": false }
   ]
 }
+```
 
+A status names its class by `server_class_id` whenever the class is already on
+the server. `local_class_id` is the offline fallback for a class created on
+this device in the same push: the server resolves it through that device's
+`class_local_map`. A status whose class resolves to neither is skipped.
+
+```json
 // Response 200
 {
   "server_time": "2026-11-06T09:31:00.000Z",
@@ -210,28 +226,39 @@ Pushes local changes to the server. The client sends only rows changed since the
 
 The client stores each mapping in the row's own `server_id` column (`classes`,
 `events`, `class_status`). Unique indexes keep one local row per server row;
-rows that have never been pushed keep `server_id = NULL`.
+rows that have never been pushed keep `server_id = NULL`. The server keeps the
+same mapping per device in the typed map tables, which is what lets a second
+phone name the same row without knowing the first phone's local ids.
 
-### GET /sync/pull?since=<iso_timestamp>
-Pulls all rows changed on the server since `since`.
+### GET /sync/pull?since=<iso_timestamp>&device_id=<id>
+Pulls all rows changed on the server since `since`. Like push, `device_id` is
+required and must belong to the caller; it selects which of the phone's local
+ids come back in `local_id`.
 
 ```json
 // Response 200
 {
   "server_time": "2026-11-06T09:31:00.000Z",
-  "classes": [ { "id": 42, "subject": "Math", ..., "updated_at": "...", "deleted": false } ],
-  "events": [ { "id": 7, "title": "Exam", ..., "department": null,
+  "classes": [ { "id": 42, "local_id": 5, "subject": "Math", ..., "updated_at": "...", "deleted": false } ],
+  "events": [ { "id": 7, "local_id": 3, "title": "Exam", ..., "department": null,
                 "broadcast": false, "updated_at": "...", "deleted": false } ],
-  "class_statuses": [ { "id": 12, "class_id": 42, "status": "finished", ..., "updated_at": "...", "deleted": false } ],
-  "office_statuses": [ { "office_name": "guidance", "status": "break",
-                         "custom_message": "Back at 2pm", "updated_at": "..." } ]
+  "class_statuses": [ { "id": 12, "local_id": 1, "class_id": 42, "status": "finished", ..., "updated_at": "...", "deleted": false } ],
+  "office_statuses": [ { "id": 9, "office_name": "guidance", "department": null,
+                         "status": "break", "custom_message": "Back at 2pm",
+                         "updated_at": "...", "deleted": false } ]
 }
 ```
 
 The client applies these to local SQLite (upsert by server_id mapping, or insert if new).
+`local_id` is the receiving device's own id for that row, or `null` when this
+device has never pushed it; another device's local id is never returned.
 Pulled events include the caller's own rows plus broadcast rows scoped to the
 caller (`department IS NULL` or `department = <caller.department>`); a broadcast
 row has `user_id = NULL` on the server and never matches a viewer's local id.
+`broadcast` is derived from `user_id` on the server and is not writable.
+Office rows are returned in full on every pull (not delta-filtered) so renames,
+retirements, and caches written before this schema converge; `deleted` rows are
+tombstones the phone removes by `id`.
 
 ### Admin endpoints
 
@@ -246,7 +273,7 @@ All require a signed-in `admin` or `super_admin`; role/department changes are
 | GET | `/admin/office-statuses` | — | returns active school-wide offices (no seeding; empty list is valid) |
 | PATCH | `/admin/office-statuses/:office` | `{ "status": "break", "custom_message": "Back at 2pm" }` | requires an existing active office (404 `OFFICE_NOT_FOUND` otherwise); school-wide |
 | POST | `/admin/offices` | `{ "name": "Library" }` | super_admin only. 201 with the created row; duplicates (case-insensitive) → 409 `OFFICE_EXISTS` |
-| PATCH | `/admin/offices/:office` | `{ "name": "New name" }` | super_admin only. Renames (tombstones the old key, keeps status + note) |
+| PATCH | `/admin/offices/:office` | `{ "name": "New name" }` | super_admin only. Renames in place, so the row keeps its `id` and its cached status |
 | DELETE | `/admin/offices/:office` | — | super_admin only. Retires (soft delete, permanent in-app) |
 
 Broadcast scope is decided server-side from the caller's stored role and
@@ -277,6 +304,8 @@ All errors return JSON: `{ "error": "message", "code": "ERROR_CODE" }`
 | OFFICE_NOT_FOUND | 404 | No such active office |
 | EMAIL_EXISTS | 409 | Registration with existing email |
 | OFFICE_EXISTS | 409 | Office name already in use |
+| DEVICE_CONFLICT | 409 | `device_id` already belongs to another account |
 | VALIDATION_ERROR | 422 | Missing/invalid fields |
+| DEVICE_REQUIRED | 422 | Missing or malformed `device_id` |
 | RATE_LIMITED | 429 | Too many requests |
 | SERVER_ERROR | 500 | Internal error |

@@ -124,12 +124,12 @@ T()->test('department assignment incl. clearing and Node-parity missing id', fun
     set_body(['department' => 'AIS']);
     $r = run_handler('admin_set_department', '2');
     T()->eq(200, $r['status'], 'set department status');
-    T()->eq('AIS', fetch_one('SELECT department FROM users WHERE id = 2')['department'], 'department persisted');
+    T()->eq('AIS', fetch_one('SELECT d.name AS department FROM users u LEFT JOIN departments d ON d.id = u.department_id WHERE u.id = 2')['department'], 'department persisted');
 
     set_body(['department' => null]);
     $r = run_handler('admin_set_department', '2');
     T()->eq(200, $r['status'], 'clear department status');
-    T()->truthy(fetch_one('SELECT department FROM users WHERE id = 2')['department'] === null, 'department cleared');
+    T()->truthy(fetch_one('SELECT department_id FROM users WHERE id = 2')['department_id'] === null, 'department cleared');
 
     // Node parity: numeric-but-missing id still answers {ok:true}
     // (UPDATE matches 0 rows; not a "fix" candidate).
@@ -196,12 +196,13 @@ T()->test('add office: name validation -> 422', function () {
     T()->eq(201, run_handler('admin_add_office')['status'], '40-char name ok');
 });
 
-T()->test('rename office: keeps status+note, tombstones old key', function () {
+T()->test('rename office: renames in place and keeps status+note', function () {
     db_reset();
     seed_user(['email' => 'oa5@test.com', 'role' => 'super_admin']);
     act_as(1);
     set_body(['name' => 'Library']);
     run_handler('admin_add_office');
+    $officeId = (int)fetch_one("SELECT id FROM office_statuses WHERE office_name = 'Library'")['id'];
     set_body(['status' => 'break', 'custom_message' => 'Back at 2pm']);
     run_handler('admin_update_office', 'Library');
     set_body(['name' => 'Learning Commons']);
@@ -210,10 +211,11 @@ T()->test('rename office: keeps status+note, tombstones old key', function () {
     T()->eq(['ok' => true], $r['body'], 'rename body');
     $r = run_handler('admin_list_offices');
     T()->eq(['Learning Commons'], array_column($r['body']['offices'] ?? [], 'office_name'), 'only new key listed');
-    $new = fetch_one("SELECT status, custom_message FROM office_statuses WHERE office_name = 'Learning Commons'");
+    $new = fetch_one("SELECT id, status, custom_message FROM office_statuses WHERE office_name = 'Learning Commons'");
     T()->eq('break', $new['status'], 'status carried over');
     T()->eq('Back at 2pm', $new['custom_message'], 'note carried over');
-    T()->eq(1, (int)fetch_one("SELECT deleted FROM office_statuses WHERE office_name = 'Library'")['deleted'], 'old key tombstoned');
+    T()->eq($officeId, (int)$new['id'], 'rename keeps the row id');
+    T()->eq(0, (int)query("SELECT COUNT(*) FROM office_statuses WHERE office_name = 'Library'")->fetchColumn(), 'old name gone');
 });
 
 T()->test('rename office: dup -> 409, unknown -> 404', function () {

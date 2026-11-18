@@ -6,6 +6,7 @@
 // docs/sync_api_contract.md.
 
 const EMAIL_PATTERN = '/^[^\s@]+@[^\s@]+\.[^\s@]+\z/';
+const PASSWORD_RESET_TTL_SECONDS = 900; // 15 minutes, recorded per code
 
 function valid_email(string $email): bool
 {
@@ -41,7 +42,7 @@ function auth_register(): void
 
     // Account creation is cheap to spam (and sends email later); cap it per
     // source address before doing any validation or database work.
-    if (!rate_limit_allow('register:ip:' . client_ip(), 10, 3600)) {
+    if (!rate_limit_allow('register_ip', client_ip(), 10, 3600)) {
         throw new ApiError(429, 'Too many requests, please try again later', 'RATE_LIMITED');
     }
 
@@ -55,17 +56,18 @@ function auth_register(): void
         throw new ApiError(409, 'An account with this email already exists', 'EMAIL_EXISTS');
     }
 
-    $department = js_truthy($body['department'] ?? null)
-        ? nonempty_or_null(trim(js_string($body['department'])))
+    $departmentId = js_truthy($body['department'] ?? null)
+        ? department_id_for(trim(js_string($body['department'])))
         : null;
 
     query(
-        'INSERT INTO users (email, password_hash, display_name, department) VALUES (?, ?, ?, ?)',
-        [$email, hash_password($password), $displayName, $department]
+        'INSERT INTO users (email, password_hash, display_name, department_id) VALUES (?, ?, ?, ?)',
+        [$email, hash_password($password), $displayName, $departmentId]
     );
     $userId = (int)db()->lastInsertId();
     $user = fetch_one(
-        'SELECT id, email, password_hash, display_name, role, department, google_sub FROM users WHERE id = ?',
+        'SELECT u.id, u.email, u.password_hash, u.display_name, u.role, d.name AS department, u.google_sub
+           FROM users u LEFT JOIN departments d ON d.id = u.department_id WHERE u.id = ?',
         [$userId]
     );
 
@@ -89,14 +91,16 @@ function auth_login(): void
 
     // Two buckets: one slows password guessing against a single account, the
     // other stops one host from spraying many accounts.
-    if (!rate_limit_allow('login:email:' . strtolower($email), 10, 60)
-        || !rate_limit_allow('login:ip:' . client_ip(), 30, 60)
+    if (!rate_limit_allow('login_email', strtolower($email), 10, 60)
+        || !rate_limit_allow('login_ip', client_ip(), 30, 60)
     ) {
         throw new ApiError(429, 'Too many requests, please try again later', 'RATE_LIMITED');
     }
 
     $user = fetch_one(
-        'SELECT id, email, password_hash, display_name, role, department, token_version FROM users WHERE email = ? AND deleted = 0 LIMIT 1',
+        'SELECT u.id, u.email, u.password_hash, u.display_name, u.role, d.name AS department, u.token_version
+           FROM users u LEFT JOIN departments d ON d.id = u.department_id
+          WHERE u.email = ? AND u.deleted = 0 LIMIT 1',
         [$email]
     );
     if ($user === null || !password_verify($password, (string)($user['password_hash'] ?? ''))) {
@@ -156,7 +160,7 @@ function auth_google(): void
         throw new ApiError(500, 'Google sign-in is not configured on the server', 'VALIDATION_ERROR');
     }
 
-    if (!rate_limit_allow('google', 30, 60)) {
+    if (!rate_limit_allow('google', '', 30, 60)) {
         throw new ApiError(429, 'Too many requests, please try again later', 'RATE_LIMITED');
     }
 
@@ -177,16 +181,18 @@ function auth_google(): void
 
     $wantsSignup = ($body['mode'] ?? null) === 'signup';
     $requestedName = mb_substr(trim(js_text($body['display_name'] ?? null)), 0, 100);
-    $department = isset($body['department'])
+    $departmentName = isset($body['department'])
         ? nonempty_or_null(mb_substr(trim(js_string($body['department'])), 0, 100))
         : null;
+    $departmentId = $departmentName === null ? null : department_id_for($departmentName);
 
-    $columns = 'SELECT id, email, password_hash, display_name, google_sub, role, department, token_version FROM users WHERE ';
+    $columns = 'SELECT u.id, u.email, u.password_hash, u.display_name, u.google_sub, u.role, d.name AS department, u.token_version
+                  FROM users u LEFT JOIN departments d ON d.id = u.department_id WHERE ';
 
     // Look up by Google subject first, then by email (backfilling google_sub on match).
-    $user = fetch_one($columns . 'google_sub = ? AND deleted = 0 LIMIT 1', [$googleSub]);
+    $user = fetch_one($columns . 'u.google_sub = ? AND u.deleted = 0 LIMIT 1', [$googleSub]);
     if ($user === null) {
-        $user = fetch_one($columns . 'email = ? AND deleted = 0 LIMIT 1', [$email]);
+        $user = fetch_one($columns . 'u.email = ? AND u.deleted = 0 LIMIT 1', [$email]);
         if ($user !== null) {
             query('UPDATE users SET google_sub = ? WHERE id = ?', [$googleSub, $user['id']]);
             $user['google_sub'] = $googleSub;
@@ -207,11 +213,12 @@ function auth_google(): void
         }
         $createdName = $requestedName !== '' ? $requestedName : $googleName;
         query(
-            'INSERT INTO users (email, password_hash, google_sub, display_name, department) VALUES (?, NULL, ?, ?, ?)',
-            [$email, $googleSub, $createdName, $department]
+            'INSERT INTO users (email, password_hash, google_sub, display_name, department_id) VALUES (?, NULL, ?, ?, ?)',
+            [$email, $googleSub, $createdName, $departmentId]
         );
         $user = fetch_one(
-            'SELECT id, email, password_hash, display_name, google_sub, role, department, token_version FROM users WHERE id = ?',
+            'SELECT u.id, u.email, u.password_hash, u.display_name, u.google_sub, u.role, d.name AS department, u.token_version
+               FROM users u LEFT JOIN departments d ON d.id = u.department_id WHERE u.id = ?',
             [(int)db()->lastInsertId()]
         );
     }
@@ -244,7 +251,9 @@ function auth_refresh(): void
     }
 
     $user = fetch_one(
-        'SELECT id, email, display_name, role, department, token_version FROM users WHERE id = ? AND deleted = 0 LIMIT 1',
+        'SELECT u.id, u.email, u.display_name, u.role, d.name AS department, u.token_version
+           FROM users u LEFT JOIN departments d ON d.id = u.department_id
+          WHERE u.id = ? AND u.deleted = 0 LIMIT 1',
         [(int)$claims['user_id']]
     );
     if ($user === null) {
@@ -268,8 +277,16 @@ function auth_delete_account(): void
     query('UPDATE users SET deleted = 1, token_version = token_version + 1 WHERE id = ?', [$userId]);
     query('UPDATE classes SET deleted = 1 WHERE user_id = ?', [$userId]);
     query('UPDATE events SET deleted = 1 WHERE user_id = ?', [$userId]);
-    query('UPDATE class_statuses SET deleted = 1 WHERE user_id = ?', [$userId]);
+    // Marks are owned through their class; there is no second user_id to keep
+    // in step. The join is the ownership check.
+    query(
+        'UPDATE class_statuses s JOIN classes c ON c.id = s.class_id
+            SET s.deleted = 1 WHERE c.user_id = ?',
+        [$userId]
+    );
     query('DELETE FROM password_resets WHERE user_id = ?', [$userId]);
+    // Releasing the devices cascades their cursors and local-id maps.
+    query('DELETE FROM sync_devices WHERE user_id = ?', [$userId]);
     send_no_content();
 }
 
@@ -313,7 +330,11 @@ function auth_update_me(): void
 
     query('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id = ?', [...$params, $userId]);
 
-    $user = fetch_one('SELECT id, email, display_name, role, department FROM users WHERE id = ? LIMIT 1', [$userId]);
+    $user = fetch_one(
+        'SELECT u.id, u.email, u.display_name, u.role, d.name AS department
+           FROM users u LEFT JOIN departments d ON d.id = u.department_id WHERE u.id = ? LIMIT 1',
+        [$userId]
+    );
     send_json(200, ['user' => user_json($user)]);
 }
 
@@ -355,8 +376,8 @@ function auth_forgot_password(): void
     if (!valid_email($email)) {
         throw new ApiError(422, 'Invalid email address', 'VALIDATION_ERROR');
     }
-    if (!rate_limit_allow('forgot:' . strtolower($email), 5, 3600)
-        || !rate_limit_allow('forgot:ip:' . client_ip(), 20, 3600)
+    if (!rate_limit_allow('forgot_email', strtolower($email), 5, 3600)
+        || !rate_limit_allow('forgot_ip', client_ip(), 20, 3600)
     ) {
         throw new ApiError(429, 'Too many requests. Try again later.', 'RATE_LIMITED');
     }
@@ -366,14 +387,14 @@ function auth_forgot_password(): void
         $userId = (int)$user['id'];
         $code = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
-        query('DELETE FROM password_resets WHERE user_id = ?', [$userId]);
+        // One live code per account: the newest request replaces the old hash,
+        // so two emails can never both work. created_at is explicit UTC and
+        // ttl_seconds records the policy that was in force at mint time.
         query(
-            'INSERT INTO password_resets (user_id, code_hash, expires_at) VALUES (?, ?, ?)',
-            [
-                $userId,
-                hash_password($code),
-                utc_now()->modify('+15 minutes')->format('Y-m-d H:i:s.v'),
-            ]
+            'INSERT INTO password_resets (user_id, code_hash, created_at, ttl_seconds) VALUES (?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE code_hash = VALUES(code_hash), created_at = VALUES(created_at),
+                                     ttl_seconds = VALUES(ttl_seconds)',
+            [$userId, hash_password($code), now_mysql(), PASSWORD_RESET_TTL_SECONDS]
         );
 
         // Deliver the code. A failure must not change the response: revealing
@@ -417,8 +438,8 @@ function auth_reset_password(): void
     }
 
     // Slow down code guessing after a reset code has been requested.
-    if (!rate_limit_allow('reset:email:' . strtolower($email), 10, 3600)
-        || !rate_limit_allow('reset:ip:' . client_ip(), 30, 3600)
+    if (!rate_limit_allow('reset_email', strtolower($email), 10, 3600)
+        || !rate_limit_allow('reset_ip', client_ip(), 30, 3600)
     ) {
         throw new ApiError(429, 'Too many requests, please try again later', 'RATE_LIMITED');
     }
@@ -428,20 +449,24 @@ function auth_reset_password(): void
     if ($user !== null) {
         $userId = (int)$user['id'];
         $reset = fetch_one(
-            'SELECT id, code_hash, expires_at FROM password_resets WHERE user_id = ? AND used_at IS NULL ORDER BY created_at DESC LIMIT 1',
+            'SELECT code_hash, created_at, ttl_seconds FROM password_resets WHERE user_id = ? LIMIT 1',
             [$userId]
         );
-        if ($reset !== null
-            && password_verify($code, (string)($reset['code_hash'] ?? ''))
-            && is_future_utc((string)$reset['expires_at'])
-        ) {
-            $ok = true;
-            // A reset revokes every session issued under the old password.
-            query(
-                'UPDATE users SET password_hash = ?, token_version = token_version + 1 WHERE id = ?',
-                [hash_password($newPassword), $userId]
-            );
-            query('DELETE FROM password_resets WHERE user_id = ?', [$userId]);
+        if ($reset !== null) {
+            // Expiry is computed from the facts, not stored a second time.
+            $mintedAt = strtotime((string)$reset['created_at'] . ' UTC');
+            $expiresAt = $mintedAt === false ? 0 : $mintedAt + (int)$reset['ttl_seconds'];
+            if (password_verify($code, (string)($reset['code_hash'] ?? ''))
+                && $expiresAt > time()
+            ) {
+                $ok = true;
+                // A reset revokes every session issued under the old password.
+                query(
+                    'UPDATE users SET password_hash = ?, token_version = token_version + 1 WHERE id = ?',
+                    [hash_password($newPassword), $userId]
+                );
+                query('DELETE FROM password_resets WHERE user_id = ?', [$userId]);
+            }
         }
     }
 

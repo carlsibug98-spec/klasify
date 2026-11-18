@@ -236,7 +236,7 @@ void main() {
     expect(names, containsAll(['idx_class_status_class', 'idx_class_status_server_id']));
 
     final versionRow = (await connection.rawQuery('PRAGMA user_version')).single;
-    expect(versionRow['user_version'], 11);
+    expect(versionRow['user_version'], 12);
 
     await expectLater(
       db.setClassStatus(_mark(4242, '2026-12-04')),

@@ -45,19 +45,24 @@ super admin.
 
 ## Office availability
 
-`office_statuses` is school-wide: one row per office (`guidance`, `clinic`,
-`registrar`) with `department IS NULL`.
+`office_statuses` holds two kinds of row, keyed by `(office_name,
+department_id)`: school-wide offices (`guidance`, `clinic`, `registrar`) have
+`department_id IS NULL`, and a department copy of the same name is a different
+row. `scope_key` is a generated column with that key, so the uniqueness rule
+cannot drift from the meaning.
 
 - Admins edit in **two places**: inline on **Today** (the pencil on each
   office tile opens the same editor sheet) or **Settings & privacy → Admin →
   Office availability** — open / on break / closed + an optional note like
   "Back at 2pm". Both write through the same API, so students get the change
   at the next sync.
-- `GET /admin/office-statuses` seeds any missing office as `open` on first
-  read, so a fresh install always shows all three.
-- The app caches the rows locally (`office_statuses` SQLite table, DB v9) and
-  refreshes them on every sync pull, so Today shows the last-known value and
-  its update time while offline.
+- `GET /admin/office-statuses` lists the active school-wide offices and never
+  seeds them; an empty list is valid. Super admins add offices from the same
+  screen.
+- The app caches the rows locally (`office_statuses` SQLite table, DB v12) keyed
+  by the server's `id`, and refreshes them on every sync pull, so Today shows
+  the last-known value and its update time while offline. A rename keeps the
+  same `id`, so the cached row updates in place instead of vanishing.
 
 ## Events: personal vs broadcast
 

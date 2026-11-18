@@ -5,6 +5,7 @@
 // into the contract's { error, code } JSON.
 
 require __DIR__ . '/src/common.php';
+require __DIR__ . '/src/departments.php';
 require __DIR__ . '/src/auth.php';
 require __DIR__ . '/src/mail.php';
 require __DIR__ . '/src/sync.php';

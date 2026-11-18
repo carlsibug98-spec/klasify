@@ -141,7 +141,7 @@ void main() {
       );
       await old.close();
 
-      // Opening through the app runs the version 9 to 11 upgrades.
+      // Opening through the app runs the version 9 to 12 upgrades.
       DatabaseHelper.databaseName = name;
       final db = DatabaseHelper.instance;
 
@@ -171,7 +171,7 @@ void main() {
 
       final check = await sqflite.openDatabase(path, readOnly: true);
       final versionRow = (await check.rawQuery('PRAGMA user_version')).single;
-      expect(versionRow['user_version'], 11);
+      expect(versionRow['user_version'], 12);
       await check.close();
 
       // The new indexes reject any future duplicate mapping.

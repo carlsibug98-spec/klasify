@@ -11,6 +11,7 @@
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/src/common.php';
+require dirname(__DIR__) . '/src/departments.php';
 require dirname(__DIR__) . '/src/auth.php';
 require dirname(__DIR__) . '/src/mail.php';
 require dirname(__DIR__) . '/src/sync.php';
@@ -124,13 +125,18 @@ function db_rebuild(): void
 }
 
 const RESET_TABLES = [
+    'departments',
     'users',
     'classes',
     'events',
     'office_statuses',
     'class_statuses',
     'password_resets',
+    'sync_devices',
     'sync_cursors',
+    'class_local_map',
+    'event_local_map',
+    'status_local_map',
     'rate_limit_hits',
 ];
 
@@ -148,18 +154,26 @@ function db_reset(): void
     db()->exec('SET FOREIGN_KEY_CHECKS=1');
 }
 
+/// Seed one department row (case-insensitive get-or-create); returns its id.
+function seed_department(string $name): int
+{
+    return department_id_for($name) ?? 0;
+}
+
 /// Seed one user row; returns the new id.
 function seed_user(array $fields = []): int
 {
+    $department = $fields['department'] ?? null;
+    $departmentId = $department === null ? null : department_id_for((string)$department);
     query(
-        'INSERT INTO users (email, password_hash, display_name, role, department, google_sub, deleted) VALUES (?,?,?,?,?,?,?)',
+        'INSERT INTO users (email, password_hash, display_name, role, department_id, google_sub, deleted) VALUES (?,?,?,?,?,?,?)',
         [
             $fields['email'],
             $fields['password_hash']
                 ?? password_hash($fields['password'] ?? 'password123', PASSWORD_BCRYPT, ['cost' => 12]),
             $fields['display_name'] ?? 'Test User',
             $fields['role'] ?? 'user',
-            $fields['department'] ?? null,
+            $departmentId,
             $fields['google_sub'] ?? null,
             $fields['deleted'] ?? 0,
         ]

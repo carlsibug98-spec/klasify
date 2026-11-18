@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -7,6 +8,69 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'auth_service.dart';
 import '../data/database_helper.dart';
+
+/// The phone's sync identity, scoped to the signed-in account.
+///
+/// A device id belongs to exactly one account on the server, so the phone
+/// remembers which account minted it. Signing into another account mints a
+/// fresh id: the previous account's server rows must never be claimed by the
+/// new one, and a shared phone must not inherit the last user's identity.
+@visibleForTesting
+class DeviceIdentity {
+  static const idKey = 'klasify_device_id';
+  static const ownerKey = 'klasify_device_owner_id';
+
+  /// The id to use for [userId], reusing the stored one only when it was
+  /// minted for that same account. An old install's ownerless id is replaced:
+  /// there is no record of which account the server bound it to.
+  static Future<String> forAccount(int? userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(idKey);
+    if (userId != null &&
+        stored != null &&
+        stored.isNotEmpty &&
+        prefs.getInt(ownerKey) == userId) {
+      return stored;
+    }
+
+    final id = _mint();
+    await prefs.setString(idKey, id);
+    if (userId == null) {
+      await prefs.remove(ownerKey);
+    } else {
+      await prefs.setInt(ownerKey, userId);
+    }
+    return id;
+  }
+
+  static String _mint() {
+    final random = Random.secure();
+    return List.generate(
+      32,
+      (_) => random.nextInt(16).toRadixString(16),
+    ).join();
+  }
+}
+
+/// The wire shape of one local class-status row. A class that reached this
+/// device by pull has a server id, so the server resolves it by that id; only
+/// a class created offline in this push needs the device's local id fallback.
+@visibleForTesting
+Map<String, dynamic> buildStatusPushRow(
+  Map<String, Object?> status,
+  int? serverClassId,
+) => {
+  'local_id': status['id'],
+  'server_id': status['server_id'],
+  'local_class_id': status['class_id'],
+  'server_class_id': serverClassId,
+  'status': status['status'],
+  'start_date': status['start_date'],
+  'end_date': status['end_date'],
+  'deleted': (status['deleted'] as int? ?? 0) != 0,
+  'updated_at':
+      status['updated_at'] ?? DateTime.now().toUtc().toIso8601String(),
+};
 
 /// Configurable sync backend client. Syncs local SQLite data to the
 /// MySQL-backed API. All operations are best-effort: failures are queued
@@ -22,7 +86,6 @@ class SyncService extends ChangeNotifier {
 
   static const _lastPushKey = 'klasify_last_push_at';
   static const _lastPullKey = 'klasify_last_pull_at';
-  static const _deviceIdKey = 'klasify_device_id';
 
   bool _syncing = false;
   bool get syncing => _syncing;
@@ -37,13 +100,9 @@ class SyncService extends ChangeNotifier {
   DateTime? get lastSyncAt => _lastSyncAt;
 
   Future<String> get _deviceId async {
-    final prefs = await SharedPreferences.getInstance();
-    var id = prefs.getString(_deviceIdKey);
-    if (id == null) {
-      id = DateTime.now().microsecondsSinceEpoch.toString();
-      await prefs.setString(_deviceIdKey, id);
-    }
-    return id;
+    final user = AuthService.instance.currentUser;
+    final userId = user?['id'];
+    return DeviceIdentity.forAccount(userId is int ? userId : null);
   }
 
   Future<DateTime?> get lastPushAt async {
@@ -74,6 +133,7 @@ class SyncService extends ChangeNotifier {
       final changedClasses = await db.getChangedClasses(lastPush ?? DateTime(1970));
       final changedEvents = await db.getChangedEvents(lastPush ?? DateTime(1970));
       final changedStatuses = await db.getChangedClassStatuses(lastPush ?? DateTime(1970));
+      final classServerIds = await db.getClassServerIds();
 
       final body = <String, dynamic>{
         'device_id': deviceId,
@@ -105,16 +165,14 @@ class SyncService extends ChangeNotifier {
           'deleted': e.deleted,
           'updated_at': e.updatedAt?.toUtc().toIso8601String() ?? DateTime.now().toUtc().toIso8601String(),
         }).toList(),
-        'class_statuses': changedStatuses.map((s) => {
-          'local_id': s['id'],
-          'server_id': s['server_id'],
-          'local_class_id': s['class_id'],
-          'status': s['status'],
-          'start_date': s['start_date'],
-          'end_date': s['end_date'],
-          'deleted': (s['deleted'] as int? ?? 0) != 0,
-          'updated_at': s['updated_at'] ?? DateTime.now().toUtc().toIso8601String(),
-        }).toList(),
+        'class_statuses': changedStatuses
+            .map(
+              (s) => buildStatusPushRow(
+                s,
+                classServerIds[s['class_id'] as int?],
+              ),
+            )
+            .toList(),
       };
 
       final res = await http.post(
@@ -207,9 +265,18 @@ class SyncService extends ChangeNotifier {
           await db.upsertClassStatusFromServer(row as Map<String, dynamic>);
         }
 
-        // Upsert pulled office availability (last-known value offline)
-        for (final row in (data['office_statuses'] as List? ?? [])) {
-          await db.upsertOfficeStatusFromServer(row as Map<String, dynamic>);
+        // Upsert pulled office availability (last-known value offline). The
+        // list is present on every pull from this backend, including an empty
+        // one; if an older backend omits it, keep the cache instead of
+        // deleting rows the response never described.
+        final officeRows = data['office_statuses'];
+        if (officeRows is List) {
+          for (final row in officeRows) {
+            await db.upsertOfficeStatusFromServer(row as Map<String, dynamic>);
+          }
+          // A full office list was applied: any cache row still without a
+          // server id is a v11 leftover the server no longer knows about.
+          await db.pruneUnadoptedOfficeStatuses();
         }
 
         // Purge soft-deleted rows the server already accepted. Unpushed

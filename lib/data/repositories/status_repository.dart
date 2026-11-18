@@ -162,11 +162,14 @@ class StatusRepository {
     );
   }
 
-  /// Upserts a class status pulled from the server. Its owning class is
-  /// resolved through the server_id class mapping first, then through the
-  /// pushed local_class_id. Rows whose class is not known locally (its row
-  /// has not arrived yet) are skipped: they are re-delivered by the delta
-  /// cursor whenever the class becomes visible.
+  /// Upserts a class status pulled from the server.
+  ///
+  /// The owning class is resolved by the server's class id first; a class
+  /// created offline on this device falls back to [local_class_id] when the
+  /// payload has one. When the class is known but this device has never seen
+  /// the mark (another device created it), a local row is inserted so the
+  /// mark shows up here too. Marks whose class is unknown locally are
+  /// skipped: the delta cursor re-delivers them once the class arrives.
   ///
   /// Returns true when the server row was applied and listeners should be
   /// notified; skipped and locally-newer rows return false.
@@ -174,28 +177,7 @@ class StatusRepository {
     final db = await _database.database;
     final serverId = data['id'] as int;
 
-    var rows = await db.query(
-      'class_status',
-      where: 'server_id = ?',
-      whereArgs: [serverId],
-      limit: 1,
-    );
-    if (rows.isEmpty) {
-      final localFallback = data['local_id'];
-      if (localFallback is int) {
-        rows = await db.query(
-          'class_status',
-          where: 'id = ? AND server_id IS NULL',
-          whereArgs: [localFallback],
-          limit: 1,
-        );
-      }
-    }
-    if (rows.isEmpty) {
-      // Would be a brand-new local row with no class to attach to.
-      return false;
-    }
-
+    // Resolve the owning class first: a brand-new mark needs one to attach to.
     int? resolvedClassId;
     final serverClassId = data['class_id'];
     if (serverClassId is int) {
@@ -222,6 +204,38 @@ class StatusRepository {
     if (resolvedClassId == null) {
       // Class unknown locally: keep the existing status untouched.
       return false;
+    }
+
+    var rows = await db.query(
+      'class_status',
+      where: 'server_id = ?',
+      whereArgs: [serverId],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      final localFallback = data['local_id'];
+      if (localFallback is int) {
+        rows = await db.query(
+          'class_status',
+          where: 'id = ? AND server_id IS NULL',
+          whereArgs: [localFallback],
+          limit: 1,
+        );
+      }
+    }
+    if (rows.isEmpty) {
+      // A mark another device created: this device knows the class but has
+      // no local row for the mark yet.
+      await db.insert('class_status', {
+        'class_id': resolvedClassId,
+        'status': data['status'] ?? 'finished',
+        'start_date': data['start_date'],
+        'end_date': data['end_date'],
+        'deleted': (data['deleted'] as bool? ?? false) ? 1 : 0,
+        'updated_at': data['updated_at'],
+        'server_id': serverId,
+      });
+      return true;
     }
 
     final local = rows.first;

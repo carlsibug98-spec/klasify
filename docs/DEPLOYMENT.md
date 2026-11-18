@@ -63,6 +63,30 @@ the version and revoke older tokens.
 
 Verify with `SHOW COLUMNS FROM users LIKE 'token_version';`.
 
+Then apply the 2026-11-18 normalization migration. It drops columns, so stop
+the API first and take a backup:
+
+```
+mysqldump -u root --databases klasify_sync > klasify_sync_backup.sql
+mysql -u root klasify_sync < php-backend/migrations/2026-11-18-normalize.sql
+```
+
+It moves departments into their own table, keys offices on
+`(office_name, department_id)`, stores device-local ids per device, keeps one
+live password-reset code per account, and splits rate-limit counters into
+`(scope, subject)`. DDL commits implicitly in MySQL, so the script is not
+re-runnable: it either finishes or you restore the backup. A fresh install from
+`docs/mysql_schema.sql` already has this shape; to confirm the result, dump the
+structure of the migrated database and of a freshly created one and compare:
+
+```
+mysqldump -u root --no-data --skip-comments klasify_sync > migrated.sql
+mysqldump -u root --no-data --skip-comments klasify_fresh   > fresh.sql
+```
+
+AUTO_INCREMENT values and view DEFINERs differ; every table definition should
+otherwise match.
+
 ## Migrating from the old Node/Docker backend
 
 1. Dump the live data: `docker exec klasify-mysql sh -c 'exec mysqldump -uroot -pklasify_dev klasify_sync' > klasify_sync_dump.sql`

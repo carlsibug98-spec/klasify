@@ -221,6 +221,21 @@ class ClassRepository {
     return rows.map(ClassItem.fromMap).toList();
   }
 
+  /// Local id -> server id for every class the server already knows. A mark
+  /// pushed on such a class names it by server id, so another device that
+  /// never created the class can still attach its own mark.
+  Future<Map<int, int>> getServerIdMap() async {
+    final db = await _database.database;
+    final rows = await db.query(
+      'classes',
+      columns: ['id', 'server_id'],
+      where: 'server_id IS NOT NULL',
+    );
+    return {
+      for (final row in rows) row['id'] as int: row['server_id'] as int,
+    };
+  }
+
   /// Upserts a class pulled from the server. Matching order: the stored
   /// server_id mapping first, then a still-unmapped local row whose id
   /// equals the server's remembered local_id (from when it was pushed).

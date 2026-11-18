@@ -49,6 +49,11 @@ class DatabaseHelper extends ChangeNotifier {
     if (await _offices.upsertFromServer(data)) notifyListeners();
   }
 
+  /// Drops v11 cache rows a full pull did not adopt.
+  Future<void> pruneUnadoptedOfficeStatuses() async {
+    if (await _offices.pruneUnadopted() > 0) notifyListeners();
+  }
+
   // ---- Class statuses ----
 
   Future<ClassStatuses> getClassStatuses() => _statuses.getAll();
@@ -233,6 +238,9 @@ class DatabaseHelper extends ChangeNotifier {
   /// Stores the server-assigned id for a pushed class.
   Future<void> setClassServerId(int localId, int serverId) =>
       _classes.setServerId(localId, serverId);
+
+  /// Local id -> server id for every class the server already knows.
+  Future<Map<int, int>> getClassServerIds() => _classes.getServerIdMap();
 
   /// Stores the server-assigned id for a pushed event.
   Future<void> setEventServerId(int localId, int serverId) =>

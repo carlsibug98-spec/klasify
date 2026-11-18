@@ -369,17 +369,21 @@ function client_ip(): string
 // (PHP does not keep memory between requests the way a Node process does).
 // ---------------------------------------------------------------------
 
-/// Records a hit and returns true, or returns false when the bucket is full.
-function rate_limit_allow(string $bucket, int $max, int $windowSeconds): bool
+/// Records a hit for one (scope, subject) pair and returns true, or returns
+/// false when that pair already reached [max] inside the window. The policy
+/// name and its subject are separate facts, so neither is packed into a
+/// string that someone would later have to split.
+function rate_limit_allow(string $scope, string $subject, int $max, int $windowSeconds): bool
 {
     static $ready = false;
     if (!$ready) {
         db()->exec(
             'CREATE TABLE IF NOT EXISTS rate_limit_hits (
                 id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                bucket VARCHAR(300) NOT NULL,
+                scope VARCHAR(32) NOT NULL,
+                subject VARCHAR(255) NOT NULL,
                 hit_at DATETIME(3) NOT NULL,
-                KEY idx_rl_bucket_time (bucket, hit_at)
+                KEY idx_rl_scope_subject_time (scope, subject, hit_at)
             ) ENGINE=InnoDB'
         );
         $ready = true;
@@ -387,14 +391,17 @@ function rate_limit_allow(string $bucket, int $max, int $windowSeconds): bool
 
     $since = utc_now()->modify("-{$windowSeconds} seconds")->format('Y-m-d H:i:s.v');
     $count = (int)query(
-        'SELECT COUNT(*) FROM rate_limit_hits WHERE bucket = ? AND hit_at >= ?',
-        [$bucket, $since]
+        'SELECT COUNT(*) FROM rate_limit_hits WHERE scope = ? AND subject = ? AND hit_at >= ?',
+        [$scope, $subject, $since]
     )->fetchColumn();
     if ($count >= $max) {
         return false;
     }
 
-    query('INSERT INTO rate_limit_hits (bucket, hit_at) VALUES (?, ?)', [$bucket, now_mysql()]);
+    query(
+        'INSERT INTO rate_limit_hits (scope, subject, hit_at) VALUES (?, ?, ?)',
+        [$scope, $subject, now_mysql()]
+    );
 
     // Housekeeping: now and then, drop hits older than a day.
     if (random_int(1, 100) === 1) {

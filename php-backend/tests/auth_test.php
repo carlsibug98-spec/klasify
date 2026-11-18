@@ -237,15 +237,15 @@ T()->test('change-password cycle incl. reset-code purge', function () {
     T()->eq('Current password is incorrect', $r['body']['error'] ?? null, 'wrong current message');
 
     // correct path: leaves no outstanding reset codes behind
-    query("INSERT INTO password_resets (user_id, code_hash, expires_at) VALUES (?,?,?)", [
-        $uid, hash_password('999999'), '2100-01-01 00:00:00.000',
+    query('INSERT INTO password_resets (user_id, code_hash, created_at, ttl_seconds) VALUES (?,?,?,?)', [
+        $uid, hash_password('999999'), now_mysql(), 900,
     ]);
     set_body(['current_password' => 'current123', 'new_password' => 'changed123']);
     $r = run_handler('auth_change_password');
     T()->eq(204, $r['status'], 'change-password status 204');
     T()->eq('', $r['raw'], 'change-password empty body');
     T()->truthy(
-        fetch_one('SELECT id FROM password_resets WHERE user_id = ?', [$uid]) === null,
+        fetch_one('SELECT user_id FROM password_resets WHERE user_id = ?', [$uid]) === null,
         'outstanding reset codes purged on password change'
     );
     T()->eq(
@@ -272,20 +272,21 @@ T()->test('account deletion cascades tombstones', function () {
     $uid = (int)$id;
     act_as($uid);
     query(
-        'INSERT INTO classes (user_id, local_id, subject, room, professor, day, start_minutes, end_minutes) VALUES (?,?,?,?,?,?,?,?)',
-        [$uid, 7, 'IT 101', 'L201', 'Sir A', 1, 480, 540]
+        'INSERT INTO classes (user_id, subject, room, professor, day, start_minutes, end_minutes) VALUES (?,?,?,?,?,?,?)',
+        [$uid, 'IT 101', 'L201', 'Sir A', 1, 480, 540]
+    );
+    $classId = (int)db()->lastInsertId();
+    query(
+        'INSERT INTO events (user_id, title, venue, event_date, start_minutes, category) VALUES (?,?,?,?,?,?)',
+        [$uid, 'Quiz 1', 'L201', '2026-11-10', 600, 'school']
     );
     query(
-        'INSERT INTO events (user_id, local_id, title, venue, event_date, start_minutes, category) VALUES (?,?,?,?,?,?,?)',
-        [$uid, 8, 'Quiz 1', 'L201', '2026-11-10', 600, 'school']
+        'INSERT INTO class_statuses (class_id, status, start_date, end_date) VALUES (?,?,?,?)',
+        [$classId, 'cancelled', '2026-11-10', '2026-11-10']
     );
     query(
-        'INSERT INTO class_statuses (user_id, local_id, class_id, local_class_id, status, start_date, end_date) VALUES (?,?,?,?,?,?,?)',
-        [$uid, 9, 1, 7, 'cancelled', '2026-11-10', '2026-11-10']
-    );
-    query(
-        'INSERT INTO password_resets (user_id, code_hash, expires_at) VALUES (?,?,?)',
-        [$uid, hash_password('000000'), '2100-01-01 00:00:00.000']
+        'INSERT INTO password_resets (user_id, code_hash, created_at, ttl_seconds) VALUES (?,?,?,?)',
+        [$uid, hash_password('000000'), now_mysql(), 900]
     );
 
     set_body(null);
@@ -300,9 +301,15 @@ T()->test('account deletion cascades tombstones', function () {
     );
     T()->truthy((int)query('SELECT deleted FROM classes WHERE user_id = ?', [$uid])->fetchColumn() === 1, 'classes tombstone');
     T()->truthy((int)query('SELECT deleted FROM events WHERE user_id = ?', [$uid])->fetchColumn() === 1, 'events tombstone');
-    T()->truthy((int)query('SELECT deleted FROM class_statuses WHERE user_id = ?', [$uid])->fetchColumn() === 1, 'class_statuses tombstone');
     T()->truthy(
-        fetch_one('SELECT id FROM password_resets WHERE user_id = ?', [$uid]) === null,
+        (int)query(
+            'SELECT s.deleted FROM class_statuses s JOIN classes c ON c.id = s.class_id WHERE c.user_id = ?',
+            [$uid]
+        )->fetchColumn() === 1,
+        'class_statuses tombstone through the class'
+    );
+    T()->truthy(
+        fetch_one('SELECT user_id FROM password_resets WHERE user_id = ?', [$uid]) === null,
         'password_resets purged on account delete'
     );
 
@@ -350,7 +357,7 @@ T()->test('forgot for unknown email same 200 shape (no existence leak)', functio
     T()->eq(['ok' => true], $r['body'], 'unknown forgot body identical');
 });
 
-T()->test('forgot rate limit 429 (5 per email, forgot: bucket)', function () {
+T()->test('forgot rate limit 429 (5 per email, forgot_email scope)', function () {
     db_reset();
     seed_user(['email' => 'throttle@test.com']);
     $statuses = [];
@@ -364,7 +371,7 @@ T()->test('forgot rate limit 429 (5 per email, forgot: bucket)', function () {
     T()->eq('RATE_LIMITED', $r['body']['code'] ?? null, 'forgot throttle code');
 });
 
-T()->test('google rate limit 429 (30 per minute, google bucket)', function () {
+T()->test('google rate limit 429 (30 per minute, google scope)', function () {
     db_reset();
     $statuses = [];
     for ($i = 0; $i < 31; $i++) {

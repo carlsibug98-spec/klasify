@@ -378,6 +378,7 @@ strip until the first successful pull.
 | 9 | Department + broadcast on events; `office_statuses` cache |
 | 10 | One local row per `server_id`; legacy duplicates are unmapped, then unique indexes are created |
 | 11 | `class_status.class_id` foreign key (cascade); orphaned marks are removed by rebuilding the table |
+| 12 | `office_statuses` gets its own `id` + `server_id`: a rename updates in place and a tombstone can name the row |
 
 Two teaching points:
 
@@ -1092,7 +1093,7 @@ SyncService.syncNow()
   │    ├─ read lastPushAt from SharedPreferences
   │    ├─ getChangedClasses/Events/Statuses(lastPushAt)
   │    ├─ POST /sync/push  { device_id, last_push_at, rows[] }
-  │    ├─ server upserts by (user_id, local_id) or server_id
+  │    ├─ server resolves by owned server_id, else this device's id map
   │    ├─ response maps local_id → server_id
   │    ├─ client stores mappings
   │    └─ store server_time as new lastPushAt
@@ -1196,7 +1197,7 @@ manager. This is deliberate for XAMPP deployment.
   after a password change because its own token is revoked too.
 - **Rate limits:** register 10/hour/IP; login 10/minute/email and 30/minute/IP;
   forgot-password 5/hour/email and 20/hour/IP; reset-password 10/hour/email and
-  30/hour/IP; Google 30/minute. Exceeding any bucket returns 429.
+  30/hour/IP; Google 30/minute. Exceeding any limit returns 429.
 - **Password reset:** always returns 200 to avoid account enumeration; 6-digit
   code hashed with bcrypt, 15-minute expiry. Plaintext codes reach
   `storage/logs/app.log` only when `KLASIFY_DEBUG_RESET_CODES=1` (local dev);
@@ -1210,16 +1211,19 @@ For each table, the server:
 
 1. Validates every row and **skips** bad rows with a log line (partial success).
 2. Resolves the caller's role/department for event broadcast rules.
-3. Matches an existing row by `server_id` first, then by `(user_id, local_id)`.
-4. Updates or inserts.
-5. Returns `{local_id, server_id, updated_at}` for every accepted row.
-6. Stores `last_push_at` in `sync_cursors` per `(user_id, device_id)`.
+3. Registers the caller's `device_id` (a device belongs to exactly one account).
+4. Matches an existing row by owned `server_id` first, then through that
+   device's id map, then inserts.
+5. Updates or inserts.
+6. Returns `{local_id, server_id, updated_at}` for every accepted row.
+7. Stores the push/pull cursors in `sync_cursors` per `device_id`.
 
 Classes are private to the user. Events can be personal or broadcast; a broadcast
 row is stored with `user_id = NULL` and a department scope, and only an admin
-whose scope covers it may edit it. Class statuses resolve their `local_class_id`
-to a server class id; rows whose class is not yet on the server are skipped and
-retried next cycle.
+whose scope covers it may edit it. A status names its class by
+`server_class_id`, falling back to `local_class_id` through the same device's
+class map for a class created offline in that push; a status whose class
+resolves to neither is skipped.
 
 ### 9.4 Sync pull
 
@@ -1231,10 +1235,10 @@ retried next cycle.
 - Returns events where `user_id = caller` **or** broadcast (`user_id IS NULL`)
   matching the caller's department.
 - Returns class statuses for the user.
-- Returns office statuses where `department IS NULL` or matches the caller's
-  department.
+- Returns office statuses where `department_id IS NULL` or matches the caller's
+  department, in full on every pull (renames and tombstones included).
 - Includes `deleted` rows so clients can apply tombstones.
-- Stores `last_pull_at`.
+- Stores the pull cursor per `device_id`.
 - Returns `server_time`, which the client stores as its next cursor.
 
 ### 9.5 Admin
@@ -1243,25 +1247,31 @@ retried next cycle.
 - Role/department changes and office add/rename/retire require `super_admin`.
 - A department admin sees only users in their department (or themselves).
 - Office list excludes deleted and department-scoped rows.
-- Rename preserves availability and note by tombstoning the old key and inserting
-  the new one.
+- Rename updates the office row in place, so its `id`, availability, and note
+  all survive; the app's keyed cache follows the new name instead of losing it.
 - Self-demotion is blocked.
 
 ### 9.6 MySQL schema
 
 | Table | Role |
 |---|---|
-| `users` | Account, bcrypt hash, Google sub, role, department, token_version, soft delete |
-| `classes` | Per-user weekly rows, `local_id` mapping, soft delete |
-| `events` | Per-user or broadcast rows, department scope, soft delete |
-| `class_statuses` | Date ranges linked to server class ids |
-| `office_statuses` | School/department office availability |
-| `password_resets` | Hashed 6-digit codes, expiry, used timestamp |
-| `sync_cursors` | Per-user/per-device push and pull cursors |
-| `rate_limit_hits` | DB-backed rate limiting (PHP has no process memory) |
+| `departments` | One row per department name; `users`, `events`, and offices store its id |
+| `users` | Account, bcrypt hash, Google sub, role, `department_id`, token_version, soft delete |
+| `classes` | Per-user weekly rows, soft delete |
+| `class_local_map` | This device's local class id → server class (`(device_id, local_id)` PK) |
+| `event_local_map` | This device's local event id → server event |
+| `status_local_map` | This device's local status id → server status |
+| `sync_devices` | Which account owns a `device_id` |
+| `events` | Per-user or broadcast rows, `department_id` scope, `broadcast` generated, soft delete |
+| `class_statuses` | Date ranges linked to server class ids (owner derived through the class) |
+| `office_statuses` | School-wide or department office availability, unique on the generated `scope_key` |
+| `password_resets` | One live hashed 6-digit code per account, `created_at` + `ttl_seconds` |
+| `sync_cursors` | Push and pull cursors per `device_id` |
+| `rate_limit_hits` | DB-backed rate limiting keyed by `(scope, subject)` |
 
 All timestamps are UTC `DATETIME(3)`. All syncable tables carry `updated_at`
-and `deleted`.
+and `deleted`. Device-local ids live only in the map tables; no entity table
+stores another device's numbering.
 
 ### 9.7 Deployment (XAMPP)
 

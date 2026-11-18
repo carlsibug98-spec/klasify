@@ -4,10 +4,25 @@
 // local id; the response maps local ids to server ids. Pull returns rows
 // changed since a timestamp, including soft-deleted rows so clients can
 // remove them locally. The server always wins conflicts.
+//
+// Identity model: a device id belongs to exactly one account and is stored in
+// sync_devices. The phone's local SQLite id names a row only on that device,
+// so it lives in the typed *_local_map relations, never on the entity. A
+// status has no owner of its own: classes.user_id is the owner, reached
+// through class_id.
 
 const CLASS_STATUS_VALUES = ['finished', 'not_attending', 'cancelled'];
 const EVENT_CATEGORY_VALUES = ['personal', 'school'];
 const EVENT_LEAD_OPTIONS = [5.0, 10.0, 15.0, 30.0]; // floats: js_number() returns floats
+const DEVICE_ID_PATTERN = '/^[A-Za-z0-9._:-]{1,64}\z/';
+
+/// Tables and entity columns the local-id writers accept. Kept as a literal
+/// map so a table name can never come from request data.
+const LOCAL_MAP_TABLES = [
+    'classes' => ['table' => 'class_local_map', 'column' => 'class_id'],
+    'events' => ['table' => 'event_local_map', 'column' => 'event_id'],
+    'class_statuses' => ['table' => 'status_local_map', 'column' => 'class_status_id'],
+];
 
 function trimmed_string(mixed $v): string
 {
@@ -34,6 +49,76 @@ function push_server_id(array $row): ?int
     }
     $n = js_number($row['server_id']);
     return (is_finite($n) && $n > 0) ? (int)$n : null;
+}
+
+/// Positive local id, or null when the client did not send a usable one.
+function local_id_value(mixed $value): ?int
+{
+    $n = js_number($value);
+    return (is_finite($n) && $n > 0 && floor($n) === $n) ? (int)$n : null;
+}
+
+/// A required, validated device id. Missing or malformed is 422.
+function require_device_id(mixed $raw): string
+{
+    $id = is_string($raw) ? trim($raw) : '';
+    if ($id === '' || preg_match(DEVICE_ID_PATTERN, $id) !== 1) {
+        throw new ApiError(422, 'A valid device_id is required', 'DEVICE_REQUIRED');
+    }
+    return $id;
+}
+
+/// Records that this account owns the device, or refuses to steal it from
+/// another account. Safe to call on every push and pull.
+function register_device(int $userId, string $deviceId): void
+{
+    $row = fetch_one('SELECT user_id FROM sync_devices WHERE device_id = ? FOR UPDATE', [$deviceId]);
+    if ($row !== null) {
+        if ((int)$row['user_id'] !== $userId) {
+            throw new ApiError(409, 'This device is linked to another account', 'DEVICE_CONFLICT');
+        }
+        query('UPDATE sync_devices SET last_seen_at = ? WHERE device_id = ?', [now_mysql(), $deviceId]);
+        return;
+    }
+
+    try {
+        query('INSERT INTO sync_devices (device_id, user_id) VALUES (?, ?)', [$deviceId, $userId]);
+    } catch (PDOException $e) {
+        // Two first requests on the same device raced. The winner owns it; a
+        // different account still gets the conflict, never a silent claim.
+        if ((int)($e->errorInfo[1] ?? 0) !== 1062) {
+            throw $e;
+        }
+        $row = fetch_one('SELECT user_id FROM sync_devices WHERE device_id = ? LIMIT 1', [$deviceId]);
+        if ($row === null || (int)$row['user_id'] !== $userId) {
+            throw new ApiError(409, 'This device is linked to another account', 'DEVICE_CONFLICT');
+        }
+    }
+}
+
+/// Writes the one local id a device uses for one server row. A stale mapping
+/// in either direction is removed first: the entity row always wins.
+function map_local_row(string $entity, string $deviceId, ?int $localId, int $entityId): void
+{
+    if ($localId === null) {
+        return;
+    }
+    $map = LOCAL_MAP_TABLES[$entity] ?? null;
+    if ($map === null) {
+        return; // programmer error; never reachable from request data
+    }
+    $table = $map['table'];
+    $column = $map['column'];
+
+    query(
+        "DELETE FROM {$table} WHERE device_id = ? AND ((local_id = ? AND {$column} <> ?) OR ({$column} = ? AND local_id <> ?))",
+        [$deviceId, $localId, $entityId, $entityId, $localId]
+    );
+    query(
+        "INSERT INTO {$table} (device_id, local_id, {$column}) VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE {$column} = VALUES({$column})",
+        [$deviceId, $localId, $entityId]
+    );
 }
 
 // ---------------------------------------------------------------------
@@ -122,17 +207,24 @@ function sync_push(): void
 {
     $userId = require_auth();
     $body = read_json_body();
+    $deviceId = require_device_id($body['device_id'] ?? null);
     $nowIso = now_iso();
     $nowDt = now_mysql();
 
     // The caller's role and department decide which broadcasts are allowed.
     // require_auth() already rejected deleted/missing users; failing closed
     // here too means a future auth change cannot silently grant `user` scope.
-    $caller = fetch_one('SELECT role, department FROM users WHERE id = ? AND deleted = 0 LIMIT 1', [$userId]);
+    $caller = fetch_one(
+        'SELECT u.role, u.department_id, d.name AS department
+           FROM users u LEFT JOIN departments d ON d.id = u.department_id
+          WHERE u.id = ? AND u.deleted = 0 LIMIT 1',
+        [$userId]
+    );
     if ($caller === null) {
         throw new ApiError(401, 'User not found', 'UNAUTHORIZED');
     }
     $callerIsAdmin = in_array($caller['role'], ['admin', 'super_admin'], true);
+    $callerDeptId = nullable_int($caller['department_id']);
 
     $result = [
         'server_time' => $nowIso,
@@ -141,215 +233,260 @@ function sync_push(): void
         'class_statuses' => [],
     ];
 
-    // --- Classes --------------------------------------------------------
-    foreach (list_field($body, 'classes') as $row) {
-        if (!is_array($row)) {
-            continue;
-        }
-        $localId = $row['local_id'] ?? null;
-        if (($reason = invalid_class_row($row)) !== null) {
-            app_log("sync/push: skipped class row for user {$userId}: {$reason}");
-            continue;
-        }
+    db()->beginTransaction();
+    try {
+        register_device($userId, $deviceId);
 
-        $existing = null;
-        $pushServerId = push_server_id($row);
-        if ($pushServerId !== null) {
-            $existing = fetch_one('SELECT id FROM classes WHERE user_id = ? AND id = ? LIMIT 1', [$userId, $pushServerId]);
-        }
-        if ($existing === null) {
-            $existing = fetch_one('SELECT id FROM classes WHERE user_id = ? AND local_id = ? LIMIT 1', [$userId, $localId]);
-        }
+        // --- Classes ----------------------------------------------------
+        foreach (list_field($body, 'classes') as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $localId = local_id_value($row['local_id'] ?? null);
+            if (($reason = invalid_class_row($row)) !== null) {
+                app_log("sync/push: skipped class row for user {$userId}: {$reason}");
+                continue;
+            }
 
-        $subject = js_string($row['subject'] ?? null);
-        $room = js_string($row['room'] ?? null);
-        $professor = js_string($row['professor'] ?? null);
-        $day = (int)js_number($row['day'] ?? 1);
-        $startMin = (int)js_number($row['start_minutes'] ?? 0);
-        $endMin = (int)js_number($row['end_minutes'] ?? 0);
-        $deleted = js_truthy($row['deleted'] ?? null) ? 1 : 0;
-        $clientIso = $row['updated_at'] ?? $nowIso;
-        $updatedAt = to_mysql_ts($row['updated_at'] ?? null) ?? $nowDt;
+            $existing = null;
+            $pushServerId = push_server_id($row);
+            if ($pushServerId !== null) {
+                $existing = fetch_one(
+                    'SELECT id FROM classes WHERE user_id = ? AND id = ? LIMIT 1',
+                    [$userId, $pushServerId]
+                );
+            }
+            if ($existing === null && $localId !== null) {
+                $existing = fetch_one(
+                    'SELECT c.id FROM class_local_map m JOIN classes c ON c.id = m.class_id
+                      WHERE m.device_id = ? AND m.local_id = ? AND c.user_id = ? LIMIT 1',
+                    [$deviceId, $localId, $userId]
+                );
+            }
 
-        if ($existing !== null) {
-            $serverId = (int)$existing['id'];
-            query(
-                'UPDATE classes SET subject=?, room=?, professor=?, day=?, start_minutes=?, end_minutes=?, deleted=?, updated_at=? WHERE id=?',
-                [$subject, $room, $professor, $day, $startMin, $endMin, $deleted, $updatedAt, $serverId]
-            );
-        } else {
-            query(
-                'INSERT INTO classes (user_id, local_id, subject, room, professor, day, start_minutes, end_minutes, deleted, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
-                [$userId, $localId, $subject, $room, $professor, $day, $startMin, $endMin, $deleted, $updatedAt]
-            );
-            $serverId = (int)db()->lastInsertId();
-        }
-        $result['classes'][] = ['local_id' => $localId, 'server_id' => $serverId, 'updated_at' => $clientIso];
-    }
+            $subject = js_string($row['subject'] ?? null);
+            $room = js_string($row['room'] ?? null);
+            $professor = js_string($row['professor'] ?? null);
+            $day = (int)js_number($row['day'] ?? 1);
+            $startMin = (int)js_number($row['start_minutes'] ?? 0);
+            $endMin = (int)js_number($row['end_minutes'] ?? 0);
+            $deleted = js_truthy($row['deleted'] ?? null) ? 1 : 0;
+            $clientIso = $row['updated_at'] ?? $nowIso;
+            $updatedAt = to_mysql_ts($row['updated_at'] ?? null) ?? $nowDt;
 
-    // --- Events ---------------------------------------------------------
-    foreach (list_field($body, 'events') as $row) {
-        if (!is_array($row)) {
-            continue;
-        }
-        $localId = $row['local_id'] ?? null;
-        if (($reason = invalid_event_row($row)) !== null) {
-            app_log("sync/push: skipped event row for user {$userId}: {$reason}");
-            continue;
-        }
-
-        $title = js_string($row['title'] ?? null);
-        $venue = js_string($row['venue'] ?? null);
-        $eventDate = js_string($row['event_date'] ?? substr($nowIso, 0, 10));
-        $startMin = (int)js_number($row['start_minutes'] ?? 0);
-        $category = js_string($row['category'] ?? 'personal');
-        $reminder = js_truthy($row['reminder_enabled'] ?? null) ? 1 : 0;
-        $leadMin = (int)js_number($row['lead_minutes'] ?? 30);
-        $deleted = js_truthy($row['deleted'] ?? null) ? 1 : 0;
-        $clientIso = $row['updated_at'] ?? $nowIso;
-        $updatedAt = to_mysql_ts($row['updated_at'] ?? null) ?? $nowDt;
-
-        // Broadcasts: a department admin always posts to their own department;
-        // a super admin may pick one or post school-wide.
-        $wantsBroadcast = js_truthy($row['broadcast'] ?? null);
-        $callerHasDepartment = $caller['department'] !== null && $caller['department'] !== '';
-        $isBroadcast = $wantsBroadcast && $callerIsAdmin
-            && ($caller['role'] === 'super_admin' || $callerHasDepartment);
-        $broadcast = $isBroadcast ? 1 : 0;
-
-        $department = null;
-        if ($isBroadcast) {
-            $department = $caller['role'] === 'super_admin'
-                ? (js_truthy($row['department'] ?? null) ? nonempty_or_null(trim(js_string($row['department']))) : null)
-                : nonempty_or_null(js_string($caller['department']));
-        }
-        $storeUserId = $isBroadcast ? null : $userId;
-
-        $existing = null;
-        $pushServerId = push_server_id($row);
-        if ($pushServerId !== null) {
-            $existing = fetch_one('SELECT id, user_id, department FROM events WHERE id = ? LIMIT 1', [$pushServerId]);
+            if ($existing !== null) {
+                $serverId = (int)$existing['id'];
+                query(
+                    'UPDATE classes SET subject=?, room=?, professor=?, day=?, start_minutes=?, end_minutes=?, deleted=?, updated_at=? WHERE id=?',
+                    [$subject, $room, $professor, $day, $startMin, $endMin, $deleted, $updatedAt, $serverId]
+                );
+            } else {
+                query(
+                    'INSERT INTO classes (user_id, subject, room, professor, day, start_minutes, end_minutes, deleted, updated_at) VALUES (?,?,?,?,?,?,?,?,?)',
+                    [$userId, $subject, $room, $professor, $day, $startMin, $endMin, $deleted, $updatedAt]
+                );
+                $serverId = (int)db()->lastInsertId();
+            }
+            map_local_row('classes', $deviceId, $localId, $serverId);
+            $result['classes'][] = ['local_id' => $localId, 'server_id' => $serverId, 'updated_at' => $clientIso];
         }
 
-        // Someone else's personal event is never editable from this account.
-        if ($existing !== null && $existing['user_id'] !== null && (int)$existing['user_id'] !== $userId) {
-            app_log("sync/push: skipped foreign event id {$pushServerId} for user {$userId}");
-            $result['events'][] = ['local_id' => $localId, 'server_id' => (int)$existing['id'], 'updated_at' => $clientIso];
-            continue;
-        }
+        // --- Events -----------------------------------------------------
+        foreach (list_field($body, 'events') as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $localId = local_id_value($row['local_id'] ?? null);
+            if (($reason = invalid_event_row($row)) !== null) {
+                app_log("sync/push: skipped event row for user {$userId}: {$reason}");
+                continue;
+            }
 
-        // A broadcast row may only be changed by an admin whose scope covers it.
-        if ($existing !== null && $existing['user_id'] === null) {
-            $inScope = $caller['role'] === 'super_admin'
-                || ($callerIsAdmin && $existing['department'] === $caller['department']);
-            if (!$inScope || !$isBroadcast) {
+            $title = js_string($row['title'] ?? null);
+            $venue = js_string($row['venue'] ?? null);
+            $eventDate = js_string($row['event_date'] ?? substr($nowIso, 0, 10));
+            $startMin = (int)js_number($row['start_minutes'] ?? 0);
+            $category = js_string($row['category'] ?? 'personal');
+            $reminder = js_truthy($row['reminder_enabled'] ?? null) ? 1 : 0;
+            $leadMin = (int)js_number($row['lead_minutes'] ?? 30);
+            $deleted = js_truthy($row['deleted'] ?? null) ? 1 : 0;
+            $clientIso = $row['updated_at'] ?? $nowIso;
+            $updatedAt = to_mysql_ts($row['updated_at'] ?? null) ?? $nowDt;
+
+            // Broadcasts: a department admin always posts to their own
+            // department; a super admin may pick one or post school-wide.
+            $wantsBroadcast = js_truthy($row['broadcast'] ?? null);
+            $isBroadcast = $wantsBroadcast && $callerIsAdmin
+                && ($caller['role'] === 'super_admin' || $callerDeptId !== null);
+
+            $departmentId = null;
+            if ($isBroadcast) {
+                $departmentId = $caller['role'] === 'super_admin'
+                    ? department_id_for(trim(js_string($row['department'] ?? null)))
+                    : $callerDeptId;
+            }
+            $storeUserId = $isBroadcast ? null : $userId;
+
+            $existing = null;
+            $pushServerId = push_server_id($row);
+            if ($pushServerId !== null) {
+                $existing = fetch_one(
+                    'SELECT id, user_id, department_id FROM events WHERE id = ? LIMIT 1',
+                    [$pushServerId]
+                );
+            }
+            if ($existing === null && $localId !== null) {
+                $existing = fetch_one(
+                    'SELECT e.id, e.user_id, e.department_id FROM event_local_map m
+                       JOIN events e ON e.id = m.event_id
+                      WHERE m.device_id = ? AND m.local_id = ? LIMIT 1',
+                    [$deviceId, $localId]
+                );
+            }
+
+            // Someone else's personal event is never editable from this account.
+            if ($existing !== null && $existing['user_id'] !== null && (int)$existing['user_id'] !== $userId) {
+                app_log("sync/push: skipped foreign event id {$pushServerId} for user {$userId}");
                 $result['events'][] = ['local_id' => $localId, 'server_id' => (int)$existing['id'], 'updated_at' => $clientIso];
                 continue;
             }
-        }
 
-        if ($existing === null) {
-            $existing = $storeUserId === null
-                ? fetch_one(
-                    'SELECT id FROM events WHERE user_id IS NULL AND local_id = ? AND department <=> ? LIMIT 1',
-                    [$localId, $department]
-                )
-                : fetch_one(
-                    'SELECT id FROM events WHERE user_id = ? AND local_id = ? LIMIT 1',
-                    [$storeUserId, $localId]
-                );
-        }
-
-        if ($existing !== null) {
-            $serverId = (int)$existing['id'];
-            // A personal event shared to the school or a department becomes a broadcast row.
-            query(
-                'UPDATE events SET user_id=?, title=?, venue=?, event_date=?, start_minutes=?, category=?, department=?, broadcast=?, reminder_enabled=?, lead_minutes=?, deleted=?, updated_at=? WHERE id=?',
-                [$storeUserId, $title, $venue, $eventDate, $startMin, $category, $department, $broadcast, $reminder, $leadMin, $deleted, $updatedAt, $serverId]
-            );
-        } else {
-            query(
-                'INSERT INTO events (user_id, local_id, title, venue, event_date, start_minutes, category, department, broadcast, reminder_enabled, lead_minutes, deleted, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                [$storeUserId, $localId, $title, $venue, $eventDate, $startMin, $category, $department, $broadcast, $reminder, $leadMin, $deleted, $updatedAt]
-            );
-            $serverId = (int)db()->lastInsertId();
-        }
-        $result['events'][] = ['local_id' => $localId, 'server_id' => $serverId, 'updated_at' => $clientIso];
-    }
-
-    // --- Class statuses -------------------------------------------------
-    foreach (list_field($body, 'class_statuses') as $row) {
-        if (!is_array($row)) {
-            continue;
-        }
-        $localId = $row['local_id'] ?? null;
-        if (($reason = invalid_status_row($row)) !== null) {
-            app_log("sync/push: skipped status row for user {$userId}: {$reason}");
-            continue;
-        }
-
-        $localClassId = $row['local_class_id'] ?? null;
-        $status = js_string($row['status'] ?? 'finished');
-        $startDate = js_string($row['start_date'] ?? substr($nowIso, 0, 10));
-        $endDate = $row['end_date'] ?? null;
-        $deleted = js_truthy($row['deleted'] ?? null) ? 1 : 0;
-        $clientIso = $row['updated_at'] ?? $nowIso;
-        $updatedAt = to_mysql_ts($row['updated_at'] ?? null) ?? $nowDt;
-
-        // The status must point at a class the server already has. Skip it
-        // otherwise; the client re-pushes it on a later sync.
-        $classId = null;
-        if ($localClassId !== null) {
-            $classRow = fetch_one('SELECT id FROM classes WHERE user_id = ? AND local_id = ? LIMIT 1', [$userId, $localClassId]);
-            if ($classRow !== null) {
-                $classId = (int)$classRow['id'];
+            // A broadcast row may only be changed by an admin whose scope covers it.
+            if ($existing !== null && $existing['user_id'] === null) {
+                $existingDept = nullable_int($existing['department_id']);
+                $inScope = $caller['role'] === 'super_admin'
+                    || ($callerIsAdmin && $existingDept === $callerDeptId);
+                if (!$inScope || !$isBroadcast) {
+                    $result['events'][] = ['local_id' => $localId, 'server_id' => (int)$existing['id'], 'updated_at' => $clientIso];
+                    continue;
+                }
             }
-        }
-        if ($classId === null) {
-            continue;
+
+            if ($existing !== null) {
+                $serverId = (int)$existing['id'];
+                // A personal event shared to the school or a department becomes a broadcast row.
+                query(
+                    'UPDATE events SET user_id=?, title=?, venue=?, event_date=?, start_minutes=?, category=?, department_id=?, reminder_enabled=?, lead_minutes=?, deleted=?, updated_at=? WHERE id=?',
+                    [$storeUserId, $title, $venue, $eventDate, $startMin, $category, $departmentId, $reminder, $leadMin, $deleted, $updatedAt, $serverId]
+                );
+            } else {
+                query(
+                    'INSERT INTO events (user_id, title, venue, event_date, start_minutes, category, department_id, reminder_enabled, lead_minutes, deleted, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+                    [$storeUserId, $title, $venue, $eventDate, $startMin, $category, $departmentId, $reminder, $leadMin, $deleted, $updatedAt]
+                );
+                $serverId = (int)db()->lastInsertId();
+            }
+            map_local_row('events', $deviceId, $localId, $serverId);
+            $result['events'][] = ['local_id' => $localId, 'server_id' => $serverId, 'updated_at' => $clientIso];
         }
 
-        $existing = null;
-        $pushServerId = push_server_id($row);
-        if ($pushServerId !== null) {
-            $existing = fetch_one('SELECT id FROM class_statuses WHERE user_id = ? AND id = ? LIMIT 1', [$userId, $pushServerId]);
-        }
-        if ($existing === null) {
-            $existing = fetch_one('SELECT id FROM class_statuses WHERE user_id = ? AND local_id = ? LIMIT 1', [$userId, $localId]);
+        // --- Class statuses ---------------------------------------------
+        foreach (list_field($body, 'class_statuses') as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $localId = local_id_value($row['local_id'] ?? null);
+            if (($reason = invalid_status_row($row)) !== null) {
+                app_log("sync/push: skipped status row for user {$userId}: {$reason}");
+                continue;
+            }
+
+            // A class that reached this device by pull has a server id. Only a
+            // class created offline in this push needs the map fallback.
+            $classId = null;
+            $serverClassId = push_server_id(['server_id' => $row['server_class_id'] ?? null]);
+            if ($serverClassId !== null) {
+                $classRow = fetch_one(
+                    'SELECT id FROM classes WHERE user_id = ? AND id = ? LIMIT 1',
+                    [$userId, $serverClassId]
+                );
+                if ($classRow !== null) {
+                    $classId = (int)$classRow['id'];
+                }
+            }
+            if ($classId === null) {
+                $localClassId = local_id_value($row['local_class_id'] ?? null);
+                if ($localClassId !== null) {
+                    $classRow = fetch_one(
+                        'SELECT c.id FROM class_local_map m JOIN classes c ON c.id = m.class_id
+                          WHERE m.device_id = ? AND m.local_id = ? AND c.user_id = ? LIMIT 1',
+                        [$deviceId, $localClassId, $userId]
+                    );
+                    if ($classRow !== null) {
+                        $classId = (int)$classRow['id'];
+                    }
+                }
+            }
+            if ($classId === null) {
+                continue;
+            }
+
+            $status = js_string($row['status'] ?? 'finished');
+            $startDate = js_string($row['start_date'] ?? substr($nowIso, 0, 10));
+            $endDate = $row['end_date'] ?? null;
+            $deleted = js_truthy($row['deleted'] ?? null) ? 1 : 0;
+            $clientIso = $row['updated_at'] ?? $nowIso;
+            $updatedAt = to_mysql_ts($row['updated_at'] ?? null) ?? $nowDt;
+
+            $existing = null;
+            $pushServerId = push_server_id($row);
+            if ($pushServerId !== null) {
+                $existing = fetch_one(
+                    'SELECT s.id FROM class_statuses s JOIN classes c ON c.id = s.class_id
+                      WHERE c.user_id = ? AND s.id = ? LIMIT 1',
+                    [$userId, $pushServerId]
+                );
+            }
+            if ($existing === null && $localId !== null) {
+                $existing = fetch_one(
+                    'SELECT s.id FROM status_local_map m
+                       JOIN class_statuses s ON s.id = m.class_status_id
+                       JOIN classes c ON c.id = s.class_id
+                      WHERE m.device_id = ? AND m.local_id = ? AND c.user_id = ? LIMIT 1',
+                    [$deviceId, $localId, $userId]
+                );
+            }
+
+            if ($existing !== null) {
+                $serverId = (int)$existing['id'];
+                query(
+                    'UPDATE class_statuses SET class_id=?, status=?, start_date=?, end_date=?, deleted=?, updated_at=? WHERE id=?',
+                    [$classId, $status, $startDate, $endDate, $deleted, $updatedAt, $serverId]
+                );
+            } else {
+                query(
+                    'INSERT INTO class_statuses (class_id, status, start_date, end_date, deleted, updated_at) VALUES (?,?,?,?,?,?)',
+                    [$classId, $status, $startDate, $endDate, $deleted, $updatedAt]
+                );
+                $serverId = (int)db()->lastInsertId();
+            }
+            map_local_row('class_statuses', $deviceId, $localId, $serverId);
+            $result['class_statuses'][] = ['local_id' => $localId, 'server_id' => $serverId, 'updated_at' => $clientIso];
         }
 
-        if ($existing !== null) {
-            $serverId = (int)$existing['id'];
-            query(
-                'UPDATE class_statuses SET class_id=?, status=?, start_date=?, end_date=?, deleted=?, updated_at=? WHERE id=?',
-                [$classId, $status, $startDate, $endDate, $deleted, $updatedAt, $serverId]
-            );
-        } else {
-            query(
-                'INSERT INTO class_statuses (user_id, local_id, class_id, local_class_id, status, start_date, end_date, deleted, updated_at) VALUES (?,?,?,?,?,?,?,?,?)',
-                [$userId, $localId, $classId, $localClassId, $status, $startDate, $endDate, $deleted, $updatedAt]
-            );
-            $serverId = (int)db()->lastInsertId();
-        }
-        $result['class_statuses'][] = ['local_id' => $localId, 'server_id' => $serverId, 'updated_at' => $clientIso];
+        query(
+            'INSERT INTO sync_cursors (device_id, last_push_at) VALUES (?, ?)
+             ON DUPLICATE KEY UPDATE last_push_at = VALUES(last_push_at), updated_at = CURRENT_TIMESTAMP(3)',
+            [$deviceId, $nowDt]
+        );
+
+        db()->commit();
+    } catch (Throwable $e) {
+        db()->rollBack();
+        throw $e;
     }
-
-    query(
-        'INSERT INTO sync_cursors (user_id, device_id, last_push_at) VALUES (?, ?, ?)
-         ON DUPLICATE KEY UPDATE last_push_at = VALUES(last_push_at), updated_at = CURRENT_TIMESTAMP(3)',
-        [$userId, js_string($body['device_id'] ?? 'unknown'), $nowDt]
-    );
 
     send_json(200, $result);
 }
 
 // ---------------------------------------------------------------------
-// GET /sync/pull?since=<iso>
+// GET /sync/pull?since=<iso>&device_id=<id>
 // ---------------------------------------------------------------------
 
 function sync_pull(): void
 {
     $userId = require_auth();
+    $deviceId = require_device_id($_GET['device_id'] ?? null);
 
     $since = js_text($_GET['since'] ?? null);
     if ($since === '') {
@@ -358,31 +495,56 @@ function sync_pull(): void
     $sinceDt = to_mysql_ts($since) ?? '1970-01-01 00:00:00.000';
     $nowDt = now_mysql();
 
-    $callerRow = fetch_one('SELECT department FROM users WHERE id = ? AND deleted = 0 LIMIT 1', [$userId]);
-    $callerDept = $callerRow !== null ? nonempty_or_null(js_string($callerRow['department'])) : null;
+    $callerRow = fetch_one(
+        'SELECT u.department_id, d.name AS department
+           FROM users u LEFT JOIN departments d ON d.id = u.department_id
+          WHERE u.id = ? AND u.deleted = 0 LIMIT 1',
+        [$userId]
+    );
+    $callerDeptId = $callerRow !== null ? nullable_int($callerRow['department_id']) : null;
+
+    register_device($userId, $deviceId);
+    query(
+        'INSERT INTO sync_cursors (device_id, last_pull_at) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE last_pull_at = VALUES(last_pull_at), updated_at = CURRENT_TIMESTAMP(3)',
+        [$deviceId, $nowDt]
+    );
 
     // `since` is inclusive: re-seeing a row is harmless because client upserts are idempotent.
     $classes = fetch_all(
-        'SELECT id, local_id, subject, room, professor, day, start_minutes, end_minutes, deleted, updated_at FROM classes WHERE user_id = ? AND updated_at >= ?',
-        [$userId, $sinceDt]
+        'SELECT c.id, m.local_id, c.subject, c.room, c.professor, c.day, c.start_minutes, c.end_minutes, c.deleted, c.updated_at
+           FROM classes c
+           LEFT JOIN class_local_map m ON m.class_id = c.id AND m.device_id = ?
+          WHERE c.user_id = ? AND c.updated_at >= ?',
+        [$deviceId, $userId, $sinceDt]
     );
     $events = fetch_all(
-        'SELECT id, local_id, title, venue, event_date, start_minutes, category, department, broadcast, reminder_enabled, lead_minutes, deleted, updated_at FROM events WHERE (user_id = ? OR (user_id IS NULL AND (department IS NULL OR department = ?))) AND updated_at >= ?',
-        [$userId, $callerDept, $sinceDt]
+        'SELECT e.id, m.local_id, e.title, e.venue, e.event_date, e.start_minutes, e.category,
+                d.name AS department, e.broadcast, e.reminder_enabled, e.lead_minutes, e.deleted, e.updated_at
+           FROM events e
+           LEFT JOIN event_local_map m ON m.event_id = e.id AND m.device_id = ?
+           LEFT JOIN departments d ON d.id = e.department_id
+          WHERE (e.user_id = ? OR (e.user_id IS NULL AND (e.department_id IS NULL OR e.department_id <=> ?)))
+            AND e.updated_at >= ?',
+        [$deviceId, $userId, $callerDeptId, $sinceDt]
     );
     $statuses = fetch_all(
-        'SELECT id, local_id, class_id, local_class_id, status, start_date, end_date, deleted, updated_at FROM class_statuses WHERE user_id = ? AND updated_at >= ?',
-        [$userId, $sinceDt]
+        'SELECT s.id, m.local_id, s.class_id, s.status, s.start_date, s.end_date, s.deleted, s.updated_at
+           FROM class_statuses s
+           JOIN classes c ON c.id = s.class_id
+           LEFT JOIN status_local_map m ON m.class_status_id = s.id AND m.device_id = ?
+          WHERE c.user_id = ? AND s.updated_at >= ?',
+        [$deviceId, $userId, $sinceDt]
     );
+    // Offices are a handful of cache rows: return the full in-scope set on
+    // every pull so a rename, retirement, or one-time v11 adoption reaches a
+    // phone whose cache predates this schema.
     $offices = fetch_all(
-        'SELECT id, office_name, department, status, custom_message, updated_at, deleted FROM office_statuses WHERE (department IS NULL OR department = ?) AND updated_at >= ?',
-        [$callerDept, $sinceDt]
-    );
-
-    query(
-        'INSERT INTO sync_cursors (user_id, device_id, last_pull_at) VALUES (?, ?, ?)
-         ON DUPLICATE KEY UPDATE last_pull_at = VALUES(last_pull_at), updated_at = CURRENT_TIMESTAMP(3)',
-        [$userId, js_string($_GET['device_id'] ?? 'unknown'), $nowDt]
+        'SELECT o.id, o.office_name, d.name AS department, o.status, o.custom_message, o.updated_at, o.deleted
+           FROM office_statuses o
+           LEFT JOIN departments d ON d.id = o.department_id
+          WHERE (o.department_id IS NULL OR o.department_id <=> ?)',
+        [$callerDeptId]
     );
 
     send_json(200, [
@@ -418,7 +580,6 @@ function sync_pull(): void
             'id' => (int)$r['id'],
             'local_id' => nullable_int($r['local_id']),
             'class_id' => nullable_int($r['class_id']),
-            'local_class_id' => nullable_int($r['local_class_id']),
             'status' => $r['status'],
             'start_date' => $r['start_date'],
             'end_date' => $r['end_date'],

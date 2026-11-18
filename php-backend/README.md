@@ -64,6 +64,21 @@ Existing databases need the revocable-session migration:
 mysql -u root klasify_sync < docs/migrations/2026-11-14_token_version.sql
 ```
 
+They also need the 2026-11-18 normalization migration. It rebuilds tables and
+drops columns, so take a backup and put the API in maintenance first:
+
+```
+mysqldump -u root --databases klasify_sync > klasify_sync_backup.sql
+mysql -u root klasify_sync < migrations/2026-11-18-normalize.sql
+```
+
+That migration moves departments into their own table, makes the office key
+total (`(office_name, department_id)` including school-wide rows), keys sync
+state by device, drops the per-row local ids that the old schema could not
+attribute to a device, and keeps one live password-reset code per account.
+Phones re-map their local ids on the next push; no client data is dropped.
+A fresh install from `docs/mysql_schema.sql` needs none of this.
+
 Keep MySQL bound to `127.0.0.1` in `my.ini`; the API reaches it over loopback
 and the database must not be LAN-visible.
 
@@ -90,7 +105,8 @@ Notes:
 Reset codes are delivered by SMTP. Configure at least `smtp_host`, `smtp_user`,
 `smtp_pass`, and `mail_from` in `config.php` or through the matching
 `KLASIFY_*` environment variables. The code arrives by email, expires after 15
-minutes, and can be used once.
+minutes, and can be used once. Requesting another code replaces the previous
+one, so only the newest email works.
 
 Gmail example (requires 2-Step Verification and an App Password):
 
@@ -128,6 +144,7 @@ src/auth.php     /auth/* routes
 src/mail.php     SMTP / mail() delivery for password-reset codes
 src/sync.php     /sync/push and /sync/pull
 src/admin.php    /admin/* routes (user roles, departments, office statuses)
+src/departments.php  Department name <-> id resolution (one spelling per name)
 src/google_jwks.php  Local RS256 verification of Google ID tokens (JWKS, 24h cache)
 storage/logs/    app.log (mail failures; reset codes only with the dev flag)
 storage/cache/   google_jwks.json (auto-created, gitignored)
@@ -139,7 +156,15 @@ storage/cache/   google_jwks.json (auto-created, gitignored)
   bcrypt hashes that PHP verifies directly. If `KLASIFY_JWT_SECRET` stays the
   same, existing sign-in tokens stay valid too.
 - **Rate limits are stored in the database** (`rate_limit_hits`, created
-  automatically on first use), so they hold across PHP requests.
+  automatically on first use), so they hold across PHP requests. Each counter
+  is a `(scope, subject)` pair such as `('login', 'email:ada@example.com')`, so
+  one address or IP can be limited without packing both facts into one string.
+- **Departments are a relation** (`departments`), and `users`, `events`, and
+  `office_statuses` store `department_id`. The API still sends and accepts the
+  name, so clients are unchanged; `IT`/`it`/` IT ` all resolve to one row.
+- **Sync state is per device.** `sync_devices` owns the device, and the three
+  `*_local_map` tables translate that device's local row ids, so two phones can
+  use the same local id and neither can rename the other's row.
 - **Google sign-in** verifies the ID token locally against Google's published
   JWKS (RS256), cached for 24 hours in `storage/cache/google_jwks.json`. Set
   `KLASIFY_GOOGLE_VERIFY=tokeninfo` to fall back to Google's tokeninfo

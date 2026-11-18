@@ -31,7 +31,7 @@ class AppDatabase {
     final path = join(await getDatabasesPath(), databaseName);
     return openDatabase(
       path,
-      version: 11,
+      version: 12,
       onConfigure: (db) async {
         // SQLite ignores foreign keys unless each connection asks for them.
         // This runs before onCreate/onUpgrade, so the v11 rebuild is checked.
@@ -130,6 +130,12 @@ class AppDatabase {
         if (oldVersion < 11) {
           await _migrateClassStatusForeignKey(db);
         }
+        // Version 12: the office cache gets its own row id and the server's
+        // id. A rename is then an update, not a delete plus insert, and a
+        // tombstone can name the row even after the office was renamed.
+        if (oldVersion < 12) {
+          await _migrateOfficeStatusTable(db);
+        }
       },
     );
   }
@@ -173,20 +179,60 @@ class AppDatabase {
     ''');
   }
 
-  /// The last-known office availability cache. School-wide offices only
-  /// (guidance / clinic / registrar), one row each, overwritten by sync.
-  /// Kept separate from events so the Today strip always has a value to
-  /// show offline.
+  /// The last-known office availability cache, keyed by the server's id.
+  ///
+  /// School-wide offices are the ones Today renders; a department-scoped row
+  /// is kept too because the pull returns the caller's department rows. The
+  /// server id is the row's identity: a rename updates the cached row in
+  /// place, and a tombstone can delete it without knowing the new name.
   Future<void> _createOfficeStatusTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS office_statuses (
-        office_name TEXT PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        server_id INTEGER,
+        office_name TEXT NOT NULL,
+        department TEXT,
         status TEXT NOT NULL DEFAULT 'open',
         custom_message TEXT,
         updated_at TEXT NOT NULL,
         CHECK (status IN ('open', 'closed', 'break'))
       )
     ''');
+    await db.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_office_statuses_server_id '
+      'ON office_statuses (server_id) WHERE server_id IS NOT NULL',
+    );
+    // One cached row per office per scope. NULL department means school-wide;
+    // IFNULL lets the index treat it as one scope instead of "no scope".
+    await db.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_office_statuses_name '
+      "ON office_statuses (office_name, IFNULL(department, ''))",
+    );
+  }
+
+  /// Version 12 migration: rebuild the office cache with a local id and the
+  /// server id. Version 11 rows are copied as they are; `server_id` stays
+  /// NULL until the next successful pull adopts or sweeps them.
+  Future<void> _migrateOfficeStatusTable(DatabaseExecutor db) async {
+    final info = await db.rawQuery('PRAGMA table_info(office_statuses)');
+    if (info.isEmpty) {
+      // The cache never existed (a file created before v9 by a test or an
+      // interrupted upgrade): create the current shape.
+      await _createOfficeStatusTable(db);
+      return;
+    }
+    if (info.any((column) => column['name'] == 'id')) {
+      return; // already rebuilt (a v11 file opened by a newer build)
+    }
+    await db.execute('ALTER TABLE office_statuses RENAME TO office_statuses_v11');
+    await _createOfficeStatusTable(db);
+    await db.execute('''
+      INSERT INTO office_statuses
+        (office_name, department, status, custom_message, updated_at)
+      SELECT office_name, NULL, status, custom_message, updated_at
+        FROM office_statuses_v11
+    ''');
+    await db.execute('DROP TABLE office_statuses_v11');
   }
 
   /// Version 7 migration: add sync metadata columns to classes and events.

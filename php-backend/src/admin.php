@@ -8,18 +8,29 @@
 const ADMIN_ROLES = ['user', 'admin', 'super_admin'];
 const OFFICE_STATUSES = ['open', 'closed', 'break'];
 
-/// Authenticates the caller and confirms they are an admin. Returns their id, role and department.
+/// Authenticates the caller and confirms they are an admin. Returns their id,
+/// role, and department (both the id used in queries and its name).
 function admin_caller(): array
 {
     $userId = require_auth();
-    $row = fetch_one('SELECT id, role, department FROM users WHERE id = ? AND deleted = 0 LIMIT 1', [$userId]);
+    $row = fetch_one(
+        'SELECT u.id, u.role, u.department_id, d.name AS department
+           FROM users u LEFT JOIN departments d ON d.id = u.department_id
+          WHERE u.id = ? AND u.deleted = 0 LIMIT 1',
+        [$userId]
+    );
     if ($row === null) {
         throw new ApiError(401, 'User not found', 'UNAUTHORIZED');
     }
     if (!in_array($row['role'], ['admin', 'super_admin'], true)) {
         throw new ApiError(403, 'Admin access required', 'FORBIDDEN');
     }
-    return ['id' => $userId, 'role' => $row['role'], 'department' => $row['department']];
+    return [
+        'id' => $userId,
+        'role' => $row['role'],
+        'department' => $row['department'],
+        'department_id' => nullable_int($row['department_id']),
+    ];
 }
 
 /// admin_caller() + super_admin requirement. Returns the caller array.
@@ -37,19 +48,21 @@ function admin_list_users(): void
 {
     $caller = admin_caller();
 
-    $sql = 'SELECT id, email, display_name, role, department, created_at FROM users WHERE deleted = 0';
+    $sql = 'SELECT u.id, u.email, u.display_name, u.role, d.name AS department, u.created_at
+              FROM users u LEFT JOIN departments d ON d.id = u.department_id
+             WHERE u.deleted = 0';
     $params = [];
     if ($caller['role'] !== 'super_admin') {
-        if (js_truthy($caller['department'])) {
-            $sql .= ' AND (department = ? OR id = ?)';
-            $params = [$caller['department'], $caller['id']];
+        if ($caller['department_id'] !== null) {
+            $sql .= ' AND (u.department_id = ? OR u.id = ?)';
+            $params = [$caller['department_id'], $caller['id']];
         } else {
             // A department admin with no department manages only themselves.
-            $sql .= ' AND id = ?';
+            $sql .= ' AND u.id = ?';
             $params = [$caller['id']];
         }
     }
-    $sql .= ' ORDER BY created_at DESC LIMIT 200';
+    $sql .= ' ORDER BY u.created_at DESC LIMIT 200';
 
     $users = array_map(fn (array $r) => [
         'id' => (int)$r['id'],
@@ -103,9 +116,10 @@ function admin_set_department(string $id): void
     if ($caller['role'] !== 'super_admin') {
         throw new ApiError(403, 'Super admin required', 'FORBIDDEN');
     }
-    $department = nonempty_or_null(trim(js_text($body['department'] ?? null)));
+    $departmentName = nonempty_or_null(trim(js_text($body['department'] ?? null)));
+    $departmentId = department_id_for($departmentName);
 
-    query('UPDATE users SET department = ? WHERE id = ? AND deleted = 0', [$department, $targetId]);
+    query('UPDATE users SET department_id = ? WHERE id = ? AND deleted = 0', [$departmentId, $targetId]);
     send_json(200, ['ok' => true]);
 }
 
@@ -113,7 +127,7 @@ function admin_set_department(string $id): void
 function admin_list_offices(): void
 {
     admin_caller();
-    $select = 'SELECT id, office_name, status, custom_message, user_id, updated_at FROM office_statuses WHERE deleted = 0 AND department IS NULL ORDER BY office_name';
+    $select = 'SELECT id, office_name, status, custom_message, user_id, updated_at FROM office_statuses WHERE deleted = 0 AND department_id IS NULL ORDER BY office_name';
 
     $offices = array_map(fn (array $r) => [
         'id' => (int)$r['id'],
@@ -160,7 +174,7 @@ function office_name_or_422(string $raw): string
 /// Rejects a name already used by an active school-wide office (case-insensitive).
 function office_assert_unique(string $name, ?int $excludeId = null): void
 {
-    $sql = 'SELECT id FROM office_statuses WHERE LOWER(office_name) = LOWER(?) AND department IS NULL AND deleted = 0';
+    $sql = 'SELECT id FROM office_statuses WHERE LOWER(office_name) = LOWER(?) AND department_id IS NULL AND deleted = 0';
     $params = [$name];
     if ($excludeId !== null) {
         $sql .= ' AND id <> ?';
@@ -176,7 +190,7 @@ function office_row_or_404(string $key): array
 {
     $name = trim(rawurldecode($key));
     $row = fetch_one(
-        'SELECT id, office_name, status, custom_message FROM office_statuses WHERE office_name = ? AND department IS NULL AND deleted = 0 LIMIT 1',
+        'SELECT id, office_name, status, custom_message FROM office_statuses WHERE office_name = ? AND department_id IS NULL AND deleted = 0 LIMIT 1',
         [$name]
     );
     if ($row === null) {
@@ -193,7 +207,7 @@ function admin_add_office(): void
     office_assert_unique($name);
 
     query(
-        'INSERT INTO office_statuses (user_id, office_name, department, status) VALUES (?,?,NULL,?)',
+        'INSERT INTO office_statuses (user_id, office_name, department_id, status) VALUES (?,?,NULL,?)',
         [$caller['id'], $name, 'open']
     );
     $row = fetch_one(
@@ -219,15 +233,11 @@ function admin_rename_office(string $office): void
     $newName = office_name_or_422(js_text(read_json_body()['name'] ?? null));
     office_assert_unique($newName, (int)$row['id']);
 
-    // Tombstone the old key and re-create it under the new name so the
-    // availability row keeps its status and note.
+    // The server row is the office's identity: rename it in place so the
+    // phone updates the cache row it already has instead of replacing it.
     query(
-        'UPDATE office_statuses SET deleted = 1, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?',
-        [$row['id']]
-    );
-    query(
-        'INSERT INTO office_statuses (user_id, office_name, department, status, custom_message) VALUES (?,?,NULL,?,?)',
-        [$caller['id'], $newName, $row['status'], $row['custom_message']]
+        'UPDATE office_statuses SET office_name = ?, user_id = ?, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?',
+        [$newName, $caller['id'], $row['id']]
     );
     send_json(200, ['ok' => true]);
 }

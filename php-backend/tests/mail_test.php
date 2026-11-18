@@ -113,7 +113,7 @@ T()->test('smtp delivers the reset code and the code resets the password', funct
         // The database must hold a hash, never the code itself.
         $stored = (string)query(
             'SELECT code_hash FROM password_resets WHERE user_id = '
-            . '(SELECT id FROM users WHERE email = ?) ORDER BY id DESC LIMIT 1',
+            . '(SELECT id FROM users WHERE email = ?) LIMIT 1',
             ['smtp-reset@test.com']
         )->fetchColumn();
         T()->truthy($stored !== '' && !str_contains($stored, $code), 'code stored hashed');
