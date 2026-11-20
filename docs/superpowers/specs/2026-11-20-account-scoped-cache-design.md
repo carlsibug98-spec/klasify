@@ -69,7 +69,7 @@ existing promise that logging out does not delete the schedule.
 
 - Existing installs must keep their data; the anonymous file name
   `class_schedule.db` must stay.
-- The full Flutter suite (570 tests) and `flutter analyze --no-fatal-infos` must
+- The full Flutter suite (609 tests) and `flutter analyze --no-fatal-infos` must
   stay green.
 - TDD: each behavior gets a failing test first.
 - No fabricated data or test-only branches in production paths.

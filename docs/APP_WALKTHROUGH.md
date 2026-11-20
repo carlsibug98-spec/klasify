@@ -85,7 +85,7 @@ Klasify is an Android-first Flutter app for students. Its core jobs:
 - Local database: SQLite via `sqflite`, schema **version 13**, one file per scope
   (`class_schedule.db` locally, `class_schedule_u<id>.db` per account)
 - Backend: PHP 8 + MySQL/MariaDB (XAMPP-compatible), JWT HS256, bcrypt cost 12
-- Tests: 84 Dart test files, 607 tests, all passing (verified Nov 20, 2026);
+- Tests: 84 Dart test files, 609 tests, all passing (verified Nov 20, 2026);
   plus 86 PHP parity tests
 
 ---
@@ -1414,7 +1414,7 @@ late response cannot write another account's server ids or cursors.
 ### 11.1 Flutter tests
 
 - `flutter analyze` must be clean.
-- `flutter test` runs 84 files / 607 tests.
+- `flutter test` runs 84 files / 609 tests.
 - Database tests use `sqflite_common_ffi` with a test-specific database name.
 - Golden tests render screens and compare PNGs with a tolerance.
 - OCR benchmarks shell out to Tesseract in CI because the native PaddleOCR

@@ -41,8 +41,22 @@ void main() {
     expect(await DatabaseHelper.instance.syncDeviceId(), isNot(first));
   });
 
-  test('cursors start null and are read back per file', () async {
-    expect(await DatabaseHelper.instance.lastPushAt(), isNull);
+  test('concurrent callers share one device id', () async {
+    final ids = await Future.wait([
+      DatabaseHelper.instance.syncDeviceId(),
+      DatabaseHelper.instance.syncDeviceId(),
+      DatabaseHelper.instance.syncDeviceId(),
+    ]);
+
+    // No caller may return an id the file did not keep: the server would see
+    // two identities for the same scope.
+    expect(ids.toSet(), hasLength(1));
+    final db = await AppDatabase.instance.database;
+    final rows = await db.query('sync_state');
+    expect(rows.single['device_id'], ids.first);
+  });
+
+  test('cursors start null and are read back per file', () async {    expect(await DatabaseHelper.instance.lastPushAt(), isNull);
     expect(await DatabaseHelper.instance.lastPullAt(), isNull);
 
     await DatabaseHelper.instance.setLastPushAt(DateTime.utc(2026, 1, 2, 3, 4));

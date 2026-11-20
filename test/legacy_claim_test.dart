@@ -103,13 +103,15 @@ void main() {
 
     test('legacy absent, target exists: restores the claimed scope', () async {
       await LocalScopeService.instance.ensureForUser(7);
-      await DatabaseHelper.instance.getAll(); // materialises u7
+      await DatabaseHelper.instance.insert(classOf('Kept'));
       await LocalScopeService.instance.resetForTesting();
       SharedPreferences.setMockInitialValues({'klasify_legacy_claim': '7'});
 
       await LocalScopeService.instance.initialise();
 
       expect(LocalScopeService.instance.current, const LocalScope.account(7));
+      // Recovery is about the data, not just the scope marker.
+      expect((await DatabaseHelper.instance.getAll()).single.subject, 'Kept');
       final prefs = await _prefs();
       expect(prefs.getString(LocalScopeService.lastScopeKey), '7');
       expect(prefs.containsKey(LocalScopeService.legacyClaimKey), isFalse);

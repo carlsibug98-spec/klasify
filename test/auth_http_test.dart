@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -271,4 +272,53 @@ void main() {
       expect(refreshCalls, 1);
     },
   );
+
+  test('a refresh finishing after a new sign-in does not replace it', () async {
+    await signIn(); // id 1, token-1
+    final sawRefresh = Completer<void>();
+    final release = Completer<void>();
+    handler = (request) async {
+      if (!sawRefresh.isCompleted) sawRefresh.complete();
+      await release.future;
+      await _reply(request, 200, {
+        'token': 'token-2',
+        'expires_at': '2031-01-01T00:00:00Z',
+        'user': {
+          'id': 1,
+          'display_name': 'Ana Reyes',
+          'email': 'ana@example.com',
+          'role': 'admin',
+          'department': 'CCS',
+        },
+      });
+    };
+
+    final pending = AuthService.instance.refreshSession();
+    await sawRefresh.future;
+
+    // The user signs out and into a different account while refresh is in
+    // flight. The old response must not overwrite the new session.
+    handler = (request) => _reply(request, 200, {
+      'token': 'token-other',
+      'expires_at': '2032-01-01T00:00:00Z',
+      'user': {
+        'id': 2,
+        'display_name': 'Other User',
+        'email': 'other@example.com',
+        'role': 'user',
+        'department': 'CCS',
+      },
+    });
+    await AuthService.instance.logout();
+    await AuthService.instance.login(
+      email: 'other@example.com',
+      password: 'secret-123',
+    );
+    release.complete();
+    await pending;
+
+    expect(AuthService.instance.token, 'token-other');
+    expect(AuthService.instance.currentUser?['id'], 2);
+    expect(AuthService.instance.displayName, 'Other User');
+  });
 }

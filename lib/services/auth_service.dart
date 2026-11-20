@@ -273,6 +273,12 @@ class AuthService extends ChangeNotifier {
     final stored = await _session.readToken();
     if (stored == null) return false;
     final result = await _api.refreshToken(stored);
+
+    // A logout or a new sign-in may have replaced the session while the
+    // request was in flight. A response for the old token must never be
+    // applied to the new one.
+    if (await _session.readToken() != stored) return false;
+
     switch (result.outcome) {
       case RefreshOutcome.unreachable:
         // Network hiccup or server down: keep the session, callers retry.

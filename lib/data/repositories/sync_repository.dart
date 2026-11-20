@@ -18,22 +18,27 @@ class SyncRepository {
   /// This file's sync identity, minted on first use and stable afterwards.
   Future<String> syncDeviceId() async {
     final db = await _database.database;
-    await db.insert(
-      'sync_state',
-      {'id': 1},
-      conflictAlgorithm: ConflictAlgorithm.ignore,
-    );
+    // Get-or-mint must be atomic: two concurrent syncs for the same scope
+    // must never return different ids, or the server sees one scope as two
+    // devices.
+    return db.transaction((txn) async {
+      await txn.insert(
+        'sync_state',
+        {'id': 1},
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
 
-    final stored = (await _stateRow(db))?['device_id'];
-    if (stored is String && stored.isNotEmpty) return stored;
+      final stored = (await _stateRow(txn))?['device_id'];
+      if (stored is String && stored.isNotEmpty) return stored;
 
-    final minted = _mintDeviceId();
-    await db.update(
-      'sync_state',
-      {'device_id': minted},
-      where: 'id = 1',
-    );
-    return minted;
+      final minted = _mintDeviceId();
+      await txn.update(
+        'sync_state',
+        {'device_id': minted},
+        where: 'id = 1',
+      );
+      return minted;
+    });
   }
 
   /// Stores [id] if this file has no device id yet. Used once, when upgrading
@@ -95,7 +100,7 @@ class SyncRepository {
     await db.update('sync_state', {column: stamp}, where: 'id = 1');
   }
 
-  Future<Map<String, Object?>?> _stateRow(Database db) async {
+  Future<Map<String, Object?>?> _stateRow(DatabaseExecutor db) async {
     final rows = await db.query('sync_state', where: 'id = 1', limit: 1);
     return rows.isEmpty ? null : rows.single;
   }
