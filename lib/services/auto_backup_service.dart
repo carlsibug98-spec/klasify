@@ -7,7 +7,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/database_helper.dart';
+import '../data/local_scope.dart';
 import '../utils/schedule_backup_codec.dart';
+import 'local_scope_service.dart';
 
 /// Quietly keeps a fresh schedule backup on disk after every schedule change.
 ///
@@ -29,15 +31,39 @@ class AutoBackupService extends ChangeNotifier {
 
   static final AutoBackupService instance = AutoBackupService();
 
-  static const String _enabledKey = 'auto_backup_enabled';
-  static const String _lastAtKey = 'auto_backup_last_at';
-  static const String _lastCountKey = 'auto_backup_last_count';
+  static const String _enabledKeyBase = 'auto_backup_enabled';
+  static const String _lastAtKeyBase = 'auto_backup_last_at';
+  static const String _lastCountKeyBase = 'auto_backup_last_count';
 
   /// The always-current backup file inside the backup directory.
-  static const String mainFileName = 'klasify-auto-backup.json';
+  ///
+  /// One per scope: a signed-in account's backup must not be overwritten by
+  /// another account on the same phone.
+  static String get mainFileName =>
+      mainFileNameFor(LocalScopeService.instance.current);
 
   /// Dated rolling copies are `<prefix><yyyyMMdd-HHmm>.json`.
-  static const String datedPrefix = 'klasify-backup-';
+  static String get datedPrefix =>
+      datedPrefixFor(LocalScopeService.instance.current);
+
+  static String mainFileNameFor(LocalScope scope) => scope.isAnonymous
+      ? 'klasify-auto-backup.json'
+      : 'klasify-auto-backup-u${scope.userId}.json';
+
+  static String datedPrefixFor(LocalScope scope) => scope.isAnonymous
+      ? 'klasify-backup-'
+      : 'klasify-backup-u${scope.userId}-';
+
+  /// Prefs keys for the active scope, so a second account neither inherits
+  /// the first one's toggle nor reports its last-write stamp.
+  String get _enabledKey => _scopeKey(_enabledKeyBase);
+  String get _lastAtKey => _scopeKey(_lastAtKeyBase);
+  String get _lastCountKey => _scopeKey(_lastCountKeyBase);
+
+  String _scopeKey(String base) {
+    final userId = LocalScopeService.instance.current.userId;
+    return userId == null ? base : '${base}_u$userId';
+  }
 
   /// Rolling window behind the main file (6 dated copies ≈ a busy day).
   static const int datedCopiesToKeep = 6;
@@ -108,6 +134,15 @@ class AutoBackupService extends ChangeNotifier {
     // Fresh launch: refresh the copy so a crash or a restored database can
     // never leave the backup older than the real schedule.
     scheduleBackup();
+  }
+
+  /// Re-reads persisted state for the scope that just became active.
+  ///
+  /// A switch must not report the previous account's last-write stamp or
+  /// carry its toggle into the new scope.
+  Future<void> notifyScopeChanged() async {
+    _loaded = false;
+    await load();
   }
 
   @override
@@ -226,13 +261,20 @@ class AutoBackupService extends ChangeNotifier {
     await tmp.rename(target.path);
   }
 
-  /// Keeps only the newest [datedCopiesToKeep] dated copies.
+  /// Keeps only the newest [datedCopiesToKeep] dated copies of this scope.
+  ///
+  /// The match is anchored and exact: the anonymous prefix is a string
+  /// prefix of an account's, so a loose `startsWith` would let one scope
+  /// delete another's rolling copies.
   Future<void> _rotate(Directory dir) async {
+    final pattern = RegExp(
+      '^${RegExp.escape(datedPrefix)}\\d{8}-\\d{4}\\.json\$',
+    );
     final copies = <File>[];
     await for (final entity in dir.list()) {
       if (entity is File) {
         final name = p.basename(entity.path);
-        if (name.startsWith(datedPrefix) && name.endsWith('.json')) {
+        if (pattern.hasMatch(name)) {
           copies.add(entity);
         }
       }

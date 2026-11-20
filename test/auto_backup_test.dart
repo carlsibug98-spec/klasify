@@ -91,7 +91,7 @@ void main() {
     await dir.create(recursive: true);
     // Seven stale copies plus the fresh write below → window keeps 6.
     for (var i = 1; i <= 7; i++) {
-      final name = 'klasify-backup-2026010${i < 10 ? '1$i' : i}.json';
+      final name = 'klasify-backup-20260101-100$i.json';
       await File(p.join(dir.path, name))
           .writeAsString('{"format":"klasify_backup"}');
     }
@@ -106,7 +106,7 @@ void main() {
         .toList();
     expect(names.length, AutoBackupService.datedCopiesToKeep,
         reason: 'oldest dated copies must roll off');
-    expect(names.contains('klasify-backup-202601011.json'), isFalse,
+    expect(names.contains('klasify-backup-20260101-1001.json'), isFalse,
         reason: 'the oldest copy is the first to go');
   });
 

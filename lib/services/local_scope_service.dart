@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/app_database.dart';
 import '../data/database_helper.dart';
 import '../data/local_scope.dart';
+import 'auto_backup_service.dart';
 import 'reminder_service.dart';
 
 /// Owns which local scope is active and moves the app between them.
@@ -140,7 +141,7 @@ class LocalScopeService {
     // A sign-in must fail rather than save a session bound to a file this
     // phone cannot read.
     await AppDatabase.instance.database;
-    await _reconcileReminders();
+    await _afterSwitch();
   }
 
   /// Renames the anonymous file into the first account that signs in.
@@ -190,7 +191,7 @@ class LocalScopeService {
     await prefs.setString(lastScopeKey, target.storageKey);
     await prefs.remove(legacyClaimKey);
     DatabaseHelper.instance.notifyScopeChanged();
-    await _reconcileReminders();
+    await _afterSwitch();
 
     debugPrint('Adopted the local schedule into ${target.fileName}.');
   }
@@ -260,6 +261,18 @@ class LocalScopeService {
 
     for (final key in _legacyKeys) {
       await prefs.remove(key);
+    }
+  }
+
+  /// Side systems that must follow a switch, in order. Both are caught and
+  /// logged: a switch that already happened must not be failed or rolled back
+  /// by a reminder or backup bookkeeping problem.
+  Future<void> _afterSwitch() async {
+    await _reconcileReminders();
+    try {
+      await AutoBackupService.instance.notifyScopeChanged();
+    } catch (error, stack) {
+      debugPrint('Auto backup did not follow the scope switch: $error\n$stack');
     }
   }
 
