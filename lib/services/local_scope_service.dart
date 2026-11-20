@@ -62,6 +62,9 @@ class LocalScopeService {
   /// so it cannot act on a file it was not meant to touch.
   bool get syncBlocked => _syncBlocked;
 
+  /// Called by `main` when startup could not establish a usable scope.
+  void markSyncBlocked() => _syncBlocked = true;
+
   /// Monotonic scope generation from [AppDatabase]; sync pins it.
   int get generation => AppDatabase.instance.scopeGeneration;
 
@@ -134,6 +137,9 @@ class LocalScopeService {
     }
 
     await _migrateLegacyPrefs(target);
+    // A sign-in must fail rather than save a session bound to a file this
+    // phone cannot read.
+    await AppDatabase.instance.database;
     await _reconcileReminders();
   }
 
@@ -180,6 +186,7 @@ class LocalScopeService {
     }
 
     await _migrateLegacyPrefs(target);
+    await AppDatabase.instance.database;
     await prefs.setString(lastScopeKey, target.storageKey);
     await prefs.remove(legacyClaimKey);
     DatabaseHelper.instance.notifyScopeChanged();

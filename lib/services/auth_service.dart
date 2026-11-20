@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../features/auth/admin_api.dart';
 import '../features/auth/auth_api.dart';
 import '../features/auth/session_store.dart';
+import 'local_scope_service.dart';
 
 export '../features/auth/auth_api.dart' show AuthApiException;
 
@@ -298,7 +299,28 @@ class AuthService extends ChangeNotifier {
   }
 
   /// Persists a successful sign-in and notifies once.
+  ///
+  /// The local scope switches first: a session saved while writes still
+  /// target the previous account's file is the bug this ordering prevents.
   Future<void> _applySignIn(AuthResponse response) async {
+    final userId = response.user['id'];
+    if (userId is! int) {
+      throw const AuthApiException(
+        "Couldn't open the local schedule on this phone. Try again.",
+        code: 'LOCAL_SCOPE_FAILED',
+      );
+    }
+
+    try {
+      await LocalScopeService.instance.ensureForUser(userId);
+    } catch (error, stack) {
+      debugPrint('Local scope switch failed: $error\n$stack');
+      throw const AuthApiException(
+        "Couldn't open the local schedule on this phone. Try again.",
+        code: 'LOCAL_SCOPE_FAILED',
+      );
+    }
+
     await _session.save(
       token: response.token,
       user: response.user,

@@ -6,6 +6,7 @@ import 'routes/app_routes.dart';
 import 'services/auth_service.dart';
 import 'services/auto_backup_service.dart';
 import 'services/crash_reporting.dart';
+import 'services/local_scope_service.dart';
 import 'services/onboarding_store.dart';
 import 'services/sync_service.dart';
 import 'services/theme_mode_service.dart';
@@ -20,6 +21,19 @@ Future<void> main() async {
       await AuthService.instance.restoreSession();
     } catch (e) {
       debugPrint('Session restore failed: $e');
+    }
+    // Restore (and if needed adopt) the scope the saved session belongs to
+    // before anything reads the schedule. A failure leaves the app usable and
+    // only blocks sync: it must not act on a file it was not meant to touch.
+    try {
+      await LocalScopeService.instance.initialise();
+      final userId = AuthService.instance.currentUser?['id'];
+      await LocalScopeService.instance.ensureForUser(
+        userId is int ? userId : null,
+      );
+    } catch (e) {
+      debugPrint('Local scope init failed: $e');
+      LocalScopeService.instance.markSyncBlocked();
     }
     // Touch the sync client so a restored session starts its 5-minute
     // background timer (the auth listener does the rest).

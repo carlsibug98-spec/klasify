@@ -4,6 +4,10 @@ import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klasify/services/auth_service.dart';
+import 'package:klasify/services/local_scope_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart' as sqflite;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 typedef _Handler = Future<void> Function(HttpRequest request);
 
@@ -19,7 +23,13 @@ void main() {
   late HttpServer server;
   late _Handler handler;
   late bool serverClosed;
+  late Directory databasesDir;
   final requests = <({String method, String path, String? auth})>[];
+
+  setUpAll(() {
+    sqfliteFfiInit();
+    sqflite.databaseFactory = databaseFactoryFfi;
+  });
 
   Future<void> signIn() async {
     handler = (request) => _reply(request, 200, {
@@ -42,6 +52,13 @@ void main() {
   }
 
   setUp(() async {
+    // Sign-in now moves the app into the account's own database file, so the
+    // suite needs a private, writable databases directory.
+    databasesDir = await Directory.systemTemp.createTemp('klasify_auth_http_');
+    await sqflite.databaseFactory.setDatabasesPath(databasesDir.path);
+    await LocalScopeService.instance.resetForTesting();
+    SharedPreferences.setMockInitialValues({});
+
     // The plugin's own in-memory platform: real SessionStore reads/writes,
     // no method channel and no app-level test double.
     FlutterSecureStorage.setMockInitialValues({});
@@ -69,7 +86,9 @@ void main() {
   tearDown(() async {
     AuthService.baseUrlOverride = null;
     await AuthService.instance.logout();
+    await LocalScopeService.instance.resetForTesting();
     if (!serverClosed) await server.close(force: true);
+    if (await databasesDir.exists()) await databasesDir.delete(recursive: true);
   });
 
   test(
