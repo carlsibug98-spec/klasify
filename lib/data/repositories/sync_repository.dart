@@ -36,6 +36,20 @@ class SyncRepository {
     return minted;
   }
 
+  /// Stores [id] if this file has no device id yet. Used once, when upgrading
+  /// an install whose identity lived in prefs.
+  Future<void> seedDeviceId(String id) async {
+    final db = await _database.database;
+    await db.insert(
+      'sync_state',
+      {'id': 1},
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
+    final stored = (await _stateRow(db))?['device_id'];
+    if (stored is String && stored.isNotEmpty) return;
+    await db.update('sync_state', {'device_id': id}, where: 'id = 1');
+  }
+
   /// Last successful push time for this scope, or null if it never pushed.
   Future<DateTime?> lastPushAt() => _readInstant('last_push_at');
 

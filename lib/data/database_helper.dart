@@ -260,6 +260,9 @@ class DatabaseHelper extends ChangeNotifier {
   /// This file's sync identity, minted on first use and stable afterwards.
   Future<String> syncDeviceId() => _sync.syncDeviceId();
 
+  /// Adopts a pre-scope device id into this file, once.
+  Future<void> seedDeviceId(String id) => _sync.seedDeviceId(id);
+
   /// Last successful push time for the active scope.
   Future<DateTime?> lastPushAt() => _sync.lastPushAt();
 
