@@ -82,9 +82,10 @@ Klasify is an Android-first Flutter app for students. Its core jobs:
 
 - App version: `1.4.4+15` (`pubspec.yaml`)
 - Flutter: `>= 3.44.0`, Dart `>= 3.12.0`
-- Local database: SQLite via `sqflite`, schema **version 11**, file `class_schedule.db`
+- Local database: SQLite via `sqflite`, schema **version 13**, one file per scope
+  (`class_schedule.db` locally, `class_schedule_u<id>.db` per account)
 - Backend: PHP 8 + MySQL/MariaDB (XAMPP-compatible), JWT HS256, bcrypt cost 12
-- Tests: 72 Dart test files, 558 tests, all passing (verified Nov 18, 2026);
+- Tests: 84 Dart test files, 602 tests, all passing (verified Nov 20, 2026);
   plus 66 PHP parity tests
 
 ---
@@ -202,6 +203,9 @@ Android launch
   ├─ Flutter engine + plugins
   ├─ initCrashReporting (no-op unless DSN)
   ├─ restoreSession ──→ SecureStorage
+  ├─ LocalScopeService.initialise (adoption recovery, persisted scope)
+  ├─ LocalScopeService.ensureForUser ──→ active scope file
+  │     └─ failure: log, syncBlocked = true, keep the app usable
   ├─ SyncService.ensureStarted
   │     └─ auth listener: signed in? start 5-min timer + syncNow()
   ├─ AutoBackupService.attach (async)
@@ -269,7 +273,18 @@ knowing the shell's internals.
 
 ### 5.1 Tables at a glance
 
-Database file: `class_schedule.db`, schema version 11.
+Database file: one per local scope, schema version 13.
+
+| Scope | File |
+|---|---|
+| Local (pre-login, and after an account is deleted) | `class_schedule.db` |
+| Signed-in account `id` | `class_schedule_u<id>.db` |
+
+`LocalScopeService` picks the file and moves the app between them. The file name
+is the isolation boundary: a query cannot reach another account's rows because
+the connection it runs on cannot see them. The first sign-in adopts the local
+file by renaming it (never copying), and deleting an account renames it back.
+See `docs/superpowers/specs/2026-11-20-account-scoped-cache-design.md`.
 
 #### `classes`
 
@@ -351,17 +366,35 @@ cascades the same way.
 
 | Column | Type | Meaning |
 |---|---|---|
-| `office_name` | TEXT PK | Server key, e.g. `guidance` |
+| `id` | INTEGER PK | Local row id (v12) |
+| `office_name` | TEXT UNIQUE | Server key, e.g. `guidance` |
 | `status` | TEXT | `open`, `closed`, `break` |
 | `custom_message` | TEXT nullable | "Back at 2pm" |
+| `department` | TEXT | Department that owns the office |
 | `updated_at` | TEXT | Server timestamp |
+| `server_id` | INTEGER UNIQUE | Server row id |
 
 This table is a **pure cache of server rows**. It has no `deleted` column. When
 a pull says an office is deleted, `upsertOfficeStatusFromServer` removes the row
 outright. The app never invents office rows; a fresh offline install shows no
 strip until the first successful pull.
 
-### 5.2 Migrations v1 → v11
+#### `sync_state`
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | INTEGER PK, `CHECK (id = 1)` | Exactly one row, or none |
+| `device_id` | TEXT | 32 hex chars, minted once per file |
+| `last_push_at` | TEXT nullable | UTC ISO-8601 cursor |
+| `last_pull_at` | TEXT nullable | UTC ISO-8601 cursor |
+
+The sync identity lives **inside the scope file**, not in SharedPreferences.
+The cursor is part of the scope: it switches with the data and cannot be stale
+by construction. A device id is minted per file; a file that changes hands
+(account deletion, adoption into a new account) gets a fresh one so the server
+never sees one identity claimed by two accounts.
+
+### 5.2 Migrations v1 → v13
 
 `onUpgrade` never drops user data. Each step is additive:
 
@@ -379,6 +412,7 @@ strip until the first successful pull.
 | 10 | One local row per `server_id`; legacy duplicates are unmapped, then unique indexes are created |
 | 11 | `class_status.class_id` foreign key (cascade); orphaned marks are removed by rebuilding the table |
 | 12 | `office_statuses` gets its own `id` + `server_id`: a rename updates in place and a tombstone can name the row |
+| 13 | `sync_state`: the device id and both cursors move out of SharedPreferences and into the scope file |
 
 Two teaching points:
 
@@ -509,7 +543,8 @@ files; test fixtures and generated assets are grouped at the end.
 | File | Purpose |
 |---|---|
 | `database_helper.dart` | `ChangeNotifier` facade: preserves the public API and notification semantics; delegates every call |
-| `app_database.dart` | Singleton connection owner: schema v9, migrations, validation triggers, `resetForTesting` |
+| `app_database.dart` | Per-file connection owner: one handle per scope file, schema v13, migrations, validation triggers, `resetForTesting` |
+| `local_scope.dart` | `LocalScope` value type: anonymous vs `u<id>`, file name and storage key |
 | `db_timestamps.dart` | `utcStamp()` and `parseInstant()` shared by repositories |
 | `validation/class_rules.dart` | `validateClass`, `validateNoOverlaps` |
 | `validation/event_rules.dart` | `validateEvent`, `dateKeyForEvent` |
@@ -517,7 +552,7 @@ files; test fixtures and generated assets are grouped at the end.
 | `repositories/event_repository.dart` | Event CRUD, replace, server upsert, event server ids |
 | `repositories/status_repository.dart` | Status ranges, undo snapshots, status tombstones, status server upsert/ids |
 | `repositories/office_repository.dart` | Office availability cache read + server upsert |
-| `repositories/sync_repository.dart` | Purges already-pushed tombstones across classes, events, and statuses |
+| `repositories/sync_repository.dart` | Per-file sync identity (`sync_state`): device id get-or-mint/seed/reset, both cursors; purges already-pushed tombstones |
 
 ### 6.6 `lib/services/`
 
@@ -525,9 +560,10 @@ files; test fixtures and generated assets are grouped at the end.
 |---|---|
 | `auth_service.dart` | `ChangeNotifier` facade: sign-in/out state, role getters, silent refresh orchestration, profile/password, admin forwarders, base URL. Delegates to `features/auth/` |
 | `widget_data_actions.dart` | Database callbacks injected into the class delete/undo, Mark class, and event sheets so the widgets stay out of the data layer |
-| `sync_service.dart` | Push → pull orchestration, cursors, device id, 5-minute timer, backoff, auth gating |
+| `sync_service.dart` | Push → pull orchestration, per-scope cursors and device id, scope-generation guards, 5-minute timer, backoff, auth gating |
+| `local_scope_service.dart` | Owns the active scope file: switch on sign-in, adoption by rename with crash recovery, detach on account deletion, legacy prefs migration |
 | `reminder_service.dart` | Local notification channel, permissions, weekly class reminders, event alarms, pruning |
-| `auto_backup_service.dart` | Debounced atomic JSON backup to app support dir, rolling copies, status |
+| `auto_backup_service.dart` | Debounced atomic JSON backup per scope, rolling copies, status |
 | `next_class_widget_service.dart` | Sends classes + marked dates to Android over a MethodChannel |
 | `crash_reporting.dart` | Opt-in Sentry wrapper; no DSN = no SDK |
 | `onboarding_store.dart` | "Has the user seen onboarding?" flag |
@@ -691,7 +727,7 @@ files; test fixtures and generated assets are grouped at the end.
 | `widgets/import_success_card.dart` | Import-complete card with View schedule / Import another |
 | `widgets/import_source_preview_screen.dart` | Zoomable source image/PDF preview |
 
-### 6.12 `test/` (72 Dart test files)
+### 6.12 `test/` (84 Dart test files)
 
 The suite is organized by risk area:
 
@@ -1334,7 +1370,8 @@ row, and the next pull would resurrect it. That is why the purge takes a cutoff.
 
 ### 10.4 Cursors
 
-- Client: `klasify_last_push_at`, `klasify_last_pull_at` in SharedPreferences.
+- Client: `sync_state.last_push_at` / `last_pull_at` inside the active scope
+  file (schema v13). SharedPreferences no longer holds them.
 - Server: `sync_cursors` per user/device for observability.
 - The client cursor is authoritative for what it asks next; the server cursor
   records the last time each device talked to it.
@@ -1343,9 +1380,15 @@ row, and the next pull would resurrect it. That is why the purge takes a cutoff.
 
 ### 10.5 Device id
 
-`klasify_device_id` is a microsecond timestamp generated once per install. It is
-sent with push and pull so the server can track cursors per device. It is not a
-security identity; the JWT is.
+`sync_state.device_id` is 32 random hex characters, minted once per scope file
+and stable until the file is reset. It is sent with push and pull so the server
+can track cursors per device. It is not a security identity; the JWT is.
+
+Each account gets its own id, so one account's server rows can never be claimed
+by another. Signing into a different account switches files and therefore
+switches device id. `SyncService` pins the scope generation at the start of a
+push or pull and discards the response if the scope changed mid-flight, so a
+late response cannot write another account's server ids or cursors.
 
 ### 10.6 Auth gating
 
@@ -1370,7 +1413,7 @@ security identity; the JWT is.
 ### 11.1 Flutter tests
 
 - `flutter analyze` must be clean.
-- `flutter test` runs 72 files / 558 tests.
+- `flutter test` runs 84 files / 602 tests.
 - Database tests use `sqflite_common_ffi` with a test-specific database name.
 - Golden tests render screens and compare PNGs with a tolerance.
 - OCR benchmarks shell out to Tesseract in CI because the native PaddleOCR
