@@ -254,6 +254,9 @@ class DatabaseHelper extends ChangeNotifier {
   Future<void> purgeDeleted(DateTime? pushedBefore) =>
       _sync.purgeDeleted(pushedBefore);
 
+  /// Tells listeners the active database file changed, so they reload.
+  void notifyScopeChanged() => notifyListeners();
+
   /// This file's sync identity, minted on first use and stable afterwards.
   Future<String> syncDeviceId() => _sync.syncDeviceId();
 
