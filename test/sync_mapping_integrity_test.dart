@@ -171,7 +171,7 @@ void main() {
 
       final check = await sqflite.openDatabase(path, readOnly: true);
       final versionRow = (await check.rawQuery('PRAGMA user_version')).single;
-      expect(versionRow['user_version'], 12);
+      expect(versionRow['user_version'], 13);
       await check.close();
 
       // The new indexes reject any future duplicate mapping.

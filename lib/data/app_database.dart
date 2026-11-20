@@ -123,7 +123,7 @@ class AppDatabase {
     final path = join(await getDatabasesPath(), name);
     return openDatabase(
       path,
-      version: 12,
+      version: 13,
       onConfigure: (db) async {
         // SQLite ignores foreign keys unless each connection asks for them.
         // This runs before onCreate/onUpgrade, so the v11 rebuild is checked.
@@ -156,6 +156,7 @@ class AppDatabase {
         await _createEventTable(db);
         await _createOfficeStatusTable(db);
         await _createServerIdIndexes(db);
+        await _createSyncStateTable(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         // Do not rebuild or delete the existing table: users' saved classes
@@ -228,8 +229,25 @@ class AppDatabase {
         if (oldVersion < 12) {
           await _migrateOfficeStatusTable(db);
         }
+        // Version 13: per-scope sync identity and cursors. They live in the
+        // same file as the rows they describe, so a scope switch carries its
+        // device id and progress with it.
+        if (oldVersion < 13) {
+          await _createSyncStateTable(db);
+        }
       },
     );
+  }
+
+  Future<void> _createSyncStateTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS sync_state (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        device_id TEXT,
+        last_push_at TEXT,
+        last_pull_at TEXT
+      )
+    ''');
   }
 
   /// Test-only: forget every cached connection so a suite can point the
