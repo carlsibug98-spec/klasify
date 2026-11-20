@@ -253,4 +253,17 @@ class DatabaseHelper extends ChangeNotifier {
   /// Hard-deletes already-pushed tombstones.
   Future<void> purgeDeleted(DateTime? pushedBefore) =>
       _sync.purgeDeleted(pushedBefore);
+
+  /// This file's sync identity, minted on first use and stable afterwards.
+  Future<String> syncDeviceId() => _sync.syncDeviceId();
+
+  /// Last successful push time for the active scope.
+  Future<DateTime?> lastPushAt() => _sync.lastPushAt();
+
+  /// Last successful pull time for the active scope.
+  Future<DateTime?> lastPullAt() => _sync.lastPullAt();
+
+  Future<void> setLastPushAt(DateTime value) => _sync.setLastPushAt(value);
+
+  Future<void> setLastPullAt(DateTime value) => _sync.setLastPullAt(value);
 }
