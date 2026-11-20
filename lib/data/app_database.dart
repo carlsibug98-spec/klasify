@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -11,12 +13,34 @@ class AppDatabase {
   AppDatabase._();
   static final AppDatabase instance = AppDatabase._();
 
-  Database? _db;
+  /// Open connections, one per file name. A scope switch changes which entry
+  /// queries use; it never reuses another scope's handle.
+  final Map<String, Database> _open = {};
+
+  /// Opens in progress, so two concurrent callers share one connection.
+  final Map<String, Future<Database>> _pendingOpen = {};
+
+  /// Held closed while a scope switch changes files or renames one.
+  Completer<void>? _gate;
 
   /// File name of the database. Tests set their own name so they never share a file.
   // Deliberately NOT renamed to klasify.db: existing installs keep their data
   // because the SQLite file name is unchanged across the Klasify rename.
-  static String databaseName = 'class_schedule.db';
+  static String _databaseName = 'class_schedule.db';
+
+  static String get databaseName => _databaseName;
+
+  static set databaseName(String value) {
+    if (value == _databaseName) return;
+    _databaseName = value;
+    _generation++;
+  }
+
+  static int _generation = 0;
+
+  /// Monotonic counter bumped whenever the active file changes. Sync pins it
+  /// to discard a response that arrives after a switch.
+  int get scopeGeneration => _generation;
 
   /// Tables whose `server_id` column maps one local row to one server row.
   static const List<String> _serverIdTables = [
@@ -25,10 +49,78 @@ class AppDatabase {
     'class_status',
   ];
 
-  Future<Database> get database async => _db ??= await _open();
+  Future<Database> get database async {
+    // A switch is in progress: nobody may open or read until it finishes, or
+    // a query could land on a file that is about to be renamed.
+    final gate = _gate;
+    if (gate != null) await gate.future;
 
-  Future<Database> _open() async {
-    final path = join(await getDatabasesPath(), databaseName);
+    final name = _databaseName;
+    final existing = _open[name];
+    if (existing != null) return existing;
+
+    final pending = _pendingOpen[name];
+    if (pending != null) return pending;
+
+    final opening = _openNamed(name).then(
+      (db) {
+        _open[name] = db;
+        _pendingOpen.remove(name);
+        return db;
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _pendingOpen.remove(name);
+        throw error;
+      },
+    );
+    _pendingOpen[name] = opening;
+    return opening;
+  }
+
+  /// Blocks new database access until [endSwitch].
+  void beginSwitch() {
+    _gate ??= Completer<void>();
+  }
+
+  /// Releases the gate opened by [beginSwitch].
+  void endSwitch() {
+    final gate = _gate;
+    _gate = null;
+    if (gate != null && !gate.isCompleted) gate.complete();
+  }
+
+  /// Full path of one scope's file.
+  Future<String> scopePath(String name) async =>
+      join(await getDatabasesPath(), name);
+
+  /// Whether one scope's file exists on disk.
+  Future<bool> scopeFileExists(String name) async =>
+      databaseFactory.databaseExists(await scopePath(name));
+
+  /// Closes one cached connection and forgets it. The file stays on disk.
+  Future<void> closeScope(String name) async {
+    final pending = _pendingOpen.remove(name);
+    if (pending != null) {
+      try {
+        await pending;
+      } catch (_) {
+        // A failed open has nothing to close.
+      }
+    }
+    final db = _open.remove(name);
+    await db?.close();
+  }
+
+  /// Closes every cached connection (all scopes).
+  Future<void> closeAll() async {
+    final names = <String>{..._open.keys, ..._pendingOpen.keys};
+    for (final name in names) {
+      await closeScope(name);
+    }
+  }
+
+  Future<Database> _openNamed(String name) async {
+    final path = join(await getDatabasesPath(), name);
     return openDatabase(
       path,
       version: 12,
@@ -140,15 +232,11 @@ class AppDatabase {
     );
   }
 
-  /// Test-only: forget the cached connection so a suite can point the
-  /// singleton at a different file. Production code never calls this.
+  /// Test-only: forget every cached connection so a suite can point the
+  /// singleton at different files. Production code never calls this.
   /// (The annotation lives on [DatabaseHelper.resetForTesting], the public
   /// entry point tests use.)
-  Future<void> resetForTesting() async {
-    final db = _db;
-    _db = null;
-    await db?.close();
-  }
+  Future<void> resetForTesting() => closeAll();
 
   /// The events table. CHECK constraints carry validation for fresh and
   /// upgraded databases alike — event rows exist only since version 6, so
