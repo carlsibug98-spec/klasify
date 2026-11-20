@@ -189,14 +189,26 @@ class AuthService extends ChangeNotifier {
   /// it at their next sync; the record stays on the server.
   Future<void> adminRetireOffice(String office) => _admin.retireOffice(office);
 
-  /// Local schedule data on the phone stays, as decided.
+  /// Deletes the server account, then returns its schedule to the local
+  /// scope.
+  ///
+  /// The local schedule stays, as decided. On a failed delete nothing changes
+  /// locally and the session is kept, so the user can retry.
   Future<void> deleteAccount() async {
-    try {
-      await _api.deleteAccount();
-    } finally {
-      await _session.clear();
-      notifyListeners();
+    final userId = currentUser?['id'];
+    // Throws on failure before any local change.
+    await _api.deleteAccount();
+
+    if (userId is int) {
+      try {
+        await LocalScopeService.instance.detachAccount(userId);
+      } catch (error, stack) {
+        debugPrint('Local detach after account deletion failed: $error\n$stack');
+      }
     }
+
+    await _session.clear();
+    notifyListeners();
   }
 
   /// PATCH /auth/me — partial profile edit. Returns the updated user map.

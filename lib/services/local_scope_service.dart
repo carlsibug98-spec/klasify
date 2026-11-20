@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart' as sqflite;
 
 import '../data/app_database.dart';
 import '../data/database_helper.dart';
@@ -239,6 +240,99 @@ class LocalScopeService {
       'Legacy claim $userId found both files; keeping ${target.fileName}.',
     );
     await prefs.remove(legacyClaimKey);
+  }
+
+  /// Returns a deleted account's schedule to the local scope.
+  ///
+  /// Deletion removes the account's identity and its scoped copies, not the
+  /// timetable: the schedule is the user's primary artifact, the app already
+  /// promises phone data stays, and a wipe has no undo.
+  Future<void> detachAccount(int userId) async {
+    final database = AppDatabase.instance;
+    final account = LocalScope.account(userId);
+    const anonymous = LocalScope.anonymous();
+
+    // Never overwrite a local schedule that already occupies the anonymous
+    // slot: that would be the data loss this design exists to prevent.
+    if (await _fileHasSchedule(anonymous.fileName)) {
+      debugPrint(
+        'Account $userId deleted; its schedule stays in ${account.fileName}.',
+      );
+      return;
+    }
+
+    database.beginSwitch();
+    _switching = true;
+    try {
+      if (await database.scopeFileExists(anonymous.fileName)) {
+        await database.closeScope(anonymous.fileName);
+        await _deleteFileWithSiblings(
+          await database.scopePath(anonymous.fileName),
+        );
+      }
+      await database.closeScope(account.fileName);
+      await _renameWithSiblings(
+        await database.scopePath(account.fileName),
+        await database.scopePath(anonymous.fileName),
+      );
+      AppDatabase.databaseName = anonymous.fileName;
+      _current = anonymous;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(lastScopeKey, anonymous.storageKey);
+    } finally {
+      _switching = false;
+      database.endSwitch();
+    }
+
+    // The file now belongs to whoever uses the phone next, so it must not
+    // carry the deleted account's device id or cursors.
+    await DatabaseHelper.instance.resetSyncIdentity();
+    await AutoBackupService.instance.forgetScope(account);
+    await AutoBackupService.instance.deleteScopeBackups(account);
+    await AutoBackupService.instance.notifyScopeChanged();
+
+    // One anonymous backup, so the safety net exists under the new scope.
+    try {
+      await AutoBackupService.instance.backupNow();
+    } catch (error, stack) {
+      debugPrint('Anonymous backup after detach failed: $error\n$stack');
+    }
+
+    await _reconcileReminders();
+    debugPrint('Detached ${account.fileName} into the local schedule.');
+  }
+
+  /// Whether a scope file already holds a schedule.
+  ///
+  /// An unreadable file counts as occupied: it is never overwritten.
+  Future<bool> _fileHasSchedule(String name) async {
+    final database = AppDatabase.instance;
+    if (!await database.scopeFileExists(name)) return false;
+    try {
+      final probe = await sqflite.openDatabase(
+        await database.scopePath(name),
+        readOnly: true,
+      );
+      try {
+        final rows = await probe.rawQuery(
+          'SELECT (SELECT count(*) FROM classes) + '
+          '(SELECT count(*) FROM events) AS n',
+        );
+        return (rows.single['n'] as int? ?? 0) > 0;
+      } finally {
+        await probe.close();
+      }
+    } catch (error) {
+      debugPrint('Could not inspect $name: $error');
+      return true;
+    }
+  }
+
+  Future<void> _deleteFileWithSiblings(String path) async {
+    for (final suffix in const ['', '-wal', '-shm']) {
+      final file = File('$path$suffix');
+      if (await file.exists()) await file.delete();
+    }
   }
 
   /// Consumes the pre-scope sync keys once, for the active account.

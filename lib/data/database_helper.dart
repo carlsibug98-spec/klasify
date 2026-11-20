@@ -263,6 +263,9 @@ class DatabaseHelper extends ChangeNotifier {
   /// Adopts a pre-scope device id into this file, once.
   Future<void> seedDeviceId(String id) => _sync.seedDeviceId(id);
 
+  /// Clears the device id and cursors so the file can change hands.
+  Future<void> resetSyncIdentity() => _sync.resetSyncIdentity();
+
   /// Last successful push time for the active scope.
   Future<DateTime?> lastPushAt() => _sync.lastPushAt();
 

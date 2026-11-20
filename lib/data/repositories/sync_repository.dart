@@ -50,6 +50,22 @@ class SyncRepository {
     await db.update('sync_state', {'device_id': id}, where: 'id = 1');
   }
 
+  /// Clears the device id and both cursors, so the file can change hands
+  /// without carrying another account's server identity.
+  Future<void> resetSyncIdentity() async {
+    final db = await _database.database;
+    await db.insert(
+      'sync_state',
+      {'id': 1},
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
+    await db.update(
+      'sync_state',
+      {'device_id': null, 'last_push_at': null, 'last_pull_at': null},
+      where: 'id = 1',
+    );
+  }
+
   /// Last successful push time for this scope, or null if it never pushed.
   Future<DateTime?> lastPushAt() => _readInstant('last_push_at');
 

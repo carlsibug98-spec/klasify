@@ -235,6 +235,41 @@ class AutoBackupService extends ChangeNotifier {
     return ok;
   }
 
+  /// Deletes every backup file belonging to a scope.
+  ///
+  /// Called when the account that owned them is deleted. Another account's
+  /// files are never touched: the prefix is exact, not a substring.
+  Future<void> deleteScopeBackups(LocalScope scope) async {
+    if (scope.isAnonymous) return;
+    final dir = await _ensureDirectory();
+    final main = mainFileNameFor(scope);
+    final prefix = datedPrefixFor(scope);
+    await for (final entity in dir.list()) {
+      if (entity is! File) continue;
+      final name = p.basename(entity.path);
+      final owned = name == main || (name.startsWith(prefix) && name.endsWith('.json'));
+      if (!owned) continue;
+      try {
+        await entity.delete();
+      } catch (e) {
+        debugPrint('Auto backup: could not remove ${entity.path}: $e');
+      }
+    }
+  }
+
+  /// Forgets the prefs a scope stored, once that scope no longer exists.
+  Future<void> forgetScope(LocalScope scope) async {
+    if (scope.isAnonymous) return;
+    final prefs = await SharedPreferences.getInstance();
+    for (final base in const [
+      _enabledKeyBase,
+      _lastAtKeyBase,
+      _lastCountKeyBase,
+    ]) {
+      await prefs.remove('${base}_u${scope.userId}');
+    }
+  }
+
   /// The current backup file, or null when nothing has been written yet.
   Future<File?> loadMainBackupFile() async {
     try {
