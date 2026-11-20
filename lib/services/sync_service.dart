@@ -1,56 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/app_database.dart';
 import 'auth_service.dart';
 import '../data/database_helper.dart';
-
-/// The phone's sync identity, scoped to the signed-in account.
-///
-/// A device id belongs to exactly one account on the server, so the phone
-/// remembers which account minted it. Signing into another account mints a
-/// fresh id: the previous account's server rows must never be claimed by the
-/// new one, and a shared phone must not inherit the last user's identity.
-@visibleForTesting
-class DeviceIdentity {
-  static const idKey = 'klasify_device_id';
-  static const ownerKey = 'klasify_device_owner_id';
-
-  /// The id to use for [userId], reusing the stored one only when it was
-  /// minted for that same account. An old install's ownerless id is replaced:
-  /// there is no record of which account the server bound it to.
-  static Future<String> forAccount(int? userId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getString(idKey);
-    if (userId != null &&
-        stored != null &&
-        stored.isNotEmpty &&
-        prefs.getInt(ownerKey) == userId) {
-      return stored;
-    }
-
-    final id = _mint();
-    await prefs.setString(idKey, id);
-    if (userId == null) {
-      await prefs.remove(ownerKey);
-    } else {
-      await prefs.setInt(ownerKey, userId);
-    }
-    return id;
-  }
-
-  static String _mint() {
-    final random = Random.secure();
-    return List.generate(
-      32,
-      (_) => random.nextInt(16).toRadixString(16),
-    ).join();
-  }
-}
+import 'local_scope_service.dart';
 
 /// The wire shape of one local class-status row. A class that reached this
 /// device by pull has a server id, so the server resolves it by that id; only
@@ -84,8 +41,10 @@ class SyncService extends ChangeNotifier {
 
   static String get baseUrl => AuthService.baseUrl;
 
-  static const _lastPushKey = 'klasify_last_push_at';
-  static const _lastPullKey = 'klasify_last_pull_at';
+  /// Test hook: when false, signing in does not start the background cadence
+  /// or trigger an immediate sync.
+  @visibleForTesting
+  static bool autoStartEnabled = true;
 
   bool _syncing = false;
   bool get syncing => _syncing;
@@ -99,37 +58,58 @@ class SyncService extends ChangeNotifier {
   DateTime? _lastSyncAt;
   DateTime? get lastSyncAt => _lastSyncAt;
 
-  Future<String> get _deviceId async {
-    final user = AuthService.instance.currentUser;
-    final userId = user?['id'];
-    return DeviceIdentity.forAccount(userId is int ? userId : null);
+  /// Aligns the local scope with the signed-in account and reports whether
+  /// sync may touch the database.
+  Future<bool> _pinScope() async {
+    final scope = LocalScopeService.instance;
+    final userId = AuthService.instance.currentUser?['id'];
+    try {
+      await scope.ensureForUser(userId is int ? userId : null);
+    } catch (error) {
+      debugPrint('Sync could not open the local scope: $error');
+      return false;
+    }
+    if (scope.switching) {
+      debugPrint('Sync skipped: the local scope is changing.');
+      return false;
+    }
+    if (scope.syncBlocked) {
+      debugPrint('Sync skipped: the local scope is blocked.');
+      return false;
+    }
+    return true;
   }
 
-  Future<DateTime?> get lastPushAt async {
-    final prefs = await SharedPreferences.getInstance();
-    final s = prefs.getString(_lastPushKey);
-    return s != null ? DateTime.tryParse(s) : null;
-  }
-
-  Future<DateTime?> get lastPullAt async {
-    final prefs = await SharedPreferences.getInstance();
-    final s = prefs.getString(_lastPullKey);
-    return s != null ? DateTime.tryParse(s) : null;
+  /// Runs [write] only while the scope is still the one [generation] pinned.
+  ///
+  /// Opening the database first waits out a switch in progress, so a write
+  /// cannot slip onto a file that was swapped in while the response was in
+  /// flight. Returns false (writing nothing) when the scope moved.
+  Future<bool> _writeOnPinnedScope(
+    int generation,
+    Future<void> Function() write,
+  ) async {
+    final scope = LocalScopeService.instance;
+    if (scope.generation != generation) return false;
+    await AppDatabase.instance.database;
+    if (scope.generation != generation) return false;
+    await write();
+    return true;
   }
 
   /// Push local changes to the server. Returns true on success.
   Future<bool> push() async {
     final token = await _token;
     if (token == null) return false;
+    if (!await _pinScope()) return false;
 
+    final generation = LocalScopeService.instance.generation;
     _syncing = true;
     notifyListeners();
     try {
-      final deviceId = await _deviceId;
-      final lastPush = await lastPushAt;
-
-      // Collect local changes since last push.
       final db = DatabaseHelper.instance;
+      final deviceId = await db.syncDeviceId();
+      final lastPush = await db.lastPushAt();
       final changedClasses = await db.getChangedClasses(lastPush ?? DateTime(1970));
       final changedEvents = await db.getChangedEvents(lastPush ?? DateTime(1970));
       final changedStatuses = await db.getChangedClassStatuses(lastPush ?? DateTime(1970));
@@ -196,19 +176,34 @@ class SyncService extends ChangeNotifier {
             if (item is Map && item['local_id'] is int && item['server_id'] is int) {
               final localId = item['local_id'] as int;
               final serverId = item['server_id'] as int;
-              if (list == 'classes') {
-                await db.setClassServerId(localId, serverId);
-              } else if (list == 'events') {
-                await db.setEventServerId(localId, serverId);
-              } else {
-                await db.setClassStatusServerId(localId, serverId);
+              final written = await _writeOnPinnedScope(generation, () async {
+                if (list == 'classes') {
+                  await db.setClassServerId(localId, serverId);
+                } else if (list == 'events') {
+                  await db.setEventServerId(localId, serverId);
+                } else {
+                  await db.setClassStatusServerId(localId, serverId);
+                }
+              });
+              if (!written) {
+                debugPrint('Sync push discarded: the local scope changed.');
+                return false;
               }
             }
           }
         }
 
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_lastPushKey, data['server_time'] as String);
+        final serverTime = DateTime.tryParse(data['server_time'] as String);
+        if (serverTime != null) {
+          final written = await _writeOnPinnedScope(
+            generation,
+            () => db.setLastPushAt(serverTime),
+          );
+          if (!written) {
+            debugPrint('Sync push discarded: the local scope changed.');
+            return false;
+          }
+        }
         _lastError = null;
         _lastSyncAt = DateTime.now();
         return true;
@@ -230,12 +225,16 @@ class SyncService extends ChangeNotifier {
   Future<bool> pull() async {
     final token = await _token;
     if (token == null) return false;
+    if (!await _pinScope()) return false;
 
+    final generation = LocalScopeService.instance.generation;
     _syncing = true;
     notifyListeners();
     try {
-      final deviceId = await _deviceId;
-      final lastPull = await lastPullAt;
+      final db = DatabaseHelper.instance;
+      final deviceId = await db.syncDeviceId();
+      final lastPull = await db.lastPullAt();
+      final lastPush = await db.lastPushAt();
       final since = lastPull?.toUtc().toIso8601String() ?? '1970-01-01T00:00:00.000Z';
 
       final res = await http.get(
@@ -252,17 +251,38 @@ class SyncService extends ChangeNotifier {
 
         // Upsert pulled classes
         for (final row in (data['classes'] as List? ?? [])) {
-          await db.upsertClassFromServer(row as Map<String, dynamic>);
+          final ok = await _writeOnPinnedScope(
+            generation,
+            () => db.upsertClassFromServer(row as Map<String, dynamic>),
+          );
+          if (!ok) {
+            debugPrint('Sync pull discarded: the local scope changed.');
+            return false;
+          }
         }
 
         // Upsert pulled events
         for (final row in (data['events'] as List? ?? [])) {
-          await db.upsertEventFromServer(row as Map<String, dynamic>);
+          final ok = await _writeOnPinnedScope(
+            generation,
+            () => db.upsertEventFromServer(row as Map<String, dynamic>),
+          );
+          if (!ok) {
+            debugPrint('Sync pull discarded: the local scope changed.');
+            return false;
+          }
         }
 
         // Upsert pulled class statuses (their class ids resolve locally)
         for (final row in (data['class_statuses'] as List? ?? [])) {
-          await db.upsertClassStatusFromServer(row as Map<String, dynamic>);
+          final ok = await _writeOnPinnedScope(
+            generation,
+            () => db.upsertClassStatusFromServer(row as Map<String, dynamic>),
+          );
+          if (!ok) {
+            debugPrint('Sync pull discarded: the local scope changed.');
+            return false;
+          }
         }
 
         // Upsert pulled office availability (last-known value offline). The
@@ -272,20 +292,52 @@ class SyncService extends ChangeNotifier {
         final officeRows = data['office_statuses'];
         if (officeRows is List) {
           for (final row in officeRows) {
-            await db.upsertOfficeStatusFromServer(row as Map<String, dynamic>);
+            final ok = await _writeOnPinnedScope(
+              generation,
+              () => db.upsertOfficeStatusFromServer(
+                row as Map<String, dynamic>,
+              ),
+            );
+            if (!ok) {
+              debugPrint('Sync pull discarded: the local scope changed.');
+              return false;
+            }
           }
           // A full office list was applied: any cache row still without a
           // server id is a v11 leftover the server no longer knows about.
-          await db.pruneUnadoptedOfficeStatuses();
+          final ok = await _writeOnPinnedScope(
+            generation,
+            db.pruneUnadoptedOfficeStatuses,
+          );
+          if (!ok) {
+            debugPrint('Sync pull discarded: the local scope changed.');
+            return false;
+          }
         }
 
         // Purge soft-deleted rows the server already accepted. Unpushed
         // tombstones survive: purging them early would silently drop the
         // deletion and let the server resurrect the row.
-        await db.purgeDeleted(await lastPushAt);
+        final purged = await _writeOnPinnedScope(
+          generation,
+          () => db.purgeDeleted(lastPush),
+        );
+        if (!purged) {
+          debugPrint('Sync pull discarded: the local scope changed.');
+          return false;
+        }
 
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_lastPullKey, data['server_time'] as String);
+        final serverTime = DateTime.tryParse(data['server_time'] as String);
+        if (serverTime != null) {
+          final written = await _writeOnPinnedScope(
+            generation,
+            () => db.setLastPullAt(serverTime),
+          );
+          if (!written) {
+            debugPrint('Sync pull discarded: the local scope changed.');
+            return false;
+          }
+        }
         _lastError = null;
         _lastSyncAt = DateTime.now();
         return true;
@@ -333,8 +385,10 @@ class SyncService extends ChangeNotifier {
     if (loggedIn == _sessionActive) return;
     _sessionActive = loggedIn;
     if (loggedIn) {
-      _startBackgroundTimer();
-      unawaited(syncNow());
+      if (autoStartEnabled) {
+        _startBackgroundTimer();
+        unawaited(syncNow());
+      }
     } else {
       _stopBackgroundTimer();
     }
