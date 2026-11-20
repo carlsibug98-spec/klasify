@@ -221,4 +221,56 @@ void main() {
 
     expect(await SyncService.instance.syncNow(), isFalse);
   });
+
+  test('a session that ends mid-push stops the request', () async {
+    await loginAs(7);
+    await LocalScopeService.instance.ensureForUser(8);
+    await DatabaseHelper.instance.insert(classOf('Algebra'));
+
+    // Change the signed-in user from inside the switch notification, so the
+    // session changes while push() is between resolving the token and pinning
+    // the scope. The seed hook is synchronous, so the race is deterministic.
+    void listener() {
+      DatabaseHelper.instance.removeListener(listener);
+      AuthService.instance.debugSeedSession(
+        user: const {
+          'id': 8,
+          'display_name': 'User 8',
+          'email': 'u8@example.com',
+          'role': 'user',
+        },
+      );
+    }
+    DatabaseHelper.instance.addListener(listener);
+    pushBodies.clear();
+
+    expect(await SyncService.instance.push(), isFalse);
+
+    expect(pushBodies, isEmpty);
+    expect(AuthService.instance.currentUser?['id'], 8);
+
+    // The rows stayed in the scope they were read from; nothing was pushed.
+    await LocalScopeService.instance.ensureForUser(8);
+    expect((await DatabaseHelper.instance.getAll()).single.subject, 'Algebra');
+  });
+
+  test('a pull after adoption does not duplicate the adopted rows', () async {
+    DatabaseHelper.databaseName = 'class_schedule.db';
+    await DatabaseHelper.instance.insert(classOf('Algebra'));
+    await AppDatabase.instance.closeScope('class_schedule.db');
+
+    await loginAs(7);
+    expect((await DatabaseHelper.instance.getAll()), hasLength(1));
+
+    pushResponder = () async => okPush(serverIds: [99]);
+    expect(await SyncService.instance.push(), isTrue);
+
+    pullResponder = () async =>
+        okPull(classRow: pulledClass('Algebra')..['id'] = 99);
+    expect(await SyncService.instance.pull(), isTrue);
+
+    final rows = await DatabaseHelper.instance.getAll();
+    expect(rows, hasLength(1));
+    expect(rows.single.subject, 'Algebra');
+  });
 }

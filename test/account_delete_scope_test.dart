@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:klasify/data/app_database.dart';
 import 'package:klasify/data/database_helper.dart';
+import 'package:klasify/data/local_scope.dart';
 import 'package:klasify/services/auth_service.dart';
 import 'package:klasify/services/auto_backup_service.dart';
 import 'package:klasify/services/local_scope_service.dart';
@@ -161,8 +162,24 @@ void main() {
     expect((await DatabaseHelper.instance.getAll()).single.subject, 'Account');
   });
 
-  test('a failed server delete keeps the session and the file', () async {
+  test('detach waits for an in-flight scope switch', () async {
     await loginAs(7);
+    await DatabaseHelper.instance.insert(classOf('Algebra'));
+
+    final switching = LocalScopeService.instance.ensureForUser(8);
+    final detaching = LocalScopeService.instance.detachAccount(7);
+    await switching;
+    await detaching;
+
+    expect(LocalScopeService.instance.current, const LocalScope.anonymous());
+    expect(
+      await AppDatabase.instance.scopeFileExists('class_schedule_u7.db'),
+      isFalse,
+    );
+    expect((await DatabaseHelper.instance.getAll()).single.subject, 'Algebra');
+  });
+
+  test('a failed server delete keeps the session and the file', () async {    await loginAs(7);
     await DatabaseHelper.instance.insert(classOf('Algebra'));
     AuthService.testClient = failClient;
 

@@ -60,8 +60,8 @@ class AutoBackupService extends ChangeNotifier {
   String get _lastAtKey => _scopeKey(_lastAtKeyBase);
   String get _lastCountKey => _scopeKey(_lastCountKeyBase);
 
-  String _scopeKey(String base) {
-    final userId = LocalScopeService.instance.current.userId;
+  String _scopeKey(String base, [LocalScope? scope]) {
+    final userId = (scope ?? LocalScopeService.instance.current).userId;
     return userId == null ? base : '${base}_u$userId';
   }
 
@@ -200,6 +200,10 @@ class AutoBackupService extends ChangeNotifier {
       return false;
     }
     _running = true;
+    // Capture the scope once. The schedule is read from the active file and
+    // the backup must be named for that same file: a switch between the read
+    // and the write must not store A's schedule under B's backup name.
+    final scope = LocalScopeService.instance.current;
     notifyListeners();
     var ok = false;
     try {
@@ -208,20 +212,28 @@ class AutoBackupService extends ChangeNotifier {
       final bytes = ScheduleBackupCodec.encode(classes, events: events);
       final dir = await _ensureDirectory();
       final now = DateTime.now();
-      await _atomicWrite(File(p.join(dir.path, mainFileName)), bytes);
+      final main = mainFileNameFor(scope);
+      final prefix = datedPrefixFor(scope);
+      await _atomicWrite(File(p.join(dir.path, main)), bytes);
       await _atomicWrite(
-        File(p.join(dir.path, '$datedPrefix${_stamp(now)}.json')),
+        File(p.join(dir.path, '$prefix${_stamp(now)}.json')),
         bytes,
       );
-      await _rotate(dir);
+      await _rotate(dir, prefix);
       _lastClassCount = classes.length;
       _lastBackupAt = now;
       _lastError = null;
       ok = true;
       try {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setInt(_lastAtKey, now.millisecondsSinceEpoch);
-        await prefs.setInt(_lastCountKey, classes.length);
+        await prefs.setInt(
+          _scopeKey(_lastAtKeyBase, scope),
+          now.millisecondsSinceEpoch,
+        );
+        await prefs.setInt(
+          _scopeKey(_lastCountKeyBase, scope),
+          classes.length,
+        );
       } catch (e) {
         debugPrint('Auto backup: could not persist the stamp: $e');
       }
@@ -301,9 +313,9 @@ class AutoBackupService extends ChangeNotifier {
   /// The match is anchored and exact: the anonymous prefix is a string
   /// prefix of an account's, so a loose `startsWith` would let one scope
   /// delete another's rolling copies.
-  Future<void> _rotate(Directory dir) async {
+  Future<void> _rotate(Directory dir, String prefix) async {
     final pattern = RegExp(
-      '^${RegExp.escape(datedPrefix)}\\d{8}-\\d{4}\\.json\$',
+      '^${RegExp.escape(prefix)}\\d{8}-\\d{4}\\.json\$',
     );
     final copies = <File>[];
     await for (final entity in dir.list()) {

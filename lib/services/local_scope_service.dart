@@ -117,10 +117,19 @@ class LocalScopeService {
     if (await _tryAdopt(target)) return;
 
     await _switchTo(target);
+
+    // A scope successfully established after a failed startup resumes sync.
+    _syncBlocked = false;
   }
 
   Future<void> _switchTo(LocalScope target) async {
     final database = AppDatabase.instance;
+
+    // Open the target before touching the active scope or the persisted
+    // marker. A corrupt or unwritable file fails the sign-in without moving
+    // the app (or the user's next edit) into the wrong scope.
+    await database.preloadScope(target.fileName);
+
     database.beginSwitch();
     _switching = true;
     try {
@@ -130,19 +139,16 @@ class LocalScopeService {
       await prefs.setString(lastScopeKey, target.storageKey);
 
       _current = target;
-
-      // Screens reload from the file they now own.
-      DatabaseHelper.instance.notifyScopeChanged();
     } finally {
       _switching = false;
       database.endSwitch();
     }
 
     await _migrateLegacyPrefs(target);
-    // A sign-in must fail rather than save a session bound to a file this
-    // phone cannot read.
-    await AppDatabase.instance.database;
     await _afterSwitch();
+
+    // Screens reload from the file they now own, after the gate is open.
+    DatabaseHelper.instance.notifyScopeChanged();
   }
 
   /// Renames the anonymous file into the first account that signs in.
@@ -180,6 +186,8 @@ class LocalScopeService {
         await database.scopePath(legacyName),
         await database.scopePath(target.fileName),
       );
+      // Verify the renamed file before committing the scope to it.
+      await database.preloadScope(target.fileName);
       AppDatabase.databaseName = target.fileName;
       _current = target;
     } finally {
@@ -188,11 +196,10 @@ class LocalScopeService {
     }
 
     await _migrateLegacyPrefs(target);
-    await AppDatabase.instance.database;
     await prefs.setString(lastScopeKey, target.storageKey);
     await prefs.remove(legacyClaimKey);
-    DatabaseHelper.instance.notifyScopeChanged();
     await _afterSwitch();
+    DatabaseHelper.instance.notifyScopeChanged();
 
     debugPrint('Adopted the local schedule into ${target.fileName}.');
   }
@@ -247,7 +254,13 @@ class LocalScopeService {
   /// Deletion removes the account's identity and its scoped copies, not the
   /// timetable: the schedule is the user's primary artifact, the app already
   /// promises phone data stays, and a wipe has no undo.
-  Future<void> detachAccount(int userId) async {
+  Future<void> detachAccount(int userId) {
+    final result = _chain.then((_) => _detachAccount(userId));
+    _chain = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return result;
+  }
+
+  Future<void> _detachAccount(int userId) async {
     final database = AppDatabase.instance;
     final account = LocalScope.account(userId);
     const anonymous = LocalScope.anonymous();
@@ -275,6 +288,8 @@ class LocalScopeService {
         await database.scopePath(account.fileName),
         await database.scopePath(anonymous.fileName),
       );
+      // Verify the renamed file before committing the scope to it.
+      await database.preloadScope(anonymous.fileName);
       AppDatabase.databaseName = anonymous.fileName;
       _current = anonymous;
       final prefs = await SharedPreferences.getInstance();
@@ -284,18 +299,19 @@ class LocalScopeService {
       database.endSwitch();
     }
 
+    DatabaseHelper.instance.notifyScopeChanged();
+
     // The file now belongs to whoever uses the phone next, so it must not
     // carry the deleted account's device id or cursors.
     await DatabaseHelper.instance.resetSyncIdentity();
-    await AutoBackupService.instance.forgetScope(account);
-    await AutoBackupService.instance.deleteScopeBackups(account);
-    await AutoBackupService.instance.notifyScopeChanged();
-
-    // One anonymous backup, so the safety net exists under the new scope.
     try {
+      await AutoBackupService.instance.forgetScope(account);
+      await AutoBackupService.instance.deleteScopeBackups(account);
+      await AutoBackupService.instance.notifyScopeChanged();
+      // One anonymous backup, so the safety net exists under the new scope.
       await AutoBackupService.instance.backupNow();
     } catch (error, stack) {
-      debugPrint('Anonymous backup after detach failed: $error\n$stack');
+      debugPrint('Cleanup after account detach failed: $error\n$stack');
     }
 
     await _reconcileReminders();

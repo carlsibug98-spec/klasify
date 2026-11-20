@@ -85,8 +85,8 @@ Klasify is an Android-first Flutter app for students. Its core jobs:
 - Local database: SQLite via `sqflite`, schema **version 13**, one file per scope
   (`class_schedule.db` locally, `class_schedule_u<id>.db` per account)
 - Backend: PHP 8 + MySQL/MariaDB (XAMPP-compatible), JWT HS256, bcrypt cost 12
-- Tests: 84 Dart test files, 602 tests, all passing (verified Nov 20, 2026);
-  plus 66 PHP parity tests
+- Tests: 84 Dart test files, 607 tests, all passing (verified Nov 20, 2026);
+  plus 86 PHP parity tests
 
 ---
 
@@ -390,9 +390,10 @@ strip until the first successful pull.
 
 The sync identity lives **inside the scope file**, not in SharedPreferences.
 The cursor is part of the scope: it switches with the data and cannot be stale
-by construction. A device id is minted per file; a file that changes hands
-(account deletion, adoption into a new account) gets a fresh one so the server
-never sees one identity claimed by two accounts.
+by construction. A device id is minted per file. Adoption reuses the stored id
+only when it was minted for that same account; detaching after account deletion
+clears it, so a later adoption mints a fresh one. The server never sees one
+identity claimed by two accounts.
 
 ### 5.2 Migrations v1 → v13
 
@@ -1413,12 +1414,12 @@ late response cannot write another account's server ids or cursors.
 ### 11.1 Flutter tests
 
 - `flutter analyze` must be clean.
-- `flutter test` runs 84 files / 602 tests.
+- `flutter test` runs 84 files / 607 tests.
 - Database tests use `sqflite_common_ffi` with a test-specific database name.
 - Golden tests render screens and compare PNGs with a tolerance.
 - OCR benchmarks shell out to Tesseract in CI because the native PaddleOCR
   engine cannot run in the test VM.
-- The PHP parity harness (`php-backend/tests/run.php`) runs 66 tests against a
+- The PHP parity harness (`php-backend/tests/run.php`) runs 86 tests against a
   disposable `klasify_test` database rebuilt from `docs/mysql_schema.sql`.
 
 ### 11.2 CI

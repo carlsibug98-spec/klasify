@@ -60,9 +60,8 @@ class SyncService extends ChangeNotifier {
 
   /// Aligns the local scope with the signed-in account and reports whether
   /// sync may touch the database.
-  Future<bool> _pinScope() async {
+  Future<bool> _pinScope(Object? userId) async {
     final scope = LocalScopeService.instance;
-    final userId = AuthService.instance.currentUser?['id'];
     try {
       await scope.ensureForUser(userId is int ? userId : null);
     } catch (error) {
@@ -99,9 +98,17 @@ class SyncService extends ChangeNotifier {
 
   /// Push local changes to the server. Returns true on success.
   Future<bool> push() async {
+    final sessionUserId = AuthService.instance.currentUser?['id'];
     final token = await _token;
     if (token == null) return false;
-    if (!await _pinScope()) return false;
+    if (!await _pinScope(sessionUserId)) return false;
+    // The body is built from the scope pinned above. If the session changed
+    // while pinning, sending it with this token would put one account's rows
+    // into another account on the server.
+    if (AuthService.instance.currentUser?['id'] != sessionUserId) {
+      debugPrint('Sync push skipped: the session changed.');
+      return false;
+    }
 
     final generation = LocalScopeService.instance.generation;
     _syncing = true;
@@ -223,9 +230,14 @@ class SyncService extends ChangeNotifier {
 
   /// Pull server changes since last pull. Returns true on success.
   Future<bool> pull() async {
+    final sessionUserId = AuthService.instance.currentUser?['id'];
     final token = await _token;
     if (token == null) return false;
-    if (!await _pinScope()) return false;
+    if (!await _pinScope(sessionUserId)) return false;
+    if (AuthService.instance.currentUser?['id'] != sessionUserId) {
+      debugPrint('Sync pull skipped: the session changed.');
+      return false;
+    }
 
     final generation = LocalScopeService.instance.generation;
     _syncing = true;

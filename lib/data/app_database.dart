@@ -20,8 +20,11 @@ class AppDatabase {
   /// Opens in progress, so two concurrent callers share one connection.
   final Map<String, Future<Database>> _pendingOpen = {};
 
-  /// Held closed while a scope switch changes files or renames one.
+  /// Held closed while a scope switch changes files or renames one. The depth
+  /// matters: a nested operation (an adoption inside a detach) must not open
+  /// the gate for the outer one.
   Completer<void>? _gate;
+  int _switchDepth = 0;
 
   /// File name of the database. Tests set their own name so they never share a file.
   // Deliberately NOT renamed to klasify.db: existing installs keep their data
@@ -54,8 +57,17 @@ class AppDatabase {
     // a query could land on a file that is about to be renamed.
     final gate = _gate;
     if (gate != null) await gate.future;
+    return _connection(_databaseName);
+  }
 
-    final name = _databaseName;
+  /// Opens one scope's file ahead of a switch, so the switch can fail before
+  /// it commits anything. This deliberately bypasses the gate: it is called
+  /// while the gate is held, and the file it opens is the one being switched to.
+  Future<void> preloadScope(String name) async {
+    await _connection(name);
+  }
+
+  Future<Database> _connection(String name) async {
     final existing = _open[name];
     if (existing != null) return existing;
 
@@ -77,13 +89,17 @@ class AppDatabase {
     return opening;
   }
 
-  /// Blocks new database access until [endSwitch].
+  /// Blocks new database access until every nested [endSwitch] has run.
   void beginSwitch() {
+    _switchDepth++;
     _gate ??= Completer<void>();
   }
 
-  /// Releases the gate opened by [beginSwitch].
+  /// Releases one level of the gate opened by [beginSwitch].
   void endSwitch() {
+    _switchDepth--;
+    if (_switchDepth > 0) return;
+    if (_switchDepth < 0) _switchDepth = 0;
     final gate = _gate;
     _gate = null;
     if (gate != null && !gate.isCompleted) gate.complete();
@@ -254,7 +270,13 @@ class AppDatabase {
   /// singleton at different files. Production code never calls this.
   /// (The annotation lives on [DatabaseHelper.resetForTesting], the public
   /// entry point tests use.)
-  Future<void> resetForTesting() => closeAll();
+  Future<void> resetForTesting() async {
+    _switchDepth = 0;
+    final gate = _gate;
+    _gate = null;
+    if (gate != null && !gate.isCompleted) gate.complete();
+    await closeAll();
+  }
 
   /// The events table. CHECK constraints carry validation for fresh and
   /// upgraded databases alike — event rows exist only since version 6, so

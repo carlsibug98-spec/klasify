@@ -112,5 +112,18 @@ void main() {
     );
 
     expect(AuthService.instance.isLoggedIn, isFalse);
+    // The failed switch must not move the app off the scope it was on.
+    expect(LocalScopeService.instance.current, const LocalScope.anonymous());
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString(LocalScopeService.lastScopeKey), isNull);
+  });
+
+  test('a successful switch clears a blocked startup', () async {
+    LocalScopeService.instance.markSyncBlocked();
+    expect(LocalScopeService.instance.syncBlocked, isTrue);
+
+    await LocalScopeService.instance.ensureForUser(7);
+
+    expect(LocalScopeService.instance.syncBlocked, isFalse);
   });
 }

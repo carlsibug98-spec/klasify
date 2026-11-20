@@ -51,4 +51,20 @@ void main() {
     // The other scope's handle still works without reopening from scratch.
     expect(await DatabaseHelper.instance.getAll(), isEmpty);
   });
+
+  test('a nested switch release does not open the gate early', () async {
+    final db = AppDatabase.instance;
+    db.beginSwitch();
+    db.beginSwitch();
+    db.endSwitch();
+
+    var opened = false;
+    final pending = DatabaseHelper.instance.getAll().then((_) => opened = true);
+    await Future<void>.delayed(const Duration(milliseconds: 25));
+    expect(opened, isFalse, reason: 'one release must not end an outer switch');
+
+    db.endSwitch();
+    await pending;
+    expect(opened, isTrue);
+  });
 }

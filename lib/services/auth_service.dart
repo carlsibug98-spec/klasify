@@ -199,6 +199,12 @@ class AuthService extends ChangeNotifier {
     // Throws on failure before any local change.
     await _api.deleteAccount();
 
+    // The account is gone server-side: stop treating its session as current
+    // before touching the local file, so an in-flight sync cannot re-scope to
+    // the deleted account.
+    await _session.clear();
+    notifyListeners();
+
     if (userId is int) {
       try {
         await LocalScopeService.instance.detachAccount(userId);
@@ -206,9 +212,6 @@ class AuthService extends ChangeNotifier {
         debugPrint('Local detach after account deletion failed: $error\n$stack');
       }
     }
-
-    await _session.clear();
-    notifyListeners();
   }
 
   /// PATCH /auth/me — partial profile edit. Returns the updated user map.
