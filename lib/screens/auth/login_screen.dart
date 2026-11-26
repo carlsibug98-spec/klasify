@@ -225,12 +225,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 icon: _googleIcon(),
                 onPressed: _loading ? () {} : () { _signInWithGoogle(); },
               ),
-              const SizedBox(height: 10),
-              _SocialButton(
-                label: 'Continue with Apple',
-                icon: _appleIcon(),
-                onPressed: () {},
-              ),
               const SizedBox(height: 32),
               Center(
                 child: TextButton(
@@ -288,12 +282,6 @@ class _LoginScreenState extends State<LoginScreen> {
         width: 18,
         height: 18,
         child: Center(child: Text('G', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14))),
-      );
-
-  Widget _appleIcon() => const SizedBox(
-        width: 18,
-        height: 18,
-        child: Center(child: Icon(Icons.apple, size: 20)),
       );
 }
 
