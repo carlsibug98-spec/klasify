@@ -8,7 +8,6 @@ import '../models/class_item.dart';
 import '../routes/app_router.dart';
 import '../routes/app_routes.dart';
 import '../services/coach_tour_store.dart';
-import '../services/next_class_widget_service.dart';
 import '../services/reminder_service.dart';
 import '../services/swipe_hint_store.dart';
 import '../theme/app_theme.dart';
@@ -49,7 +48,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   bool _quickActionsExpanded = false;
   int _selectedWeekday = DateTime.now().weekday;
   final _database = DatabaseHelper.instance;
-  int _widgetSyncVersion = 0;
+  int _classesLoadVersion = 0;
   late final AnimationController _screenTransitionController;
   late final CurvedAnimation _screenOpacity;
 
@@ -188,7 +187,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
       const Duration(minutes: 1),
       (_) => _recountToday(),
     );
-    unawaited(_syncWidgetSchedule());
+    unawaited(_loadClassesForShell());
   }
 
   @override
@@ -199,14 +198,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     MainNavigationScreen.tabRequest.removeListener(_onTabRequested);
     MainNavigationScreen.weekDayRequest.removeListener(_onWeekDayRequested);
     _minuteTimer?.cancel();
-    _widgetSyncVersion++;
+    _classesLoadVersion++;
     _screenOpacity.dispose();
     _screenTransitionController.dispose();
     super.dispose();
   }
 
   void _onScheduleChanged() {
-    unawaited(_syncWidgetSchedule());
+    unawaited(_loadClassesForShell());
   }
 
   void _onTabRequested() {
@@ -240,15 +239,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     setState(() => _remindersEnabled = enabled);
   }
 
-  Future<void> _syncWidgetSchedule() async {
-    final version = ++_widgetSyncVersion;
+  Future<void> _loadClassesForShell() async {
+    final version = ++_classesLoadVersion;
     try {
       final classes = await _database.getAll();
-      final statuses = await _database.getClassStatuses();
-      if (!mounted || version != _widgetSyncVersion) return;
+      if (!mounted || version != _classesLoadVersion) return;
       _classes = classes;
       _recountToday();
-      await NextClassWidgetService.sync(classes, statuses: statuses);
       // The shell always opens on Today: a user holding classes who somehow
       // never saw the tour (an earlier session ended before it could play)
       // gets it here, exactly once per mount, still one-shot via the store.
@@ -260,7 +257,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
       }
     } catch (error, stackTrace) {
       debugPrint(
-        'Could not load classes for the launcher widget: $error\n$stackTrace',
+        'Could not load classes for the shell: $error\n$stackTrace',
       );
     }
   }

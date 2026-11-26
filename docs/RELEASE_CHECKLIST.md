@@ -54,7 +54,7 @@ Already handled in this repo (do not redo):
 ## 6. Apple App Store (optional, later)
 - [ ] Privacy "nutrition labels": *Data Not Collected* (or Diagnostics only if a Sentry build ships).
 - [ ] Privacy Policy URL = the same hosted page.
-- [ ] Guideline 4.2 (minimum functionality) is comfortably met by OCR import + reminders + home-screen widget; say so in the review notes.
+- [ ] Guideline 4.2 (minimum functionality) is comfortably met by OCR import + reminders; say so in the review notes.
 
 ## 7. Launch + first 72 hours
 - [ ] Day 0: notify the beta testers; start the staged rollout.

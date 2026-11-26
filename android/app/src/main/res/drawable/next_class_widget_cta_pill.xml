@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Room CTA pill: 34dp high, 17dp radius, inverted per mode. -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="@color/next_class_widget_cta_bg" />
-    <corners android:radius="17dp" />
-</shape>

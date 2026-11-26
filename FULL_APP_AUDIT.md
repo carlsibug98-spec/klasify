@@ -35,7 +35,6 @@ Status definitions:
 | Delete with undo flow | `widgets/class_delete_undo.dart`, `data/database_helper.dart` | Implemented in source; verification required | End-to-end test deletion, undo, expiration, and app lifecycle. |
 | Empty state | `widgets/empty_state_card.dart`, `screens/home_screen.dart`, `screens/schedule_screen.dart` | Partial / verification required | Confirm each empty state has the correct message and reference actions, especially Today’s two actions. |
 | Settings group and row | `screens/settings_screen.dart`, `widgets/component_kit.dart` | Partial; section header shared | Shared `SettingsRow` is now used in compact mode by the Settings screen; screenshot verification remains outstanding. |
-| Home-screen widget | `services/next_class_widget_service.dart` | Verification required | Validate platform integration, refresh timing, empty state, and actual device presentation. |
 | Class details sheet | `widgets/class_details_sheet.dart` | Implemented in source; verification required | Verify details, edit/delete actions, dismissal, safe areas, and text scaling. |
 | Delete confirmation dialog | `widgets/component_kit.dart` (`showDeleteConfirmation`) plus screen-specific dialogs | Partial / integration gap | Shared helper exists, but screen-specific dialogs remain; check consistency and integrate where appropriate. |
 | Error view | `widgets/error_view.dart` | Implemented in source; verification required | Confirm retry action, message quality, semantics, and use for real failures. |

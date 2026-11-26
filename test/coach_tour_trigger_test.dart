@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klasify/data/database_helper.dart';
@@ -29,12 +28,6 @@ void main() {
     DatabaseHelper.databaseName =
         'coach_trigger_${DateTime.now().microsecondsSinceEpoch}.db';
     AndroidFlutterLocalNotificationsPlugin.registerWith();
-    // Launcher-widget sync: no native side in the tester.
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      const MethodChannel('klasify/next_class_widget'),
-      (call) async => null,
-    );
   });
 
   tearDown(() => MainNavigationScreen.tabRequest.value = null);

@@ -97,11 +97,6 @@ void main() {
     ]);
     await _load('MaterialIcons', ['materialicons-regular.otf']);
     AndroidFlutterLocalNotificationsPlugin.registerWith();
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      const MethodChannel('klasify/next_class_widget'),
-      (call) async => null,
-    );
     sqfliteFfiInit();
     sqflite.databaseFactory = databaseFactoryFfiNoIsolate;
     DatabaseHelper.databaseName =

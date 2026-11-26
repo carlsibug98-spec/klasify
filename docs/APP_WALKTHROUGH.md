@@ -76,7 +76,7 @@ Klasify is an Android-first Flutter app for students. Its core jobs:
 | Server is optional | Signed-out users keep all data; account deletion leaves local data. |
 | OCR is on-device | No schedule image leaves the phone. |
 | Reminders are local | No push server is involved. |
-| Android is the primary target | The home-screen widget and notification channels are Android-native. |
+| Android is the primary target | The notification channels are Android-native. |
 
 ### 1.3 Version and stack
 
@@ -85,7 +85,7 @@ Klasify is an Android-first Flutter app for students. Its core jobs:
 - Local database: SQLite via `sqflite`, schema **version 13**, one file per scope
   (`class_schedule.db` locally, `class_schedule_u<id>.db` per account)
 - Backend: PHP 8 + MySQL/MariaDB (XAMPP-compatible), JWT HS256, bcrypt cost 12
-- Tests: 84 Dart test files, 609 tests, all passing (verified Nov 20, 2026);
+- Tests: 86 Dart test files, 609 tests, all passing (verified Nov 26, 2026);
   plus 86 PHP parity tests
 
 ---
@@ -105,7 +105,7 @@ Klasify is an Android-first Flutter app for students. Its core jobs:
 │ DOMAIN / SERVICES                                                   │
 │  models/        plain data + validation helpers                     │
 │  utils/         pure rules (overlap, next class, backup codec)      │
-│  services/      auth, sync, reminders, backups, widget, theme       │
+│  services/      auth, sync, reminders, backups, theme               │
 └───────────────────────────────┬─────────────────────────────────────┘
                                 │ CRUD + change notifications
 ┌───────────────────────────────▼─────────────────────────────────────┐
@@ -157,7 +157,7 @@ If the network is down, every screen still works:
 
 - Today, Week, Profile read from SQLite.
 - Add/edit/delete write to SQLite immediately.
-- Reminders, the widget, and auto-backup react to the database change.
+- Reminders and auto-backup react to the database change.
 - Sync is a background convenience that pushes and pulls later.
 
 The server never sits between a tap and the screen. That is the core design
@@ -250,7 +250,7 @@ for top-level navigation; screens use `Navigator.pushNamed`.
 
 `AppRouter.routeObserver` lets `MainNavigationScreen` know when a pushed route
 (the class editor, the import flow) popped back. This is how a pending coach
-tour or a widget refresh is retried at the right moment.
+tour is retried at the right moment.
 
 ### 4.2 The shell
 
@@ -260,8 +260,8 @@ tour or a widget refresh is retried at the right moment.
 - **Week** — `ScheduleScreen` (tab 1)
 - **Profile** — `ProfileScreen` (tab 2)
 - A floating quick-actions button, a coach-tour overlay, and a custom bottom bar.
-- The Android widget sync: on init and on every database change, it loads
-  classes + statuses and pushes them to `NextClassWidgetService.sync(...)`.
+- The class count for Today: on init and on every database change it reloads the
+  schedule and recounts today's remaining classes.
 
 It also exposes static `ValueNotifier`s (`tabRequest`, `weekDayRequest`) so a
 child screen can ask the shell to switch tabs or jump to a weekday without
@@ -437,7 +437,6 @@ Every successful write calls `notifyListeners()`. That is the app's local event
 bus. It is how:
 
 - Today/Week reload when a class changes,
-- the Android widget refreshes,
 - auto-backup schedules a new file,
 - the import review notices that saved classes changed while it was open.
 
@@ -565,7 +564,6 @@ files; test fixtures and generated assets are grouped at the end.
 | `local_scope_service.dart` | Owns the active scope file: switch on sign-in, adoption by rename with crash recovery, detach on account deletion, legacy prefs migration |
 | `reminder_service.dart` | Local notification channel, permissions, weekly class reminders, event alarms, pruning |
 | `auto_backup_service.dart` | Debounced atomic JSON backup per scope, rolling copies, status |
-| `next_class_widget_service.dart` | Sends classes + marked dates to Android over a MethodChannel |
 | `crash_reporting.dart` | Opt-in Sentry wrapper; no DSN = no SDK |
 | `onboarding_store.dart` | "Has the user seen onboarding?" flag |
 | `theme_mode_service.dart` | Light/dark/system preference, persisted |
@@ -602,7 +600,7 @@ files; test fixtures and generated assets are grouped at the end.
 
 | File | Purpose |
 |---|---|
-| `main_navigation_screen.dart` | Three-tab shell, quick actions, coach tour, widget sync |
+| `main_navigation_screen.dart` | Three-tab shell, quick actions, coach tour, class count |
 | `home_screen.dart` | Today: hero, queue, events, offices, empty states, first-run coach |
 | `schedule_screen.dart` | Week: weekday strip, day agenda, stacks, swipe actions, status sheet |
 | `edit_class_screen.dart` | Add/edit form, validation, overlap check, save/delete, draft mode |
@@ -728,7 +726,7 @@ files; test fixtures and generated assets are grouped at the end.
 | `widgets/import_success_card.dart` | Import-complete card with View schedule / Import another |
 | `widgets/import_source_preview_screen.dart` | Zoomable source image/PDF preview |
 
-### 6.12 `test/` (84 Dart test files)
+### 6.12 `test/` (86 Dart test files)
 
 The suite is organized by risk area:
 
@@ -736,8 +734,8 @@ The suite is organized by risk area:
 |---|---|
 | Database | `database_crud_test`, `database_validation_test`, `events_db_test`, `office_statuses_db_test`, `class_status_db_test`, `class_status_migration_test`, `sync_mapping_integrity_test`, `foreign_key_integrity_test` |
 | Models/rules | `class_status_test`, `event_item_test`, `next_class_test`, `schedule_rules_test`, `office_status_test`, `schedule_backup_codec_test` |
-| Screens/widgets | `edit_class_screen_test`, `home_screen_hero_test`, `home_screen_stacks_test`, `events_home_test`, `weekly_schedule_view_test`, `ui_widgets_test`, `day_status_sheet_test`, `office_editor_manage_test`, `office_status_strip_test`, `office_name_sheet_test`, `swipe_actions_test`, `large_text_test`, `component_kit_test` |
-| Auth/legal | `auth_http_test`, `auth_legal_test`, `auth_service_url_test`, `signup_department_test`, `app_info_test` |
+| Screens/widgets | `edit_class_screen_test`, `home_screen_hero_test`, `home_screen_stacks_test`, `events_home_test`, `weekly_schedule_view_test`, `ui_widgets_test`, `day_status_sheet_test`, `office_editor_manage_test`, `office_status_strip_test`, `office_name_sheet_test`, `swipe_actions_test`, `large_text_test`, `component_kit_test`, `launcher_widget_removed_test` |
+| Auth/legal | `auth_http_test`, `auth_legal_test`, `auth_service_url_test`, `signup_department_test`, `app_info_test`, `auth_social_options_test` |
 | Sync/backup | `auto_backup_test`, `reminder_service_test`, `crash_reporting_test` |
 | Onboarding/coach | `onboarding_test`, `coach_tour_test`, `coach_tour_store_test`, `coach_tour_trigger_test`, `first_class_coach_store_test`, `home_first_class_coach_test` |
 | Import/OCR | `import_draft_test`, `import_review_analysis_test`, `import_review_edit_test`, `import_timetable_cancel_test`, `import_weak_grid_rescue_test`, `import_widgets_test`, `schedule_text_parser_test`, `sectioned_schedule_parser_test`, `cor_schedule_parser_test`, `timetable_parser_test`, `timetable_grid_scanner_test`, `timetable_grid_geometry_test`, `timetable_grid_pixels_test`, `timetable_clock_ticks_test`, `ocr_image_size_test`, `adaptive_ocr_threshold_test`, `skew_profile_estimator_test`, `pdf_page_image_test`, `pdf_timetable_text_test`, `pdf_timetable_scan_result_test`, `non_timetable_schedule_test` |
@@ -758,26 +756,11 @@ pixel drift even when no UI changed.
 
 | File | Purpose |
 |---|---|
-| `app/src/main/kotlin/.../MainActivity.kt` | Hosts the Flutter engine; MethodChannel receiver for widget updates |
-| `.../NextClassWidgetProvider.kt` | `AppWidgetProvider`: reads schedule JSON, computes live/next state, renders RemoteViews, schedules boundary alarms |
-| `.../WidgetCalendarIds.kt` | Generated cell ids for the calendar layout |
-| `AndroidManifest.xml` | Permissions, widget receiver, boot/time-change intents |
-| `res/layout/widget_next_class.xml` | Compact/board widget layout |
-| `res/layout/widget_next_class_calendar.xml` | Tall calendar layout |
-| `res/xml/next_class_widget_info.xml` | Widget metadata/sizing |
-| `res/drawable/next_class_widget_*` | Widget backgrounds, icons, pills, progress |
-| `res/values*/` | Colors, dimens, styles, strings, launcher background |
+| `app/src/main/kotlin/.../MainActivity.kt` | Hosts the Flutter engine |
+| `AndroidManifest.xml` | Permissions, notification receivers, boot/time-change intents |
+| `res/values*/` | Colors, styles, splash background |
 | `app/build.gradle.kts` | App id, SDK levels, signing, Flutter config |
 | `ios/` | Standard Flutter iOS runner scaffolding (not the primary target) |
-
-**Widget flow:** the Flutter shell calls `NextClassWidgetService.sync(classes, statuses)`.
-The MethodChannel writes the JSON into the widget's `SharedPreferences`, then
-`NextClassWidgetProvider.updateAllWidgets` renders. The provider filters marked
-dates (finished/not attending/cancelled), finds the live or next class, renders
-the right layout for the widget's height, and books an `AlarmManager` boundary
-for the next start/end plus a minute tick. It also listens for
-`TIME_TICK`, `DATE_CHANGED`, `TIME_CHANGED`, `TIMEZONE_CHANGED`,
-`LOCALE_CHANGED`, `BOOT_COMPLETED`, and `MY_PACKAGE_REPLACED`.
 
 ### 6.14 `php-backend/` (20 files)
 
@@ -886,7 +869,7 @@ Save path:
    past marks stay as history.
 7. `ReminderService.sync()`.
 8. `notifyListeners()` already fired inside the database call, so Today/Week
-   reload, the widget updates, and auto-backup schedules.
+   reload and auto-backup schedules.
 9. Pop.
 
 ### 7.4 Mark a class (`day_status_sheet.dart` + `class_status.dart`)
@@ -1054,7 +1037,6 @@ UI tap
        → SQLite row + fresh updated_at (UTC)
        → notifyListeners()
             ├─ Today / Week rebuild from SQLite
-            ├─ Android widget JSON is refreshed
             └─ auto-backup debounce starts
   → if signed in, next SyncService cycle:
        push: POST /sync/push  → PHP → MySQL upsert
@@ -1084,7 +1066,6 @@ Tap FAB → EditClassScreen
   → ReminderService.sync()
   → pop
   → Today/Week listeners reload from SQLite
-  → widget service pushes JSON to Android
   → auto-backup debounce starts
 ```
 
@@ -1414,7 +1395,7 @@ late response cannot write another account's server ids or cursors.
 ### 11.1 Flutter tests
 
 - `flutter analyze` must be clean.
-- `flutter test` runs 84 files / 609 tests.
+- `flutter test` runs 84 test files / 609 tests.
 - Database tests use `sqflite_common_ffi` with a test-specific database name.
 - Golden tests render screens and compare PNGs with a tolerance.
 - OCR benchmarks shell out to Tesseract in CI because the native PaddleOCR
@@ -1452,7 +1433,7 @@ late response cannot write another account's server ids or cursors.
 > entirely on-device, and every row is reviewed before it is saved. Today shows
 > the live or next class, Week shows the full timetable, and students can mark
 > occurrences as finished, not attending, or cancelled. Reminders are scheduled
-> locally, and an Android home-screen widget keeps the next class visible.
+> locally.
 >
 > On top of that, there is an optional PHP/MySQL backend. Signing in enables
 > cross-device sync, school events, office availability, and admin tools. Sync is
@@ -1647,7 +1628,7 @@ parity tests, and CI on a pinned Windows/Flutter toolchain.
   lose one side's text.
 - The backend is single-tenant per user for classes; there is no shared class
   roster.
-- The iOS target is scaffolding; the widget and notification work are Android-first.
+- The iOS target is scaffolding; the notification work is Android-first.
 - Office data is only as fresh as the last successful pull.
 
 ---
@@ -1722,7 +1703,7 @@ UI (Flutter)
   ↓ reads/writes
 SQLite (source of truth)
   ↓ notifyListeners
-Reminders · Widget · Auto-backup
+Reminders · Auto-backup
   ↓ optional, signed in
 SyncService  →  PHP API  →  MySQL
   ↑ pull (tombstones + deltas)

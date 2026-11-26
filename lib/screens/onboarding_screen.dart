@@ -10,7 +10,7 @@ import '../widgets/first_run_options.dart';
 import '../widgets/pressable_scale.dart';
 
 /// The three onboarding pages, straight from the design:
-/// 1. Welcome (dark cover, stacked next-class widget)
+/// 1. Welcome (dark cover, stacked next-class card)
 /// 2. Add your timetable (scan/add tiles with the example card)
 /// 3. Stay on track (reminder card with toggle + chips, backup card)
 ///
@@ -395,7 +395,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                     ),
                                   ),
                                   // The cover still gets its preview: the stacked
-                                  // next-class widget beneath the title and body,
+                                  // next-class card beneath the title and body,
                                   // per the welcome mock.
                                   if (isCover)
                                     _Parallax(
@@ -587,8 +587,8 @@ class _SectionChip extends StatelessWidget {
   }
 }
 
-/// The cover's stacked next-class widget: two quiet layers behind and the
-/// light "Upcoming" widget card in front — the v52 hero design, small.
+/// The cover's stacked next-class card: two quiet layers behind and the
+/// light "Upcoming" card in front — the v52 hero design, small.
 class _WelcomeWidget extends StatelessWidget {
   const _WelcomeWidget();
 
@@ -618,7 +618,7 @@ class _WelcomeWidget extends StatelessWidget {
               child: Semantics(
                 container: true,
                 label:
-                    'Example of the next-class widget: Next up, Design Class, '
+                    'Example of the next-class card: Next up, Design Class, '
                     'starts in 2 hours 12 minutes, Room 242-B.',
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -720,7 +720,7 @@ class _WelcomeWidget extends StatelessWidget {
                         // The mock's cover preview: the countdown reads as
                         // one quiet line under the title ("Starts in 1 h 46
                         // min") — the caption-over-countdown anatomy belongs
-                        // to the real hero and launcher widget.
+                        // to the real hero.
                         Text(
                           'Starts in 1 h 46 min',
                           style: textTheme.bodySmall?.copyWith(
@@ -921,7 +921,7 @@ class _RemindersPreview extends StatelessWidget {
 
 /// Staggered entrance: children fade in and rise 14 px, one after another —
 /// a 560 ms choreography in 14% beats. Onboarding is a first-run surface, so
-/// it carries the app's whole delight budget; replays whenever the widget
+/// it carries the app's whole delight budget; replays whenever the page
 /// remounts (each onboarding page keys its own), and snaps to the final state
 /// when reduced motion is on.
 class _StaggeredIn extends StatefulWidget {

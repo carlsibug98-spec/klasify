@@ -95,13 +95,6 @@ void main() {
     ]);
     await _load('MaterialIcons', ['materialicons-regular.otf']);
     AndroidFlutterLocalNotificationsPlugin.registerWith();
-    // Launcher-widget sync: no native side in the tester; answer with null
-    // so MainNavigationScreen's schedule sync is a clean no-op.
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      const MethodChannel('klasify/next_class_widget'),
-      (call) async => null,
-    );
     sqfliteFfiInit();
     // NoIsolate: widget tests run in a fake async zone (see the hero test).
     sqflite.databaseFactory = databaseFactoryFfiNoIsolate;

@@ -137,41 +137,6 @@ void main() {
     });
   });
 
-  group('markedDateKeys', () {
-    test('lists only the marked occurrence on the class weekday', () {
-      final statuses = <int, List<ClassStatusEntry>>{
-        1: [entry(DayStatus.finished, '2026-10-23', '2026-10-23')],
-      };
-      // Friday 23 Oct; the class is on Friday (weekday 5).
-      expect(markedDateKeys(statuses, 1, 5, DateTime(2026, 10, 23)), [
-        '2026-10-23',
-      ]);
-    });
-
-    test(
-      'an until-cleared mark covers every future occurrence in the window',
-      () {
-        final statuses = <int, List<ClassStatusEntry>>{
-          1: [entry(DayStatus.notAttending, '2026-10-23')],
-        };
-        expect(markedDateKeys(statuses, 1, 5, DateTime(2026, 10, 23)), [
-          '2026-10-23',
-          '2026-10-30',
-        ]);
-      },
-    );
-
-    test('ignores days that are not the class weekday', () {
-      final statuses = <int, List<ClassStatusEntry>>{
-        1: [entry(DayStatus.cancelled, '2026-10-22', '2026-10-24')],
-      };
-      // The mark covers Thu 22 to Sat 24 Oct. Only Friday 23 Oct is a class day in that range.
-      expect(markedDateKeys(statuses, 1, 5, DateTime(2026, 10, 23)), [
-        '2026-10-23',
-      ]);
-    });
-  });
-
   group('findNextClass with finished marks', () {
     test(
       'a class marked finished early is not live, and the next class takes over',

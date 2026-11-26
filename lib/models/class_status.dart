@@ -275,24 +275,6 @@ ClassStatusEntry? activeStatusEntry(
   return null;
 }
 
-/// Dates (yyyy-MM-dd) in the next [days] days, starting today, on which this class
-/// has an active status. Only days that fall on [weekday] are checked.
-List<String> markedDateKeys(
-  ClassStatuses statuses,
-  int? classId,
-  int weekday,
-  DateTime now, {
-  int days = 8,
-}) {
-  final keys = <String>[];
-  for (var i = 0; i < days; i++) {
-    final d = DateTime(now.year, now.month, now.day + i);
-    if (d.weekday != weekday) continue;
-    if (activeStatusEntry(statuses, classId, d) != null) keys.add(dateKey(d));
-  }
-  return keys;
-}
-
 /// The status that applies to a class occurrence on [date], or null.
 DayStatus? activeDayStatus(
   ClassStatuses statuses,

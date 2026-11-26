@@ -1,5 +1,5 @@
 name: klasify
-description: A local-first weekly class timetable with offline OCR import, class reminders, and an Android home-screen widget.
+description: A local-first weekly class timetable with offline OCR import and class reminders.
 publish_to: 'none'
 version: 1.4.4+15
 

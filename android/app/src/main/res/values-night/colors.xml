@@ -1,41 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Klasify home-screen widget, dark: segment tiers on the launcher.
-         Raised tier #242424, quiet tier #181818, white hairlines. -->
-    <color name="next_class_widget_surface">#181818</color>
-    <color name="next_class_widget_hero_bg">#242424</color>
-    <color name="next_class_widget_seg_stroke">#12FFFFFF</color>
-    <color name="next_class_widget_outline">#232323</color>
-
-    <color name="next_class_widget_accent">#FFFFFF</color>
-    <color name="next_class_widget_live">#FF8A5C</color>
-    <color name="next_class_widget_live_halo">#38FF8A5C</color>
-
-    <color name="next_class_widget_text">#FFFFFF</color>
-    <color name="next_class_widget_time">#FFFFFF</color>
-    <color name="next_class_widget_secondary">#B3B3B3</color>
-    <color name="next_class_widget_meta">#B3B3B3</color>
-    <color name="next_class_widget_meta_icon">#B3B3B3</color>
-    <color name="next_class_widget_unit">#B3B3B3</color>
-    <color name="next_class_widget_muted">#8A8A8A</color>
-    <color name="next_class_widget_compact_text">#FFFFFF</color>
-    <color name="next_class_widget_later_time">#FFFFFF</color>
-    <color name="next_class_widget_room">#B3B3B3</color>
     <color name="splash_background">#000000</color>
-
-    <color name="next_class_widget_day_pill_bg">#FFFFFF</color>
-    <color name="next_class_widget_day_pill_text">#000000</color>
-
-    <!-- Live progress bar -->
-    <color name="next_class_widget_track">#333333</color>
-    <color name="next_class_widget_progress_end">#FFA983</color>
-
-    <!-- Upcoming widget redesign: month calendar -->
-    <color name="next_class_widget_cal_weekday">#FFFFFF</color>
-    <color name="next_class_widget_cal_weekend">#858585</color>
-    <color name="next_class_widget_cal_header">#8A8A8A</color>
-
-    <!-- Room CTA pill (navigate button, inverted per mode) -->
-    <color name="next_class_widget_cta_bg">#FFFFFF</color>
-    <color name="next_class_widget_cta_fg">#000000</color>
 </resources>

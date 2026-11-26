@@ -23,13 +23,12 @@ An offline-first Flutter app for maintaining a weekly class timetable. **All sch
 - **School & department events** on Today with a count chip, Add entry, and per-event reminders (distinct "School event starting soon" notification style); department admins broadcast to their department, super admins to the whole school; students see broadcasts read-only
 - **Admin panel** (only for `admin` / `super_admin` roles): office availability editor plus, for super admins, the user list with role and department management
 - **Light & dark themes** following the system setting, built from the same token set in `lib/theme/app_theme.dart`
-- Android Home-screen widget integration (`NextClassWidgetService`) synced automatically on changes
 - First-launch onboarding (3 pages, skippable) and replayable anytime from Settings
 - Adaptive shell (`MainNavigationScreen`): floating pill navigation bar on mobile, navigation rail on wide screens (>= 600dp), directional slide transitions, and Android 14+ predictive back support
 - Reusable component kit (`SectionHeader`, `SettingsRow`, `TimeBox`, `PinnedActionBar`, `KlasifySkeleton`)
 - Intelligent room label formatting (`formatRoom`: normalizes `304` to `Room 304` while preserving named locations like `Lab 2` and `MacLab`)
 - Real-time class status engine (`classStatusAt`: calculates `live`, `upcoming`, and `done` states relative to current minutes)
-- 63-file test suite (~480 tests): schedule calculations, parsers, database rules, screen widget tests, golden design captures, and OCR accuracy benchmarks
+- 84-file test suite (609 tests): schedule calculations, parsers, database rules, screen widget tests, golden design captures, and OCR accuracy benchmarks
 - Database version upgrade using validation triggers without discarding existing rows
 
 ## Weekly schedule enhancements
@@ -54,7 +53,6 @@ The app uses a black-and-white palette: white and grey surfaces, black for text 
 - Floating Quick Actions: on mobile, a floating expandable `+` action button provides one-tap access to **Add class** or **Import schedule** (opening the importer automatically resumes an in-progress draft).
 - **Navigation**: adaptive navigation uses a floating pill bar on mobile and an accessible `NavigationRail` on screens wider than 600 dp. Tabs transition using directional slide-and-fade motion, respecting system reduced-motion settings.
 - **Onboarding**: three skippable pages with realistic UI previews (`lib/screens/onboarding_screen.dart`).
-- **Home-screen widget**: synced via `NextClassWidgetService` to show upcoming class information on Android home screens.
 - **Design Tokens**: 16px cards (`cardRadius`), 16px controls (`controlRadius`), 12px chips (`chipRadius`), 10px timeline blocks (`blockRadius`), and 28px bottom sheets (`sheetRadius`).
 - **Shared widgets**: `ClassCard`, `NextClassCard`, `DayChips`, `Pill`, `EmptyStateCard`, `ErrorView`, `StatusBanner`, `TimeBox`, `SectionHeader`, `SettingsRow`, `PinnedActionBar`, `SwipeActions`, `QuickActionsButton`, `CoachTourOverlay`, `DayStatusSheet`.
 
@@ -226,7 +224,6 @@ lib/
     auth_service.dart                  # sign-in, roles, admin API client, KLASIFY_API_URL
     sync_service.dart                  # background pull/push with per-table cursors
     coach_tour_store.dart
-    next_class_widget_service.dart
     onboarding_store.dart
     reminder_service.dart
     swipe_hint_store.dart
