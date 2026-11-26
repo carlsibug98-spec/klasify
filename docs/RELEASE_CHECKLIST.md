@@ -44,15 +44,15 @@ Already handled in this repo (do not redo):
 ## 5. Google Play submission
 - [ ] Play Console → Create app ("Klasify").
 - [ ] App content: privacy policy URL; ads = none; **Data safety** form:
-  - Build **without** the Sentry define → declare *No data collected*.
-  - Build **with** Sentry → declare Diagnostics / Crash logs + device & OS info, *not linked to identity*, *not used for tracking*.
+  - Build with accounts/sync → declare **Personal info** (name, email, user ID) and **App activity / other user-generated content** (classes, class status marks, events) collected, linked to the account, used for app functionality, encrypted in transit, and deletable via **Delete account** in the app. Add Diagnostics / Crash logs + device & OS info if Sentry is compiled in (*not linked to identity*, *not used for tracking*).
+  - Build intentionally shipped without accounts/sync → declare *No data collected* (plus the Sentry diagnostics above, if enabled).
 - [ ] Upload the .aab first to the **Internal testing** track (fast sanity check, up to 100 testers).
 - [ ] Then the **Closed testing** track: personal (non-organization) accounts need **12 testers opted in continuously for 14 days** before production access. Start this clock as early as possible — it is the long pole; plan the semester calendar around it.
 - [ ] Read the pre-launch report findings after the first upload; fix crash/ANR flags before production.
 - [ ] After approval: staged rollout (e.g. 20% → 50% → 100%).
 
 ## 6. Apple App Store (optional, later)
-- [ ] Privacy "nutrition labels": *Data Not Collected* (or Diagnostics only if a Sentry build ships).
+- [ ] Privacy "nutrition labels": if accounts/sync ship, declare **Contact Info** (name, email) and **User Content** (schedule, events) linked to the account; otherwise *Data Not Collected*. Add Diagnostics only if a Sentry build ships.
 - [ ] Privacy Policy URL = the same hosted page.
 - [ ] Guideline 4.2 (minimum functionality) is comfortably met by OCR import + reminders; say so in the review notes.
 

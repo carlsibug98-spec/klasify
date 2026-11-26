@@ -77,8 +77,9 @@ const List<(String, String)> _termsSections = [
   ),
   (
     'Your account',
-    'You are responsible for keeping your password safe and for the '
-        'accuracy of the schedule you enter.',
+    'You are responsible for keeping your sign-in secure (your password, '
+        'if you sign up by email) and for the accuracy of the schedule you '
+        'enter.',
   ),
   (
     'Your data',
@@ -118,9 +119,10 @@ const List<(String, String)> _privacySections = [
   ),
   (
     'Your password',
-    'It is never stored by the app. It is sent once, and the server '
-        'keeps only a bcrypt hash. Your session token stays in Android '
-        'secure storage.',
+    'An email password is never stored by the app. It is sent once, and '
+        'the server keeps only a bcrypt hash. If you use Google Sign-In, '
+        'there is no Klasify password at all. Your session token stays in '
+        'Android secure storage.',
   ),
   (
     'Not collected',
@@ -131,13 +133,15 @@ const List<(String, String)> _privacySections = [
   (
     'Who holds it',
     'The sync server is run by whoever operates this build of Klasify. '
-        'Nothing is shared with third parties.',
+        'Optional crash reporting (Sentry) is the only third-party '
+        'service, and it receives technical diagnostics only.',
   ),
   (
     'Removing it',
-    'Uninstalling deletes the local copy. Synced copies are removed by '
-        'the server operator; there is no in-app delete-account button '
-        'yet.',
+    'Uninstalling deletes the local copy. Delete account in Personal '
+        'details marks your account and synced copies as deleted on the '
+        'server and ends your sessions; the copy on this phone stays until '
+        'you clear the app data or uninstall.',
   ),
 ];
 
@@ -176,7 +180,7 @@ Future<void> showAuthLegalSheet(
               ),
               const SizedBox(height: 4),
               Text(
-                'Klasify · last updated 8 November 2026',
+                'Klasify · last updated 26 November 2026',
                 style: textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),

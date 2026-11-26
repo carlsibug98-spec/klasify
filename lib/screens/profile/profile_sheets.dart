@@ -126,7 +126,8 @@ class ProfileAboutSheet extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   'Timetable, reminders, and automatic backups all work '
-                  'offline. File exports move your schedule to a new phone.',
+                  'offline. Syncing across phones is optional, and file '
+                  'exports let you move your schedule by hand.',
                   style: textTheme.bodyMedium?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),

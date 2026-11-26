@@ -2,8 +2,10 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Opt-in crash reporting for Klasify.
 ///
-/// Klasify is local-first: no accounts, no analytics, and no network calls.
-/// Crash reporting preserves that default. The DSN is supplied at BUILD time
+/// Klasify is local-first: accounts and sync are optional, there is no
+/// analytics, and the app reaches the network only for sync, Google Sign-In,
+/// or this opt-in reporting. Crash reporting preserves the signed-out default.
+/// The DSN is supplied at BUILD time
 /// through a dart-define:
 ///
 /// ```bash

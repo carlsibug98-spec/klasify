@@ -209,7 +209,7 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
                       ProfileRow(
                         icon: Icons.shield_outlined,
                         title: 'Privacy Policy',
-                        subtitle: 'What is stored on each device',
+                        subtitle: 'What stays local and what syncs',
                         onTap: () => unawaited(
                           Navigator.of(context)
                               .pushNamed(AppRoutes.legalPrivacy),

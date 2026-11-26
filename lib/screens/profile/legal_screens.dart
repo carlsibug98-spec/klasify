@@ -89,8 +89,8 @@ class TermsOfServiceScreen extends StatelessWidget {
           [
             'Klasify stores your classes, events and marks on your phone. '
                 'The schedule works fully offline, and nothing leaves the '
-                'device unless you sign in and enable sync.',
-            'When sync is on, only your schedule data and account details '
+                'device unless you sign in.',
+            'When you sign in, only your schedule data and account details '
                 'are copied to the Klasify server. We do not sell it, share '
                 'it, or use it for advertising.',
           ],
@@ -99,10 +99,11 @@ class TermsOfServiceScreen extends StatelessWidget {
           '2 · Your account',
           [
             'You are responsible for the email you register and for keeping '
-                'your password safe. You may edit your name or email in '
-                'Personal details, or delete your account entirely. '
-                'Deleting removes your schedule copies on the server; local '
-                'copies on your phone stay until you remove them.',
+                'your sign-in secure — your password if you sign up by '
+                'email. You may edit your name or email in Personal '
+                'details, or delete your account entirely. Deleting removes '
+                'your schedule copies on the server; local copies on your '
+                'phone stay until you remove them.',
           ],
         ),
         (
@@ -134,7 +135,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const LegalDocScreen(
       title: 'Privacy Policy',
-      tagline: 'What is stored on each device.',
+      tagline: 'What stays local and what syncs.',
       meta: 'VERSION 1.4.0 · UPDATED NOVEMBER 2026',
       sections: [
         (
@@ -142,7 +143,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
           [
             'Klasify stores your classes, events and marks on this device. '
                 'They work fully offline and are never sent anywhere unless '
-                'you sign in and enable sync.',
+                'you sign in.',
             'Permissions you grant (notifications, alarms) stay on the '
                 'device and are not collected by Klasify.',
           ],
@@ -161,8 +162,11 @@ class PrivacyPolicyScreen extends StatelessWidget {
         (
           '3 · Your account',
           [
-            'Your account holds your name, email and password. You can edit '
-                'your name and email in Personal details at any time.',
+            'Your account holds your name, email and department. Email '
+                'sign-ups also have a password, stored only as a bcrypt hash; '
+                'Google sign-ins store a Google subject identifier instead. '
+                'You can edit your name and email in Personal details at any '
+                'time.',
           ],
         ),
         (

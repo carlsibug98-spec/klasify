@@ -46,5 +46,10 @@ void main() {
     expect(find.text('Privacy Policy'), findsOneWidget);
     expect(find.textContaining('bcrypt hash'), findsOneWidget);
     expect(find.textContaining('No contacts, location, photos'), findsOneWidget);
+    expect(find.textContaining('Delete account'), findsOneWidget);
+    expect(
+      find.textContaining('no in-app delete-account button'),
+      findsNothing,
+    );
   });
 }

@@ -13,12 +13,12 @@ import 'local_scope_service.dart';
 
 /// Quietly keeps a fresh schedule backup on disk after every schedule change.
 ///
-/// Klasify has no server, no account and no network permission, so "the
-/// cloud" here is the phone's own mechanism: the backup lives in the app's
-/// support directory, which Android includes in its device cloud backup
-/// (Google Drive) whenever the user has device backup on. The schedule
-/// therefore reaches the user's Google cloud automatically — without Klasify
-/// ever opening a socket.
+/// Klasify only talks to a server when you sign in; this backup is
+/// deliberately independent of that. "The cloud" here is the phone's own
+/// mechanism: the backup lives in the app's support directory, which Android
+/// includes in its device cloud backup (Google Drive) whenever the user has
+/// device backup on. The schedule therefore reaches the user's Google cloud
+/// automatically — while Klasify itself sends nothing for this backup.
 ///
 /// The newest copy is always `klasify-auto-backup.json`. Up to
 /// [datedCopiesToKeep] dated siblings roll behind it (one per minute at
