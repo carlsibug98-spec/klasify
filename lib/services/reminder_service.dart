@@ -180,6 +180,25 @@ class ReminderService extends ChangeNotifier {
     return await android?.canScheduleExactNotifications() ?? true;
   }
 
+  /// Whether the system will actually show a reminder right now.
+  ///
+  /// The stored preference says the user asked for reminders; Android can
+  /// still block them after the fact. A plugin or channel failure reads as
+  /// allowed so a missing platform never hides the feature.
+  Future<bool> get notificationsAllowed async {
+    try {
+      await initialize();
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      if (android == null) return true;
+      return await android.areNotificationsEnabled() ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
   Future<bool> requestExactAlarmsAccess() async {
     await initialize();
     final android = _plugin

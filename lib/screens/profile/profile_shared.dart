@@ -172,6 +172,30 @@ class StatusPill extends StatelessWidget {
   }
 }
 
+/// The Sync & devices pill: honest about the controller's last outcome.
+///
+/// "On" only after a sync succeeded in this session; a failure reads "Off"
+/// until the next success, and a running sync says so instead of flickering.
+class SyncStatusPill extends StatelessWidget {
+  const SyncStatusPill({
+    super.key,
+    required this.syncing,
+    required this.lastError,
+    required this.lastSyncAt,
+  });
+
+  final bool syncing;
+  final String? lastError;
+  final DateTime? lastSyncAt;
+
+  @override
+  Widget build(BuildContext context) {
+    if (syncing) return const StatusPill(on: false, label: 'Syncing');
+    if (lastError != null) return const StatusPill(on: false, label: 'Off');
+    return StatusPill(on: lastSyncAt != null);
+  }
+}
+
 /// The subhead over a pushed screen (frames 3-8): big heavy title plus the
 /// one gray line that says what the screen is for. Sits at the top of the
 /// scrolling content, under the small back-row app bar.

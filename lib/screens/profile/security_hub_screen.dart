@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import 'profile_shared.dart';
 
@@ -38,7 +39,7 @@ class SecurityHubScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppTheme.sectionGap),
-              const ProfileGroup(
+              ProfileGroup(
                 label: 'WHERE YOU’RE SIGNED IN',
                 description: 'Phones your account syncs on.',
                 rows: [
@@ -46,7 +47,12 @@ class SecurityHubScreen extends StatelessWidget {
                     icon: Icons.sync_rounded,
                     title: 'This phone',
                     subtitle: 'Signed in automatically',
-                    trailing: StatusPill(on: true, label: 'Active'),
+                    trailing: ListenableBuilder(
+                      listenable: AuthService.instance,
+                      builder: (context, _) => AuthService.instance.isLoggedIn
+                          ? const StatusPill(on: true, label: 'Active')
+                          : const StatusPill(on: false, label: 'Signed out'),
+                    ),
                   ),
                 ],
               ),

@@ -15,26 +15,37 @@ class RemindersScreen extends StatefulWidget {
   State<RemindersScreen> createState() => _RemindersScreenState();
 }
 
-class _RemindersScreenState extends State<RemindersScreen> {
+class _RemindersScreenState extends State<RemindersScreen>
+    with WidgetsBindingObserver {
   bool _loading = true;
   bool _enabled = false;
   int _leadMinutes = ReminderService.defaultLeadMinutes;
   bool _eventsEnabled = true;
   bool _exactAlarmsAvailable = true;
+  bool _notificationsAllowed = true;
   String? _status;
   _StatusKind _statusKind = _StatusKind.neutral;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     ReminderService.instance.addListener(_onReminderSettingsChanged);
     _load();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     ReminderService.instance.removeListener(_onReminderSettingsChanged);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // The user may have revoked the permission in Android settings while the
+    // app was in the background; re-read the gates when we come back.
+    if (state == AppLifecycleState.resumed) unawaited(_load());
   }
 
   void _onReminderSettingsChanged() {
@@ -48,11 +59,14 @@ class _RemindersScreenState extends State<RemindersScreen> {
       final eventsEnabled = await ReminderService.instance.eventsEnabled;
       final exactAlarmsAvailable =
           await ReminderService.instance.exactAlarmsAvailable;
+      final notificationsAllowed =
+          await ReminderService.instance.notificationsAllowed;
       if (!mounted) return;
       if (enabled == _enabled &&
           leadMinutes == _leadMinutes &&
           eventsEnabled == _eventsEnabled &&
           exactAlarmsAvailable == _exactAlarmsAvailable &&
+          notificationsAllowed == _notificationsAllowed &&
           !_loading) {
         return;
       }
@@ -61,11 +75,20 @@ class _RemindersScreenState extends State<RemindersScreen> {
         _leadMinutes = leadMinutes;
         _eventsEnabled = eventsEnabled;
         _exactAlarmsAvailable = exactAlarmsAvailable;
+        _notificationsAllowed = notificationsAllowed;
         _loading = false;
-        if (enabled && !exactAlarmsAvailable) {
+        final warning = reminderWarning(
+          enabled: enabled,
+          notificationsAllowed: notificationsAllowed,
+          exactAlarmsAvailable: exactAlarmsAvailable,
+        );
+        if (warning != null) {
           _statusKind = _StatusKind.warning;
-          _status =
-              'Reminders are on, but Android may delay them. Allow “Alarms & reminders” for on-time alerts.';
+          _status = warning;
+        } else if (_statusKind == _StatusKind.warning) {
+          // A gate warning no longer applies; action messages stay.
+          _status = null;
+          _statusKind = _StatusKind.neutral;
         }
       });
     } catch (_) {
@@ -380,3 +403,23 @@ class _LeadPill extends StatelessWidget {
     );
   }
 }
+
+/// The warning the reminder screen shows for the current system gates, or
+/// null when reminders can actually appear.
+///
+/// Kept pure so the precedence is testable without platform channels.
+String? reminderWarning({
+  required bool enabled,
+  required bool notificationsAllowed,
+  required bool exactAlarmsAvailable,
+}) {
+  if (!enabled) return null;
+  if (!notificationsAllowed) {
+    return 'Android is blocking Klasify notifications, so reminders will not appear. Allow them in Settings → Apps → Klasify → Notifications.';
+  }
+  if (!exactAlarmsAvailable) {
+    return 'Reminders are on, but Android may delay them. Allow “Alarms & reminders” for on-time alerts.';
+  }
+  return null;
+}
+

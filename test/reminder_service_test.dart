@@ -1,3 +1,4 @@
+import 'package:klasify/screens/reminders_screen.dart';
 import 'package:klasify/services/reminder_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -56,5 +57,45 @@ void main() {
     SharedPreferences.setMockInitialValues({'class_reminders_enabled': true});
 
     expect(await ReminderService.instance.eventsEnabled, isTrue);
+  });
+
+  test('a revoked permission outranks the exact-alarm warning', () {
+    final warning = reminderWarning(
+      enabled: true,
+      notificationsAllowed: false,
+      exactAlarmsAvailable: false,
+    );
+
+    expect(warning, contains('blocking Klasify notifications'));
+  });
+
+  test('no gate warning while reminders are off', () {
+    expect(
+      reminderWarning(
+        enabled: false,
+        notificationsAllowed: false,
+        exactAlarmsAvailable: false,
+      ),
+      isNull,
+    );
+  });
+
+  test('exact alarms warn only when notifications can appear', () {
+    expect(
+      reminderWarning(
+        enabled: true,
+        notificationsAllowed: true,
+        exactAlarmsAvailable: false,
+      ),
+      contains('may delay'),
+    );
+    expect(
+      reminderWarning(
+        enabled: true,
+        notificationsAllowed: true,
+        exactAlarmsAvailable: true,
+      ),
+      isNull,
+    );
   });
 }

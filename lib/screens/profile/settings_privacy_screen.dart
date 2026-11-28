@@ -160,11 +160,18 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
                                 .pushNamed(AppRoutes.passwordSecurity),
                           ),
                         ),
-                        const ProfileRow(
+                        ProfileRow(
                           icon: Icons.sync_rounded,
                           title: 'Sync & devices',
                           subtitle: 'Syncs after you sign in',
-                          trailing: StatusPill(on: true),
+                          trailing: ListenableBuilder(
+                            listenable: SyncService.instance,
+                            builder: (context, _) => SyncStatusPill(
+                              syncing: SyncService.instance.syncing,
+                              lastError: SyncService.instance.lastError,
+                              lastSyncAt: SyncService.instance.lastSyncAt,
+                            ),
+                          ),
                         ),
                         ProfileRow(
                           icon: Icons.sync_rounded,
