@@ -294,3 +294,19 @@ T()->test('admin routes carry no rate limit', function () {
     }
     T()->truthy(max($codes) === 200 && min($codes) === 200, '40 rapid admin GETs all 200');
 });
+
+T()->test('a role change writes an accountable audit row', function () {
+    db_reset();
+    seed_user(['email' => 'audit-sa@test.com', 'role' => 'super_admin']);
+    seed_user(['email' => 'audit-target@test.com', 'role' => 'user']);
+    act_as(1);
+
+    set_body(['role' => 'admin']);
+    $r = run_handler('admin_set_role', '2');
+    T()->eq(200, $r['status'], 'set role status');
+
+    $row = fetch_one('SELECT actor_id, action, target FROM admin_audit_log ORDER BY id DESC LIMIT 1');
+    T()->eq(1, (int)($row['actor_id'] ?? 0), 'actor id recorded');
+    T()->eq('role:set', $row['action'] ?? null, 'action recorded');
+    T()->eq('user:2', $row['target'] ?? null, 'target recorded');
+});

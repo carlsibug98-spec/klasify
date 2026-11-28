@@ -138,6 +138,7 @@ const RESET_TABLES = [
     'event_local_map',
     'status_local_map',
     'rate_limit_hits',
+    'admin_audit_log',
 ];
 
 /// Empty every table between tests and reset AUTO_INCREMENT. Note: with

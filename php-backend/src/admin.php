@@ -43,6 +43,17 @@ function admin_super_caller(): array
     return $caller;
 }
 
+/// Appends one accountability row after a successful admin mutation.
+/// created_at comes from the table default, so the DATETIME(3) dialect stays
+/// identical to the other tables.
+function admin_audit(array $caller, string $action, string $target): void
+{
+    query(
+        'INSERT INTO admin_audit_log (actor_id, action, target) VALUES (?,?,?)',
+        [$caller['id'], $action, $target]
+    );
+}
+
 /// GET /admin/users -> { users: [...] } (limit 200)
 function admin_list_users(): void
 {
@@ -100,6 +111,7 @@ function admin_set_role(string $id): void
     }
 
     query('UPDATE users SET role = ? WHERE id = ? AND deleted = 0', [$role, $targetId]);
+    admin_audit($caller, 'role:set', 'user:' . $targetId);
     send_json(200, ['ok' => true]);
 }
 
@@ -120,6 +132,7 @@ function admin_set_department(string $id): void
     $departmentId = department_id_for($departmentName);
 
     query('UPDATE users SET department_id = ? WHERE id = ? AND deleted = 0', [$departmentId, $targetId]);
+    admin_audit($caller, 'department:set', 'user:' . $targetId);
     send_json(200, ['ok' => true]);
 }
 
@@ -158,6 +171,7 @@ function admin_update_office(string $office): void
         'UPDATE office_statuses SET status = ?, custom_message = ?, user_id = ? WHERE id = ?',
         [$status, $customMessage, $caller['id'], $office['id']]
     );
+    admin_audit($caller, 'office:status', 'office:' . $office['office_name']);
     send_json(200, ['ok' => true]);
 }
 
@@ -214,6 +228,7 @@ function admin_add_office(): void
         'SELECT id, office_name, status, custom_message, user_id, updated_at FROM office_statuses WHERE id = ? LIMIT 1',
         [(int)db()->lastInsertId()]
     );
+    admin_audit($caller, 'office:add', 'office:' . $name);
 
     send_json(201, ['office' => [
         'id' => (int)$row['id'],
@@ -239,18 +254,20 @@ function admin_rename_office(string $office): void
         'UPDATE office_statuses SET office_name = ?, user_id = ?, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?',
         [$newName, $caller['id'], $row['id']]
     );
+    admin_audit($caller, 'office:rename', 'office:' . $newName);
     send_json(200, ['ok' => true]);
 }
 
 /// DELETE /admin/offices/{office} -> 200 { ok: true }. Soft delete, permanent in-app.
 function admin_retire_office(string $office): void
 {
-    admin_super_caller();
+    $caller = admin_super_caller();
     $row = office_row_or_404($office);
 
     query(
         'UPDATE office_statuses SET deleted = 1, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?',
         [$row['id']]
     );
+    admin_audit($caller, 'office:retire', 'office:' . $row['office_name']);
     send_json(200, ['ok' => true]);
 }

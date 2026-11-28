@@ -259,6 +259,20 @@ CREATE TABLE IF NOT EXISTS rate_limit_hits (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
+-- Admin accountability. One append-only row per successful admin mutation:
+-- who acted, what they did and which record it touched. Diagnostics in
+-- app.log are not an accountability record.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+  id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  actor_id   BIGINT UNSIGNED NOT NULL,
+  action     VARCHAR(64)  NOT NULL,
+  target     VARCHAR(255) NOT NULL,
+  created_at DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  KEY idx_admin_audit_created (created_at)
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------------
 -- Helpful views for debugging
 -- ---------------------------------------------------------------------------
 CREATE VIEW active_classes AS

@@ -318,7 +318,19 @@ CREATE TABLE rate_limit_hits (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
--- 9. Recreate the debug views (SELECT * expanded the old column lists)
+-- 9. Admin audit: accountability for mutations made after the migration.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+  id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  actor_id   BIGINT UNSIGNED NOT NULL,
+  action     VARCHAR(64)  NOT NULL,
+  target     VARCHAR(255) NOT NULL,
+  created_at DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  KEY idx_admin_audit_created (created_at)
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------------
+-- 10. Recreate the debug views (SELECT * expanded the old column lists)
 -- ---------------------------------------------------------------------------
 DROP VIEW IF EXISTS active_classes;
 DROP VIEW IF EXISTS active_events;
