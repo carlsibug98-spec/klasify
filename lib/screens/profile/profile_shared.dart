@@ -117,9 +117,18 @@ class ProfileGroup extends StatelessWidget {
 /// state. [label] overrides the word when the state needs a different
 /// name ("Active" next to a signed-in phone).
 class StatusPill extends StatelessWidget {
-  const StatusPill({super.key, required this.on, this.label});
+  const StatusPill({
+    super.key,
+    required this.on,
+    this.label,
+    this.partial = false,
+  }) : assert(!partial || on, 'A partial pill still has something on.');
 
   final bool on;
+
+  /// Some, but not all, of the things behind this row are on. The dot turns
+  /// ochre and the word becomes "Partial" unless [label] overrides it.
+  final bool partial;
   final String? label;
 
   @override
@@ -139,7 +148,9 @@ class StatusPill extends StatelessWidget {
             width: 6,
             height: 6,
             decoration: BoxDecoration(
-              color: on
+              color: partial
+                  ? AppTheme.warningForegroundFor(scheme)
+                  : on
                   ? AppTheme.successForegroundFor(scheme)
                   : scheme.outline,
               shape: BoxShape.circle,
@@ -147,7 +158,7 @@ class StatusPill extends StatelessWidget {
           ),
           const SizedBox(width: 5),
           Text(
-            label ?? (on ? 'On' : 'Off'),
+            label ?? (partial ? 'Partial' : on ? 'On' : 'Off'),
             style: theme.textTheme.labelSmall?.copyWith(
               fontSize: 11,
               height: 1.1,

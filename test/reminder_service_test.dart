@@ -33,4 +33,28 @@ void main() {
   test('an empty schedule makes every pending reminder stale', () {
     expect(staleReminderIds([10, 11], <int>{}), [10, 11]);
   });
+
+  test('event reminders read off while class reminders are off', () async {
+    SharedPreferences.setMockInitialValues({
+      'class_reminders_enabled': false,
+      'event_reminders_enabled': true,
+    });
+
+    expect(await ReminderService.instance.eventsEnabled, isFalse);
+  });
+
+  test('event reminders read on when both gates are on', () async {
+    SharedPreferences.setMockInitialValues({
+      'class_reminders_enabled': true,
+      'event_reminders_enabled': true,
+    });
+
+    expect(await ReminderService.instance.eventsEnabled, isTrue);
+  });
+
+  test('event reminders default on once class reminders are on', () async {
+    SharedPreferences.setMockInitialValues({'class_reminders_enabled': true});
+
+    expect(await ReminderService.instance.eventsEnabled, isTrue);
+  });
 }

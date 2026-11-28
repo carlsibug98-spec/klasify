@@ -119,9 +119,14 @@ class ReminderService extends ChangeNotifier {
 
   /// The event-reminders master gate. false silences every one-off event
   /// alarm on the next sync while weekly class reminders keep working.
+  ///
+  /// This is the *effective* gate: with class reminders off, sync() schedules
+  /// nothing at all, so events read as off even when their own preference is
+  /// still true. Turning class reminders back on restores them.
   Future<bool> get eventsEnabled async =>
-      (await SharedPreferences.getInstance()).getBool(_eventsEnabledKey) ??
-      true;
+      await isEnabled &&
+      ((await SharedPreferences.getInstance()).getBool(_eventsEnabledKey) ??
+          true);
 
   /// Persists the event gate and re-syncs so the pending alarms match:
   /// turning it off prunes the event reminders, turning it on schedules

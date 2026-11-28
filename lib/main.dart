@@ -42,7 +42,9 @@ Future<void> main() async {
     // starts async so launch never waits on disk or prefs.
     unawaited(AutoBackupService.instance.attach());
     final seenOnboarding = await OnboardingStore.isCompleted();
-    unawaited(ThemeModeService.instance.load());
+    // Load the saved theme before the first frame: a dark-mode user must not
+    // watch the app start light and flip once prefs finish reading.
+    await ThemeModeService.instance.load();
     runApp(ScheduleApp(showOnboarding: !seenOnboarding));
   });
 }

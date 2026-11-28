@@ -103,11 +103,13 @@ class _RemindersScreenState extends State<RemindersScreen> {
           final exactAlarmsAvailable =
               await ReminderService.instance.exactAlarmsAvailable;
           final leadMinutes = await ReminderService.instance.leadMinutes;
+          final eventsEnabled = await ReminderService.instance.eventsEnabled;
           if (!mounted) return;
           setState(() {
             _loading = false;
             _enabled = true;
             _leadMinutes = leadMinutes;
+            _eventsEnabled = eventsEnabled;
             _exactAlarmsAvailable = exactAlarmsAvailable;
             _statusKind = exactAlarmsAvailable
                 ? _StatusKind.neutral
@@ -123,6 +125,9 @@ class _RemindersScreenState extends State<RemindersScreen> {
           setState(() {
             _loading = false;
             _enabled = false;
+            // The effective event gate is off while the class master gate
+            // is off, even if the stored preference is still true.
+            _eventsEnabled = false;
             _statusKind = _StatusKind.neutral;
             _status = 'Class reminders are disabled.';
           });

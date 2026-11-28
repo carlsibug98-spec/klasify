@@ -211,9 +211,8 @@ class CommunityStandardsScreen extends StatelessWidget {
         (
           '3 · Reporting',
           [
-            'If something is wrong, use Contact support in Settings & '
-                'privacy to send a problem report with the app version '
-                'included.',
+            'If something is wrong, check the Help centre in Settings & '
+                'privacy, and include the app version if you report it.',
           ],
         ),
       ],

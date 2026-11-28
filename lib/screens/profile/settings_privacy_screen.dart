@@ -94,10 +94,15 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
               if (name != null && name.isNotEmpty) name,
               if (email != null && email.isNotEmpty) email,
             ].join(' · ');
-            // The hub pill reads the real gate: anything giving you a
-            // reminder right now — class or event — lights the pill.
+            // The hub pill reads the real gates. Until both are loaded it
+            // shows nothing rather than guessing; with only one on it reads
+            // "Partial" instead of claiming everything is on.
+            final remindersLoaded =
+                _classEnabled != null && _eventsEnabled != null;
             final notificationsOn =
-                (_classEnabled ?? false) || (_eventsEnabled ?? true);
+                (_classEnabled ?? false) || (_eventsEnabled ?? false);
+            final notificationsPartial =
+                remindersLoaded && _classEnabled != _eventsEnabled;
             return Scaffold(
               appBar: const ProfileTitleBar(parent: 'Profile'),
               body: ListView(
@@ -186,7 +191,12 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
                         icon: Icons.notifications_none_rounded,
                         title: 'Notifications',
                         subtitle: 'Class reminders · event alerts',
-                        trailing: StatusPill(on: notificationsOn),
+                        trailing: remindersLoaded
+                            ? StatusPill(
+                                on: notificationsOn,
+                                partial: notificationsPartial,
+                              )
+                            : null,
                         onTap: () => unawaited(
                           Navigator.of(context).pushNamed(AppRoutes.reminders),
                         ),
@@ -237,13 +247,6 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
                         onTap: () =>
                             unawaited(showProfileHelpCentreSheet(context)),
                       ),
-                      ProfileRow(
-                        icon: Icons.mail_outline_rounded,
-                        title: 'Contact support',
-                        subtitle: 'Send a problem report',
-                        onTap: () =>
-                            unawaited(showProfileContactSupportSheet(context)),
-                      ),
                     ],
                   ),
                 ],
@@ -266,13 +269,21 @@ class _HubDarkModeRow extends StatelessWidget {
     return ListenableBuilder(
       listenable: ThemeModeService.instance,
       builder: (context, _) {
-        final mode = ThemeModeService.instance.mode;
+        final isDark = ThemeModeService.instance.isDarkFor(
+          systemIsDark:
+              MediaQuery.platformBrightnessOf(context) == Brightness.dark,
+        );
+        final subtitle = switch (ThemeModeService.instance.mode) {
+          KlasifyThemeMode.system => 'Follows your system',
+          KlasifyThemeMode.dark => 'Always on',
+          KlasifyThemeMode.light => 'Always off',
+        };
         return ProfileRow(
           icon: Icons.dark_mode_outlined,
           title: 'Dark mode',
-          subtitle: 'Follows your system by default',
+          subtitle: subtitle,
           trailing: MiniSwitch(
-            value: mode == KlasifyThemeMode.dark,
+            value: isDark,
             semanticsLabel: 'Dark mode',
             onChanged: (on) => unawaited(
               ThemeModeService.instance.setMode(

@@ -19,6 +19,17 @@ class ThemeModeService extends ChangeNotifier {
   /// The selected mode; system is the default on fresh installs.
   KlasifyThemeMode get mode => _mode;
 
+  /// Whether the app is dark right now, given the phone's current brightness.
+  ///
+  /// [KlasifyThemeMode.system] follows the platform; an explicit choice wins.
+  /// The Settings switch reads this so it matches what the user sees instead
+  /// of showing "off" while a dark phone renders the app dark.
+  bool isDarkFor({required bool systemIsDark}) => switch (_mode) {
+    KlasifyThemeMode.dark => true,
+    KlasifyThemeMode.light => false,
+    KlasifyThemeMode.system => systemIsDark,
+  };
+
   /// Read the stored selection. Call once at startup (before runApp).
   Future<void> load() async {
     try {

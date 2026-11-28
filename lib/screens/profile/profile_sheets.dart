@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../services/app_info.dart';
 import '../../theme/app_theme.dart';
 
 /// The bottom sheets the Profile world opens. The About sheet carried over
-/// from the old Settings screen; the Help centre and Contact support sheets
-/// answer the two rows the Security-and-privacy hub gained in mockup v9.
-/// All answers stay factual to how the app actually works.
+/// from the old Settings screen; the Help centre answers the row the
+/// Security-and-privacy hub gained in mockup v9. All answers stay factual
+/// to how the app actually works.
 
 Future<void> showProfileAboutSheet(BuildContext context) {
   return showModalBottomSheet<void>(
@@ -34,20 +33,6 @@ Future<void> showProfileHelpCentreSheet(BuildContext context) {
       ),
     ),
     builder: (_) => const ProfileHelpCentreSheet(),
-  );
-}
-
-Future<void> showProfileContactSupportSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(AppTheme.sheetRadius),
-      ),
-    ),
-    builder: (_) => const ProfileContactSupportSheet(),
   );
 }
 
@@ -302,111 +287,3 @@ class ProfileHelpCentreSheet extends StatelessWidget {
   }
 }
 
-/// Contact support without an email backend: the sheet tells the user what
-/// a useful report contains and copies the app's fingerprint to the
-/// clipboard so it can be pasted wherever they reach the developer.
-class ProfileContactSupportSheet extends StatelessWidget {
-  const ProfileContactSupportSheet({super.key});
-
-  static String get _report =>
-      'Klasify ${AppInfo.version} (build ${AppInfo.build})';
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 4, 24, 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  Icons.mail_outline_rounded,
-                  size: 22,
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(width: AppTheme.itemGap),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Contact support',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Send a problem report',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'Write down what you expected and what happened instead. Paste '
-            'the app details below into your message when you send it to '
-            'the developer — it makes the report reproducible.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: scheme.onSurfaceVariant,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.fromBorderSide(AppTheme.cardBorderSideOf(scheme)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _report,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    await Clipboard.setData(
-                      ClipboardData(text: _report),
-                    );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Copied. Paste it into your report.'),
-                        ),
-                      );
-                    }
-                  },
-                  child: const Text('Copy'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

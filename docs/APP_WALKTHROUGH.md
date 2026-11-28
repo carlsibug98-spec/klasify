@@ -619,7 +619,7 @@ files; test fixtures and generated assets are grouped at the end.
 | `profile/admin_screen.dart` | Office management; super-admin user roles/departments |
 | `profile/legal_screens.dart` | Terms, privacy, community standards |
 | `profile/profile_shared.dart` | Shared profile rows, groups, pills, title bars |
-| `profile/profile_sheets.dart` | Help centre, contact support, sign-out/delete sheets |
+| `profile/profile_sheets.dart` | About and Help centre sheets |
 
 ### 6.10 `lib/widgets/` (41 files)
 
