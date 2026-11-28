@@ -71,10 +71,9 @@ class WeekAgendaView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    // Normalize to date-only to eliminate Daylight Saving Time and hour boundary drift
-    final todayMidnight = DateTime(now.year, now.month, now.day);
-    final monday = todayMidnight.subtract(Duration(days: today - 1));
-    final selectedDate = monday.add(Duration(days: selectedDay - 1));
+    // Calendar arithmetic, not Duration: fixed 24-hour days land on the wrong
+    // date when a DST transition falls inside the Monday-to-Sunday week.
+    final selectedDate = dateForWeekday(now, selectedDay);
     final selectedClasses = classesByDay[selectedDay]!;
     final isToday = selectedDay == today;
 
@@ -133,7 +132,7 @@ class WeekAgendaView extends StatelessWidget {
                       final weekdayTiles = [
                         for (var index = 0; index < dayNames.length; index++)
                           WeekdayTile(
-                            date: monday.add(Duration(days: index)),
+                            date: dateForWeekday(now, index + 1),
                             name: dayNames[index],
                             classCount: classesByDay[index + 1]!.length,
                             isToday: index + 1 == today,

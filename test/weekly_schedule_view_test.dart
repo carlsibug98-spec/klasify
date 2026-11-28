@@ -423,4 +423,47 @@ void main() {
     expect(find.byIcon(Icons.location_on_outlined), findsOneWidget);
     expect(find.byIcon(Icons.person_outline_rounded), findsOneWidget);
   });
+
+  testWidgets('WeekAgendaView dates follow the calendar week, Monday first', (
+    WidgetTester tester,
+  ) async {
+    final today = DateTime.now().weekday;
+    await tester.pumpWidget(
+      _host(
+        WeekAgendaView(
+          classesByDay: {for (var d = 1; d <= 7; d++) d: []},
+          allClassesEmpty: true,
+          today: today,
+          nowMinutes: 0,
+          selectedDay: today,
+          dayDirection: 1,
+          onSelectDay: (_) {},
+          onEdit: (_) {},
+          onLongPress: (_) async => true,
+          onAddClassForDay: (_) {},
+        ),
+      ),
+    );
+
+    final tiles = tester
+        .widgetList<WeekdayTile>(find.byType(WeekdayTile))
+        .toList();
+    expect(tiles, hasLength(7));
+    for (var index = 0; index < tiles.length; index++) {
+      final date = tiles[index].date;
+      expect(
+        date.weekday,
+        index + 1,
+        reason: 'tile $index shows weekday ${index + 1}',
+      );
+      if (index > 0) {
+        final previous = tiles[index - 1].date;
+        expect(
+          DateTime(date.year, date.month, date.day),
+          DateTime(previous.year, previous.month, previous.day + 1),
+          reason: 'tile $index is the calendar day after tile ${index - 1}',
+        );
+      }
+    }
+  });
 }

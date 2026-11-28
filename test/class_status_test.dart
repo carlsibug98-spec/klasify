@@ -178,4 +178,33 @@ void main() {
       },
     );
   });
+
+  group('dateForWeekday', () {
+    test('maps every weekday into the same Monday-to-Sunday week', () {
+      // Wednesday 25 Nov 2026.
+      final now = DateTime(2026, 11, 25, 14, 30);
+      final dates = [
+        for (var day = 1; day <= 7; day++) dateForWeekday(now, day),
+      ];
+
+      expect(dates.first, DateTime(2026, 11, 23));
+      expect(dates.last, DateTime(2026, 11, 29));
+      for (var day = 1; day <= 7; day++) {
+        expect(dates[day - 1].weekday, day);
+        expect(dates[day - 1].hour, 0);
+      }
+    });
+
+    test('crosses month and year boundaries without drifting', () {
+      // Wednesday 30 Dec 2026: the week ends in January.
+      final now = DateTime(2026, 12, 30, 8);
+      expect(dateForWeekday(now, DateTime.monday), DateTime(2026, 12, 28));
+      expect(dateForWeekday(now, DateTime.sunday), DateTime(2027, 1, 3));
+    });
+
+    test('a Sunday still belongs to the week that started six days earlier', () {
+      final now = DateTime(2027, 1, 3, 23, 59);
+      expect(dateForWeekday(now, DateTime.monday), DateTime(2026, 12, 28));
+    });
+  });
 }
