@@ -80,6 +80,12 @@ class AutoBackupService extends ChangeNotifier {
   @visibleForTesting
   static Duration debounceDelay = const Duration(milliseconds: 1500);
 
+  /// Reads the active scope. Tests use it to simulate an account switch
+  /// between the capture and the database reads.
+  @visibleForTesting
+  static LocalScope Function() scopeReader =
+      () => LocalScopeService.instance.current;
+
   Timer? _debounce;
   bool _running = false;
   bool _pending = false;
@@ -203,12 +209,20 @@ class AutoBackupService extends ChangeNotifier {
     // Capture the scope once. The schedule is read from the active file and
     // the backup must be named for that same file: a switch between the read
     // and the write must not store A's schedule under B's backup name.
-    final scope = LocalScopeService.instance.current;
+    final scope = scopeReader();
     notifyListeners();
     var ok = false;
     try {
       final classes = await DatabaseHelper.instance.getAll();
       final events = await DatabaseHelper.instance.getAllEvents();
+      // The name was captured before the reads. If the active file changed
+      // while they ran, these rows belong to the other account: writing them
+      // now would put B's schedule in A's file. The new scope's own change
+      // or launch hook writes the correct backup instead.
+      if (scopeReader() != scope) {
+        debugPrint('Auto backup: scope changed during the read, skipped.');
+        return false;
+      }
       final bytes = ScheduleBackupCodec.encode(classes, events: events);
       final dir = await _ensureDirectory();
       final now = DateTime.now();

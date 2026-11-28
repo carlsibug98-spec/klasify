@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klasify/data/database_helper.dart';
+import 'package:klasify/data/local_scope.dart';
 import 'package:klasify/services/auto_backup_service.dart';
 import 'package:klasify/services/local_scope_service.dart';
 import 'package:klasify/utils/schedule_backup_codec.dart';
@@ -78,8 +79,7 @@ void main() {
     expect(own, AutoBackupService.datedCopiesToKeep);
   });
 
-  test('loadMainBackupFile reads the active scope', () async {
-    await LocalScopeService.instance.ensureForUser(7);
+  test('loadMainBackupFile reads the active scope', () async {    await LocalScopeService.instance.ensureForUser(7);
     await DatabaseHelper.instance.insert(classOf('Seven'));
     await AutoBackupService.instance.backupNow();
 
@@ -99,5 +99,27 @@ void main() {
       await seven!.readAsBytes(),
     );
     expect(decodedSeven.classes.single.subject, 'Seven');
+  });
+
+  test('a scope switch during the read writes no mixed backup', () async {
+    await LocalScopeService.instance.ensureForUser(7);
+    await DatabaseHelper.instance.insert(classOf('Seven'));
+
+    final original = AutoBackupService.scopeReader;
+    var reads = 0;
+    AutoBackupService.scopeReader = () {
+      reads++;
+      // First read names the write, the second sees the account switch.
+      return reads == 1
+          ? const LocalScope.account(7)
+          : const LocalScope.account(8);
+    };
+    addTearDown(() => AutoBackupService.scopeReader = original);
+
+    expect(await AutoBackupService.instance.backupNow(), isFalse);
+
+    // Nothing may land under either name: the read spans two accounts.
+    final dir = Directory(p.join(tempDir.path, AutoBackupService.directoryName));
+    expect(await dir.exists(), isFalse);
   });
 }
