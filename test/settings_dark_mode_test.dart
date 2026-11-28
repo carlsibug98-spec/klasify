@@ -79,4 +79,27 @@ void main() {
     expect(switchOf(tester).value, isFalse);
     expect(find.text('Always off'), findsOneWidget);
   });
+
+  testWidgets('an explicit mode can return to following the system', (
+    tester,
+  ) async {
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+
+    await tester.pumpWidget(appUnderTest());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(MiniSwitch));
+    await tester.pumpAndSettle();
+    expect(ThemeModeService.instance.mode, KlasifyThemeMode.dark);
+    expect(find.text('Use system setting'), findsOneWidget);
+
+    await tester.tap(find.text('Use system setting'));
+    await tester.pumpAndSettle();
+
+    expect(ThemeModeService.instance.mode, KlasifyThemeMode.system);
+    expect(find.text('Follows your system'), findsOneWidget);
+    expect(switchOf(tester).value, isFalse);
+    expect(find.text('Use system setting'), findsNothing);
+  });
 }

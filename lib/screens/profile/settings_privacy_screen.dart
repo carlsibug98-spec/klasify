@@ -163,14 +163,29 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
                         ProfileRow(
                           icon: Icons.sync_rounded,
                           title: 'Sync & devices',
-                          subtitle: 'Syncs after you sign in',
-                          trailing: ListenableBuilder(
-                            listenable: SyncService.instance,
-                            builder: (context, _) => SyncStatusPill(
-                              syncing: SyncService.instance.syncing,
-                              lastError: SyncService.instance.lastError,
-                              lastSyncAt: SyncService.instance.lastSyncAt,
-                            ),
+                          subtitle: 'Sync status and signed-in phones',
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ListenableBuilder(
+                                listenable: SyncService.instance,
+                                builder: (context, _) => SyncStatusPill(
+                                  syncing: SyncService.instance.syncing,
+                                  lastError: SyncService.instance.lastError,
+                                  lastSyncAt: SyncService.instance.lastSyncAt,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                size: 18,
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
+                            ],
+                          ),
+                          onTap: () => unawaited(
+                            Navigator.of(context)
+                                .pushNamed(AppRoutes.passwordSecurity),
                           ),
                         ),
                         ProfileRow(
@@ -266,8 +281,9 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
   }
 }
 
-/// Hub's dark-mode row — the switch is real, mapping the tri-state theme
-/// picker onto the two-way switch (dark ↔ light).
+/// Hub's dark-mode row — the switch maps the tri-state theme picker onto the
+/// two-way switch (dark ↔ light). A quiet footer link leads back to system
+/// mode, which a switch alone cannot express.
 class _HubDarkModeRow extends StatelessWidget {
   const _HubDarkModeRow();
 
@@ -276,11 +292,12 @@ class _HubDarkModeRow extends StatelessWidget {
     return ListenableBuilder(
       listenable: ThemeModeService.instance,
       builder: (context, _) {
+        final mode = ThemeModeService.instance.mode;
         final isDark = ThemeModeService.instance.isDarkFor(
           systemIsDark:
               MediaQuery.platformBrightnessOf(context) == Brightness.dark,
         );
-        final subtitle = switch (ThemeModeService.instance.mode) {
+        final subtitle = switch (mode) {
           KlasifyThemeMode.system => 'Follows your system',
           KlasifyThemeMode.dark => 'Always on',
           KlasifyThemeMode.light => 'Always off',
@@ -298,6 +315,16 @@ class _HubDarkModeRow extends StatelessWidget {
               ),
             ),
           ),
+          // The switch cannot select system mode; show the way back only
+          // while an explicit choice is in force.
+          footer: mode == KlasifyThemeMode.system
+              ? null
+              : ProfileLink(
+                  text: 'Use system setting',
+                  onTap: () => unawaited(
+                    ThemeModeService.instance.setMode(KlasifyThemeMode.system),
+                  ),
+                ),
         );
       },
     );

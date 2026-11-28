@@ -1,13 +1,13 @@
 # Sync and status integrity fixes
 
 Date: 2026-11-28
-Status: approved for implementation (audit findings 1, 3, 4, 5)
+Status: implemented (audit findings 1–8)
 
 ## Context
 
-A whole-app audit confirmed four defects in the sync/status path. Each one
-leaves the local database and the server disagreeing in a way the user cannot
-see or repair from the UI.
+A whole-app audit confirmed eight defects in the sync/status and settings
+path. Each one leaves the app, the server, or the user's understanding of the
+current state out of step.
 
 ### 1. Range edits never delete the server row they replace (High)
 
@@ -55,6 +55,22 @@ sync controller's last error or the session state.
 notifications in Android settings leaves the Reminders screen claiming the
 feature is on while `sync()` schedules alarms the system will never show.
 
+### 6. No way back to system theme (Low)
+
+The Dark mode switch maps the tri-state preference onto two states. Once a
+user picks light or dark, nothing in the UI restores `system`, so an explicit
+choice becomes permanent without a reinstall.
+
+### 7. Per-event "Remind me" gives no feedback when the master gate is off (Low)
+
+`EventSheet` saves `remindMe` even when `ReminderService.eventsEnabled` is
+false. The switch looks effective but no alarm will fire.
+
+### 8. Dead "Sync & devices" row (Low)
+
+The row showed a status pill but had no `onTap`, so it looked like a settings
+destination that went nowhere.
+
 ## Requirements
 
 - Behaviour-preserving for every user-visible flow except the corrected states.
@@ -99,11 +115,21 @@ failure. The security hub row shows `Active` only while the session is live.
 
 The Reminders screen asks the platform whether notifications are enabled when
 it loads and when the app resumes. When the stored preference is on but the
-system permission is gone, it shows a warning and an "Open Android settings"
-action instead of silently claiming the feature works.
+system permission is gone, it shows a text warning naming the Android settings
+path. No settings-opener dependency exists in the app, so the warning tells the
+user where to go instead of offering a button that cannot work.
+
+### Theme, event gate and settings row
+
+A quiet footer link appears under the Dark mode switch only while an explicit
+theme is in force, and restores `system` mode. The event sheet reads the
+effective event gate and shows an inline warning next to "Remind me" while the
+master gate would silence the alarm. The "Sync & devices" row now opens
+Password & security, where the signed-in phones live, with a chevron beside its
+status pill so the destination is visible.
 
 ## Out of scope
 
-- A third theme option ("follow system") in Settings: needs a design decision.
-- Per-event "Remind me" feedback when the master gate is off: copy decision.
 - Server-side unique constraints for status ranges.
+- Auth smoke tests against the live backend (need real credentials).
+- On-device Week cold-start check while the test phone is in another app.

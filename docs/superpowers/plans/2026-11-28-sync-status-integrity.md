@@ -11,7 +11,7 @@ Spec: `docs/superpowers/specs/2026-11-28-sync-status-integrity.md`
    - `restore` (undo of a range edit) tombstones a live server-known row that
      the snapshot does not cover.
 2. Run: `flutter test test/class_status_db_test.dart` (expect failures).
-3. Add `_tombstonesForReplaced` to `StatusRepository` and use it in
+3. Add `_tombstonesForDropped` to `StatusRepository` and use it in
    `setStatus`, `clearStatus`, and `restore`.
 4. Re-run the test file (expect green).
 
@@ -48,11 +48,23 @@ Spec: `docs/superpowers/specs/2026-11-28-sync-status-integrity.md`
 1. Add `notificationsAllowed` to `ReminderService` (platform query, never
    throws, returns true on unsupported platforms).
 2. `RemindersScreen`: on load and on resume, if the stored pref is on but the
-   permission is gone, show a warning row with an "Open Android settings"
-   action.
-3. Widget test for the warning state using the existing fake/injection seam.
+   permission is gone, show a text warning naming the Android settings path
+   (Settings → Apps → Klasify → Notifications). No settings-opener exists in
+   this app, so no action button was added.
+3. Unit-test the warning precedence in `test/reminder_service_test.dart`.
 
-## Step 6 — Verification
+## Step 6 — Three remaining settings/sheet fixes
+
+1. Add a `ProfileLink` footer under the Dark mode switch while the mode is
+   explicit; it calls `ThemeModeService.setMode(system)`. Extend
+   `test/settings_dark_mode_test.dart`.
+2. Read the effective event gate in `EventSheet.initState` and show an inline
+   warning while "Remind me" is on but the gate would silence the alarm. Add
+   `test/event_sheet_gate_test.dart`.
+3. Give "Sync & devices" an `onTap` to Password & security and a chevron next
+   to its status pill.
+
+## Step 7 — Verification
 
 - `flutter analyze --no-fatal-infos`
 - `flutter test test/class_status_db_test.dart test/auto_backup_scope_test.dart test/class_status_test.dart test/weekly_schedule_view_test.dart`

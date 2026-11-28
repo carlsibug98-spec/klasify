@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -151,9 +153,15 @@ class _EventSheetState extends State<EventSheet> {
   final FocusNode _titleFocus = FocusNode();
   bool _titleFocusScheduled = false;
 
+  /// Whether the master event-reminder gate currently lets an event alarm
+  /// fire. Null until the preference read lands; a failed read stays null so
+  /// the form never claims a reminder is broken without evidence.
+  bool? _eventAlertsAllowed;
+
   @override
   void initState() {
     super.initState();
+    unawaited(_loadEventAlertsAllowed());
     final initial = widget.initial;
     _title = TextEditingController(text: initial?.title);
     _venue = TextEditingController(text: initial?.venue);
@@ -184,6 +192,18 @@ class _EventSheetState extends State<EventSheet> {
       _lead = eventDefaultLeadMinutes;
       _category = EventCategory.personal;
       _broadcast = false;
+    }
+  }
+
+  /// Reads the effective event gate so the sheet can say when a per-event
+  /// reminder will not fire. Best-effort: an unreadable preference leaves the
+  /// sheet quiet rather than warning about a gate that may be on.
+  Future<void> _loadEventAlertsAllowed() async {
+    try {
+      final allowed = await ReminderService.instance.eventsEnabled;
+      if (mounted) setState(() => _eventAlertsAllowed = allowed);
+    } catch (error, stackTrace) {
+      debugPrint('Event reminder gate read failed: $error\n$stackTrace');
     }
   }
 
@@ -636,6 +656,40 @@ class _EventSheetState extends State<EventSheet> {
               onChanged: (value) => setState(() => _remindMe = value),
             ),
           ),
+          // The per-event switch is the second gate: with the master event
+          // gate off, this reminder is stored but never fires. Say so here
+          // instead of letting the switch look effective.
+          if (_remindMe && _eventAlertsAllowed == false)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Semantics(
+                liveRegion: true,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Icon(
+                        Icons.notifications_off_outlined,
+                        size: 15,
+                        color: AppTheme.warningForegroundFor(scheme),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Event alerts are off in Notifications, so this reminder won’t fire.',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 12.5,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           _SheetRow(
             label: 'Alert',
             value: '$_lead minutes before',

@@ -131,16 +131,19 @@ void main() {
   testWidgets('Add opens a blank form whose Save lands a real event', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(390, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await tester.runAsync(clearEvents);
     await pumpHome(tester);
 
     await tester.tap(find.byKey(const ValueKey('events-add')));
     await tester.pumpAndSettle();
 
-    // The new-event sheet: headline kicker and save up top, and the sync
-    // footnote at the very bottom — which sits past the fold on this test
-    // surface, so scroll the sheet to it, assert, then scroll back to
-    // keep the form editable.
+    // The new-event sheet: headline kicker and save, plus the sync footnote
+    // near the bottom. The taller test surface keeps the lazily built form
+    // from hiding the primary action when the reminder-gate warning is
+    // present.
     expect(find.text('NEW EVENT'), findsOneWidget);
     expect(find.text('Save reminder'), findsOneWidget);
     await tester.dragFrom(
