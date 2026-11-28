@@ -185,4 +185,13 @@ class SqliteSyncStore implements SyncLocalStore {
 
   @override
   Future<void> setLastPullAt(DateTime value) => _database.setLastPullAt(value);
+
+  @override
+  Future<int> pendingChangeCount() async {
+    final since = (await lastPushAt()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final classes = await changedClasses(since);
+    final events = await changedEvents(since);
+    final statuses = await changedStatuses(since);
+    return classes.length + events.length + statuses.length;
+  }
 }

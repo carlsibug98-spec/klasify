@@ -12,6 +12,14 @@ import '../../widgets/app_notification.dart';
 import 'profile_shared.dart';
 import 'profile_sheets.dart';
 
+/// The action row's subtitle. A zero queue is intentionally invisible; a
+/// non-zero one tells the user what a tap will send.
+String syncNowSubtitle(int pending, bool syncing) {
+  if (syncing) return 'Syncing…';
+  if (pending <= 0) return 'Push and pull changes';
+  return 'Push and pull changes · $pending changes waiting';
+}
+
 /// Settings & privacy (mockup v9, frame 3): the hub the gear on Profile
 /// opens. Same row language as the tab, but the hub carries the gray group
 /// descriptions — that pattern belongs to hub screens only.
@@ -29,13 +37,18 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
   bool? _classEnabled;
   bool? _eventsEnabled;
   bool _syncing = false;
+  int _pendingChanges = 0;
   int _dismissedConflictCount = 0;
 
   @override
   void initState() {
     super.initState();
     ReminderService.instance.addListener(_onReminderSettingsChanged);
+    SyncService.instance.addListener(_onSyncChanged);
     unawaited(_loadReminderState());
+    // A signed-out phone has no sync queue to read. This also keeps widget
+    // tests from opening SQLite just to render the settings screen.
+    if (AuthService.instance.isLoggedIn) unawaited(_refreshQueueCount());
     // Roles/departments can change while the app stays open; a Settings
     // visit is the natural point to re-check the account. The screen already
     // listens to AuthService, so a promotion reveals ADMIN immediately.
@@ -47,10 +60,21 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
   @override
   void dispose() {
     ReminderService.instance.removeListener(_onReminderSettingsChanged);
+    SyncService.instance.removeListener(_onSyncChanged);
     super.dispose();
   }
 
   void _onReminderSettingsChanged() => unawaited(_loadReminderState());
+  void _onSyncChanged() {
+    if (AuthService.instance.isLoggedIn) unawaited(_refreshQueueCount());
+  }
+
+  Future<void> _refreshQueueCount() async {
+    final count = await SyncService.instance.pendingChangeCount();
+    if (mounted && count != _pendingChanges) {
+      setState(() => _pendingChanges = count);
+    }
+  }
 
   Future<void> _syncNow() async {
     if (_syncing) return;
@@ -211,7 +235,7 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
                         ProfileRow(
                           icon: Icons.sync_rounded,
                           title: 'Sync now',
-                          subtitle: _syncing ? 'Syncing…' : 'Push and pull changes',
+                          subtitle: syncNowSubtitle(_pendingChanges, _syncing),
                           trailing: _syncing
                               ? const SizedBox(
                                   width: 18,

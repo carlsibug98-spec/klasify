@@ -22,6 +22,10 @@ import 'app_routes.dart';
 class AppRouter {
   AppRouter._();
 
+  /// Navigator key used by notification taps and other external entry points.
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
   /// Navigator observer that tells the route-aware shell (main navigation
   /// screen) when a pushed screen — the import flow, the class editor —
   /// pops back on top of it.

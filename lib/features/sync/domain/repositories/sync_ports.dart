@@ -29,6 +29,9 @@ abstract interface class SyncLocalStore {
   Future<void> purgeDeleted(DateTime? pushedBefore);
   Future<void> setLastPushAt(DateTime value);
   Future<void> setLastPullAt(DateTime value);
+
+  /// Number of local rows changed since the last successful push.
+  Future<int> pendingChangeCount();
 }
 
 /// The sync backend. Implemented over HTTP.

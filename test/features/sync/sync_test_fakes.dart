@@ -14,6 +14,7 @@ class FakeLocalStore implements SyncLocalStore {
   final Map<String, DateTime?> localStamps = {};
   DateTime? purgedBefore;
   bool pruneCalled = false;
+  int pendingChanges = 0;
 
   final List<String> calls = [];
   final List<SyncClassRecord> appliedClasses = [];
@@ -110,6 +111,9 @@ class FakeLocalStore implements SyncLocalStore {
     calls.add('setLastPullAt');
     lastPull = value;
   }
+
+  @override
+  Future<int> pendingChangeCount() async => pendingChanges;
 }
 
 class FakeRemoteGateway implements SyncRemoteGateway {

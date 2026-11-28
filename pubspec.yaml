@@ -31,6 +31,7 @@ dependencies:
   # Opt-in crash reporting: inactive unless a DSN is compiled in with
   # --dart-define=KLASIFY_SENTRY_DSN=... (see lib/services/crash_reporting.dart).
   sentry_flutter: ^10.2.0
+  workmanager: ^0.10.10
 
 dev_dependencies:
   flutter_test:

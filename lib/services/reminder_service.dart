@@ -9,6 +9,7 @@ import '../data/database_helper.dart';
 import '../models/class_item.dart';
 import '../models/class_status.dart';
 import '../models/event_item.dart';
+import 'notification_tap_service.dart';
 
 /// Pending reminder IDs that the current schedule no longer uses.
 @visibleForTesting
@@ -57,6 +58,8 @@ class ReminderService extends ChangeNotifier {
           requestSoundPermission: false,
         ),
       ),
+      onDidReceiveNotificationResponse: (response) =>
+          handleNotificationTap(response.payload),
     );
     final android = _plugin
         .resolvePlatformSpecificImplementation<
@@ -84,6 +87,15 @@ class ReminderService extends ChangeNotifier {
       channelId: 'class_schedule_reminders_v2',
     );
     _initialized = true;
+  }
+
+  /// Payload of a notification that launched a killed app, or null when the
+  /// app was opened normally. Consumed once at startup in [main].
+  Future<String?> consumeLaunchPayload() async {
+    await initialize();
+    final details = await _plugin.getNotificationAppLaunchDetails();
+    if (details?.didNotificationLaunchApp != true) return null;
+    return details?.notificationResponse?.payload;
   }
 
   /// The stored lead time, or [defaultLeadMinutes] when unset or invalid.

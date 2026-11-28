@@ -4,10 +4,14 @@ import 'package:flutter/material.dart';
 import 'routes/app_router.dart';
 import 'routes/app_routes.dart';
 import 'services/auth_service.dart';
+import 'services/app_logger.dart';
 import 'services/auto_backup_service.dart';
+import 'services/background_sync.dart';
 import 'services/crash_reporting.dart';
 import 'services/local_scope_service.dart';
+import 'services/notification_tap_service.dart';
 import 'services/onboarding_store.dart';
+import 'services/reminder_service.dart';
 import 'services/sync_service.dart';
 import 'services/theme_mode_service.dart';
 import 'theme/app_theme.dart';
@@ -20,7 +24,7 @@ Future<void> main() async {
     try {
       await AuthService.instance.restoreSession();
     } catch (e) {
-      debugPrint('Session restore failed: $e');
+      AppLogger.e('startup', 'Session restore failed', error: e);
     }
     // Restore (and if needed adopt) the scope the saved session belongs to
     // before anything reads the schedule. A failure leaves the app usable and
@@ -32,12 +36,14 @@ Future<void> main() async {
         userId is int ? userId : null,
       );
     } catch (e) {
-      debugPrint('Local scope init failed: $e');
+      AppLogger.e('startup', 'Local scope init failed', error: e);
       LocalScopeService.instance.markSyncBlocked();
     }
     // Touch the sync client so a restored session starts its 5-minute
     // background timer (the auth listener does the rest).
     SyncService.instance.ensureStarted();
+    // Process-death-proof cadence. Registration is non-fatal and Android-only.
+    unawaited(BackgroundSync.register());
     // The quiet backup follows schedule changes for the whole session; it
     // starts async so launch never waits on disk or prefs.
     unawaited(AutoBackupService.instance.attach());
@@ -46,6 +52,18 @@ Future<void> main() async {
     // watch the app start light and flip once prefs finish reading.
     await ThemeModeService.instance.load();
     runApp(ScheduleApp(showOnboarding: !seenOnboarding));
+    // A notification tap that launched a killed app arrives here. Wait for
+    // the first frame so the navigator key has a live state to route with.
+    try {
+      final payload = await ReminderService.instance.consumeLaunchPayload();
+      if (payload != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          handleNotificationTap(payload);
+        });
+      }
+    } catch (error) {
+      AppLogger.w('notification', 'Launch payload failed', error: error);
+    }
   });
 }
 
@@ -67,6 +85,7 @@ class ScheduleApp extends StatelessWidget {
           KlasifyThemeMode.system => ThemeMode.system,
         };
         return MaterialApp(
+          navigatorKey: AppRouter.navigatorKey,
           title: 'Klasify',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light(),

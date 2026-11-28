@@ -21,6 +21,7 @@ class SyncService extends ChangeNotifier {
   SyncService._() {
     final session = AuthSyncSession();
     final store = SqliteSyncStore();
+    _queue = store;
     final gateway = HttpSyncGateway(baseUrl: () => AuthService.baseUrl);
     final push = PushSync(store: store, gateway: gateway, session: session);
     final pull = PullSync(store: store, gateway: gateway, session: session);
@@ -43,6 +44,8 @@ class SyncService extends ChangeNotifier {
   @visibleForTesting
   static bool autoStartEnabled = true;
 
+  late final SqliteSyncStore _queue;
+
   late final SyncController _controller;
 
   void _forward() => notifyListeners();
@@ -53,6 +56,9 @@ class SyncService extends ChangeNotifier {
 
   /// Older server rows skipped by the last pull in favour of newer local edits.
   int get lastConflictCount => _controller.lastConflictCount;
+
+  /// Local rows waiting for the next push.
+  Future<int> pendingChangeCount() => _queue.pendingChangeCount();
 
   Future<bool> push() => _controller.push();
 
