@@ -105,6 +105,22 @@ class SyncRepository {
     return rows.isEmpty ? null : rows.single;
   }
 
+  /// Stored timestamp for a server-known row, used to detect LWW conflicts.
+  /// [table] is supplied by the sync data adapter, never by application code.
+  Future<DateTime?> updatedAtForServerId(String table, int serverId) async {
+    final db = await _database.database;
+    final rows = await db.query(
+      table,
+      columns: ['updated_at'],
+      where: 'server_id = ?',
+      whereArgs: [serverId],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    final raw = rows.single['updated_at'];
+    return raw is String ? DateTime.tryParse(raw) : null;
+  }
+
   static String _mintDeviceId() {
     final random = Random.secure();
     return List.generate(

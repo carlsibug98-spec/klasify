@@ -195,6 +195,46 @@ void main() {
 
     await db.delete(id);
   });
+
+  String backupStamp(DateTime t) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${t.year}${two(t.month)}${two(t.day)}-${two(t.hour)}${two(t.minute)}';
+  }
+
+  test('a dated backup older than a semester is pruned', () async {
+    final dir = Directory(
+      p.join(tempDir.path, AutoBackupService.directoryName),
+    );
+    await dir.create(recursive: true);
+    final stale = File(
+      p.join(
+        dir.path,
+        'klasify-backup-${backupStamp(DateTime.now().subtract(const Duration(days: 121)))}.json',
+      ),
+    );
+    final recent = File(
+      p.join(
+        dir.path,
+        'klasify-backup-${backupStamp(DateTime.now().subtract(const Duration(days: 1)))}.json',
+      ),
+    );
+    final manual = File(p.join(dir.path, 'manual-export.json'));
+    await stale.writeAsString('old');
+    await recent.writeAsString('new');
+    await manual.writeAsString('manual');
+    await mainFile().writeAsString('current');
+
+    await AutoBackupService.instance.pruneExpiredBackups();
+
+    expect(await stale.exists(), isFalse,
+        reason: 'a backup older than one semester must be removed');
+    expect(await recent.exists(), isTrue,
+        reason: 'a backup from this semester must survive');
+    expect(await mainFile().exists(), isTrue,
+        reason: 'the always-current copy is not a dated backup');
+    expect(await manual.exists(), isTrue,
+        reason: 'manual exports are never pruned automatically');
+  });
 }
 
 

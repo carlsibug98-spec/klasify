@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/app_info.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/status_banner.dart';
 import 'profile_sheets.dart';
 
 /// Shared pieces for the Profile tab world (mockup v9): the segmented row
@@ -168,6 +169,41 @@ class StatusPill extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Copy for the last-write-wins notice. Kept pure so the singular/plural
+/// branch is testable without a widget tree.
+String syncConflictMessage(int count) => count == 1
+    ? '1 older server change was skipped because this phone has a newer edit.'
+    : '$count older server changes were skipped because this phone has newer edits.';
+
+/// One-time notice that a pull discarded older server rows in favour of newer
+/// edits on this phone. LWW stays in force; this only makes it visible.
+class SyncConflictNotice extends StatelessWidget {
+  const SyncConflictNotice({
+    super.key,
+    required this.count,
+    required this.onDismiss,
+  });
+
+  final int count;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    if (count <= 0) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        StatusBanner(
+          message: syncConflictMessage(count),
+          kind: StatusKind.warning,
+          onDismiss: onDismiss,
+        ),
+        ProfileLink(text: 'Dismiss', onTap: onDismiss),
+      ],
     );
   }
 }

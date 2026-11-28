@@ -29,6 +29,7 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
   bool? _classEnabled;
   bool? _eventsEnabled;
   bool _syncing = false;
+  int _dismissedConflictCount = 0;
 
   @override
   void initState() {
@@ -111,6 +112,25 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
                   const ProfileSubhead(
                     title: 'Settings & privacy',
                     tagline: 'Account, preferences, legal and support.',
+                  ),
+                  ListenableBuilder(
+                    listenable: SyncService.instance,
+                    builder: (context, _) {
+                      final count = SyncService.instance.lastConflictCount;
+                      return count > 0 && _dismissedConflictCount != count
+                          ? Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: AppTheme.sectionGap,
+                              ),
+                              child: SyncConflictNotice(
+                                count: count,
+                                onDismiss: () => setState(
+                                  () => _dismissedConflictCount = count,
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink();
+                    },
                   ),
                   // ACCOUNT is a signed-in group: without a session there
                   // are no account details to manage, so the hub shows the

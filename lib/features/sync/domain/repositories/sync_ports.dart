@@ -1,5 +1,6 @@
 import '../entities/sync_change.dart';
 import '../entities/sync_record.dart';
+import '../entities/sync_record_kind.dart';
 
 /// Local persistence the sync use cases need. Implemented by SQLite.
 abstract interface class SyncLocalStore {
@@ -10,6 +11,10 @@ abstract interface class SyncLocalStore {
   Future<List<SyncEventChange>> changedEvents(DateTime since);
   Future<List<SyncStatusChange>> changedStatuses(DateTime since);
   Future<Map<int, int>> classServerIds();
+
+  /// Stored `updated_at` for an already-pulled row, or null when absent.
+  /// Used to detect when a newer local edit beats an older server row.
+  Future<DateTime?> localUpdatedAt(SyncRecordKind kind, int serverId);
 
   Future<void> setClassServerId(int localId, int serverId);
   Future<void> setEventServerId(int localId, int serverId);

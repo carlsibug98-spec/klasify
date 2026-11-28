@@ -266,6 +266,10 @@ class DatabaseHelper extends ChangeNotifier {
   /// Clears the device id and cursors so the file can change hands.
   Future<void> resetSyncIdentity() => _sync.resetSyncIdentity();
 
+  /// Stored timestamp for a server-known row, for LWW conflict detection.
+  Future<DateTime?> localUpdatedAtForSync(String table, int serverId) =>
+      _sync.updatedAtForServerId(table, serverId);
+
   /// Last successful push time for the active scope.
   Future<DateTime?> lastPushAt() => _sync.lastPushAt();
 

@@ -51,6 +51,9 @@ class SyncService extends ChangeNotifier {
   String? get lastError => _controller.lastError;
   DateTime? get lastSyncAt => _controller.lastSyncAt;
 
+  /// Older server rows skipped by the last pull in favour of newer local edits.
+  int get lastConflictCount => _controller.lastConflictCount;
+
   Future<bool> push() => _controller.push();
 
   Future<bool> pull() => _controller.pull();

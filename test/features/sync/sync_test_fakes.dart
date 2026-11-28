@@ -1,5 +1,6 @@
 import 'package:klasify/features/sync/domain/entities/sync_change.dart';
 import 'package:klasify/features/sync/domain/entities/sync_record.dart';
+import 'package:klasify/features/sync/domain/entities/sync_record_kind.dart';
 import 'package:klasify/features/sync/domain/repositories/sync_ports.dart';
 
 class FakeLocalStore implements SyncLocalStore {
@@ -10,6 +11,7 @@ class FakeLocalStore implements SyncLocalStore {
   List<SyncEventChange> events = [];
   List<SyncStatusChange> statuses = [];
   Map<int, int> classIds = {};
+  final Map<String, DateTime?> localStamps = {};
   DateTime? purgedBefore;
   bool pruneCalled = false;
 
@@ -40,6 +42,10 @@ class FakeLocalStore implements SyncLocalStore {
 
   @override
   Future<Map<int, int>> classServerIds() async => classIds;
+
+  @override
+  Future<DateTime?> localUpdatedAt(SyncRecordKind kind, int serverId) async =>
+      localStamps['${kind.name}:$serverId'];
 
   @override
   Future<void> setClassServerId(int localId, int serverId) async {

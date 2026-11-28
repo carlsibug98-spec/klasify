@@ -1,6 +1,7 @@
 import '../../../data/database_helper.dart';
 import '../domain/entities/sync_change.dart';
 import '../domain/entities/sync_record.dart';
+import '../domain/entities/sync_record_kind.dart';
 import '../domain/repositories/sync_ports.dart';
 
 /// The SQLite implementation of [SyncLocalStore].
@@ -88,6 +89,17 @@ class SqliteSyncStore implements SyncLocalStore {
 
   @override
   Future<Map<int, int>> classServerIds() => _database.getClassServerIds();
+
+  @override
+  Future<DateTime?> localUpdatedAt(SyncRecordKind kind, int serverId) =>
+      _database.localUpdatedAtForSync(
+        switch (kind) {
+          SyncRecordKind.classItem => 'classes',
+          SyncRecordKind.event => 'events',
+          SyncRecordKind.status => 'class_status',
+        },
+        serverId,
+      );
 
   @override
   Future<void> setClassServerId(int localId, int serverId) =>

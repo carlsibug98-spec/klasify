@@ -1,3 +1,4 @@
+import '../domain/entities/sync_record_kind.dart';
 import '../domain/entities/sync_result.dart';
 import '../domain/repositories/sync_ports.dart';
 import 'sync_failure_message.dart';
@@ -31,6 +32,24 @@ class PullSync {
     }
 
     final generation = session.scopeGeneration;
+    var conflicts = 0;
+
+    /// Counts a row the server sent that is older than the edit on this
+    /// phone. The repository's own LWW check keeps the local edit; this only
+    /// makes that decision visible to the user.
+    Future<void> noteConflict(
+      SyncRecordKind kind,
+      int serverId,
+      String? incomingRaw,
+    ) async {
+      final local = await store.localUpdatedAt(kind, serverId);
+      final incoming =
+          incomingRaw == null ? null : DateTime.tryParse(incomingRaw);
+      if (local != null && incoming != null && local.isAfter(incoming)) {
+        conflicts++;
+      }
+    }
+
     try {
       final deviceId = await store.deviceId();
       final lastPull = await store.lastPullAt();
@@ -43,6 +62,7 @@ class PullSync {
       );
 
       for (final row in batch.classes) {
+        await noteConflict(SyncRecordKind.classItem, row.serverId, row.updatedAt);
         if (!await session.writeIfCurrent(
           generation,
           () => store.applyClass(row),
@@ -51,6 +71,7 @@ class PullSync {
         }
       }
       for (final row in batch.events) {
+        await noteConflict(SyncRecordKind.event, row.serverId, row.updatedAt);
         if (!await session.writeIfCurrent(
           generation,
           () => store.applyEvent(row),
@@ -59,6 +80,7 @@ class PullSync {
         }
       }
       for (final row in batch.classStatuses) {
+        await noteConflict(SyncRecordKind.status, row.serverId, row.updatedAt);
         if (!await session.writeIfCurrent(
           generation,
           () => store.applyStatus(row),
@@ -107,7 +129,7 @@ class PullSync {
           return const SyncResult.skipped('The local scope changed.');
         }
       }
-      return const SyncResult.success();
+      return SyncResult.success(conflicts: conflicts);
     } on SyncGatewayException catch (error) {
       return SyncResult.failed(syncFailureMessage('Pull', error));
     } catch (error) {

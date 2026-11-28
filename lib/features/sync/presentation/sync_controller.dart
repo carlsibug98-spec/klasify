@@ -48,6 +48,11 @@ class SyncController extends ChangeNotifier {
   DateTime? _lastSyncAt;
   DateTime? get lastSyncAt => _lastSyncAt;
 
+  /// Server rows skipped in the last successful pull because this phone had
+  /// a newer edit. Reset to zero on the next clean run.
+  int _lastConflictCount = 0;
+  int get lastConflictCount => _lastConflictCount;
+
   Timer? _backgroundTimer;
   Timer? _retryTimer;
   int _retryAttempt = 0;
@@ -73,6 +78,7 @@ class SyncController extends ChangeNotifier {
       if (result.isSuccess) {
         _lastError = null;
         _lastSyncAt = DateTime.now();
+        _lastConflictCount = result.conflicts;
       } else if (result.isFailure) {
         _lastError = result.message;
       }

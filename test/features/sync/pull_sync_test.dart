@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klasify/features/sync/application/pull_sync.dart';
 import 'package:klasify/features/sync/domain/entities/sync_record.dart';
+import 'package:klasify/features/sync/domain/entities/sync_record_kind.dart';
 import 'package:klasify/features/sync/domain/entities/sync_result.dart';
 import 'package:klasify/features/sync/domain/repositories/sync_ports.dart';
 
@@ -93,5 +94,18 @@ void main() {
     expect(result.message, 'Pull failed: 503');
     expect(store.calls, isEmpty);
     expect(store.lastPull, DateTime.utc(2026, 1, 1));
+  });
+
+  test('a newer local edit is reported as a conflict', () async {
+    store.localStamps['${SyncRecordKind.classItem.name}:10'] =
+        DateTime.utc(2026, 1, 6);
+
+    final result = await pull();
+
+    expect(result.isSuccess, isTrue);
+    expect(result.conflicts, 1,
+        reason: 'an older server row discarded for a newer local edit must be reported');
+    expect(store.appliedClasses.single.serverId, 10,
+        reason: 'the row is still applied so its server mapping is adopted');
   });
 }

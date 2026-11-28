@@ -68,6 +68,15 @@ class AutoBackupService extends ChangeNotifier {
   /// Rolling window behind the main file (6 dated copies ≈ a busy day).
   static const int datedCopiesToKeep = 6;
 
+  /// How long dated copies are kept: one academic semester.
+  ///
+  /// The always-current file and manual exports are never pruned.
+  static const int retentionDays = 120;
+
+  static final RegExp _datedBackupName = RegExp(
+    r'^klasify-backup-(?:u\d+-)?(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\.json$',
+  );
+
   static const String directoryName = 'auto_backups';
 
   /// Tests point this at a temporary directory.
@@ -136,6 +145,7 @@ class AutoBackupService extends ChangeNotifier {
     await load();
     if (_attached) return;
     _attached = true;
+    await pruneExpiredBackups();
     DatabaseHelper.instance.addListener(_onScheduleChanged);
     // Fresh launch: refresh the copy so a crash or a restored database can
     // never leave the backup older than the real schedule.
@@ -293,6 +303,48 @@ class AutoBackupService extends ChangeNotifier {
       _lastCountKeyBase,
     ]) {
       await prefs.remove('${base}_u${scope.userId}');
+    }
+  }
+
+  /// Removes dated copies older than [retentionDays] on startup.
+  ///
+  /// Only files matching the dated backup naming convention are eligible;
+  /// the always-current copy and manual exports are never touched. A failed
+  /// prune is non-fatal — the next launch retries.
+  Future<void> pruneExpiredBackups() async {
+    Directory dir;
+    try {
+      dir = await _ensureDirectory();
+    } catch (e, st) {
+      debugPrint('Auto backup: could not open the backup directory: $e\n$st');
+      return;
+    }
+    final cutoff = DateTime.now().subtract(const Duration(days: retentionDays));
+    await for (final entity in dir.list()) {
+      if (entity is! File) continue;
+      final match = _datedBackupName.firstMatch(p.basename(entity.path));
+      if (match == null) continue;
+      final year = int.parse(match.group(1)!);
+      final month = int.parse(match.group(2)!);
+      final day = int.parse(match.group(3)!);
+      final hour = int.parse(match.group(4)!);
+      final minute = int.parse(match.group(5)!);
+      final stamped = DateTime(year, month, day, hour, minute);
+      // Reject impossible dates instead of normalising them into a different
+      // day that might look old enough to delete.
+      if (stamped.year != year ||
+          stamped.month != month ||
+          stamped.day != day ||
+          stamped.hour != hour ||
+          stamped.minute != minute) {
+        continue;
+      }
+      if (!stamped.isBefore(cutoff)) continue;
+      try {
+        await entity.delete();
+      } catch (e) {
+        debugPrint('Auto backup: could not prune ${entity.path}: $e');
+      }
     }
   }
 

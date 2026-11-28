@@ -1,7 +1,7 @@
 # Information governance specification
 
 Date: 2026-11-28
-Status: proposed — awaiting approval before code changes
+Status: approved for implementation (product decisions recorded below)
 
 ## Context
 
