@@ -45,7 +45,9 @@ void main() {
     final out = File('${Directory.current.path}/build/bench3_out.json');
     out.createSync(recursive: true);
     out.writeAsStringSync(const JsonEncoder.withIndent(' ').convert(results));
-    tmp.deleteSync(recursive: true);
+    // The OS or an antivirus can clear the system temp folder while a long
+    // benchmark runs; a missing scratch dir must not fail the suite.
+    if (tmp.existsSync()) tmp.deleteSync(recursive: true);
   });
 
   String hhmm(int minutes) =>
