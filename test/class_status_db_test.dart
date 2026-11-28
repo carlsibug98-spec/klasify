@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:klasify/data/app_database.dart';
 import 'package:klasify/data/database_helper.dart';
 import 'package:klasify/models/class_item.dart';
 import 'package:klasify/models/class_status.dart';
@@ -156,5 +157,120 @@ void main() {
     expect(ranges((await db.getClassStatuses())[id]!), [
       ('2026-10-23', '2026-10-23', DayStatus.finished),
     ]);
+  });
+
+  test('replacing a server-known mark tombstones the row it replaced', () async {
+    final db = DatabaseHelper.instance;
+    final id = await newClass();
+    await db.setClassStatus(mark(id, DayStatus.notAttending, '2026-10-19'));
+    final original = (await db.getClassStatuses())[id]!.single;
+    final raw = await AppDatabase.instance.database;
+    // The server already knows this range.
+    await raw.update(
+      'class_status',
+      {'server_id': 77},
+      where: 'id = ?',
+      whereArgs: [original.id],
+    );
+
+    await db.setClassStatus(
+      mark(id, DayStatus.cancelled, '2026-10-23', '2026-10-23'),
+    );
+
+    // The split segments are live; the original row must be tombstoned so the
+    // next push deletes the un-narrowed range on the server.
+    expect(ranges((await db.getClassStatuses())[id]!), [
+      ('2026-10-19', '2026-10-22', DayStatus.notAttending),
+      ('2026-10-23', '2026-10-23', DayStatus.cancelled),
+      ('2026-10-24', null, DayStatus.notAttending),
+    ]);
+    final tombstone = (await raw.query(
+      'class_status',
+      where: 'id = ?',
+      whereArgs: [original.id],
+    )).single;
+    expect(tombstone['deleted'], 1);
+    expect(tombstone['server_id'], 77);
+  });
+
+  test('a mark that never reached the server is dropped, not tombstoned', () async {
+    final db = DatabaseHelper.instance;
+    final id = await newClass();
+    await db.setClassStatus(
+      mark(id, DayStatus.finished, '2026-10-23', '2026-10-23'),
+    );
+
+    await db.setClassStatus(
+      mark(id, DayStatus.cancelled, '2026-10-23', '2026-10-23'),
+    );
+
+    expect(ranges((await db.getClassStatuses())[id]!), [
+      ('2026-10-23', '2026-10-23', DayStatus.cancelled),
+    ]);
+    final raw = await AppDatabase.instance.database;
+    // A tombstone without a server id would insert a deleted row server-side.
+    expect(
+      await raw.query('class_status', where: 'class_id = ? AND deleted = 1', whereArgs: [id]),
+      isEmpty,
+    );
+  });
+
+  test('undoing a range edit tombstones a server row the snapshot drops', () async {
+    final db = DatabaseHelper.instance;
+    final id = await newClass();
+    await db.setClassStatus(
+      mark(id, DayStatus.finished, '2026-10-23', '2026-10-23'),
+    );
+    final before = await db.statusesForClass(id);
+    final raw = await AppDatabase.instance.database;
+
+    // Another device's mark lands between the edit and its undo.
+    final otherId = await raw.insert('class_status', {
+      'class_id': id,
+      'status': 'cancelled',
+      'start_date': '2026-11-02',
+      'end_date': '2026-11-02',
+      'server_id': 88,
+      'deleted': 0,
+    });
+
+    await db.restoreClassStatuses(id, before);
+
+    expect(ranges((await db.getClassStatuses())[id]!), [
+      ('2026-10-23', '2026-10-23', DayStatus.finished),
+    ]);
+    final dropped = (await raw.query(
+      'class_status',
+      where: 'id = ?',
+      whereArgs: [otherId],
+    )).single;
+    expect(dropped['deleted'], 1);
+    expect(dropped['server_id'], 88);
+  });
+
+  test('undo after a class delete does not revive an older cleared mark', () async {
+    final db = DatabaseHelper.instance;
+    final id = await newClass();
+    await db.setClassStatus(
+      mark(id, DayStatus.finished, '2026-10-23', '2026-10-23'),
+    );
+    final only = (await db.getClassStatuses())[id]!.single;
+    final raw = await AppDatabase.instance.database;
+    await raw.update(
+      'class_status',
+      {'server_id': 66},
+      where: 'id = ?',
+      whereArgs: [only.id],
+    );
+
+    // Clear the mark: its tombstone is still waiting for the next push.
+    await db.clearClassStatus(only, day: '2026-10-23');
+    final item = (await db.getAll()).firstWhere((c) => c.id == id);
+    await db.delete(id);
+
+    // Undo only the class delete: the earlier clear must stay cleared.
+    await db.restoreDeleted(item);
+
+    expect((await db.getClassStatuses()).containsKey(id), isFalse);
   });
 }

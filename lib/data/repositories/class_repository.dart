@@ -166,6 +166,18 @@ class ClassRepository {
     // overlap check still applies against other live rows (the restoring
     // row itself is tombstoned, so it is invisible to the validator).
     await _validateSchedule(db, [item], excludedIds: {item.id!});
+    // delete() stamps the class and its statuses with one timestamp. Read it
+    // before the restore overwrites the class stamp: only the statuses that
+    // delete tombstoned may come back. An earlier clear must stay cleared.
+    final stampRow = await db.query(
+      'classes',
+      columns: ['updated_at'],
+      where: 'id = ?',
+      whereArgs: [item.id],
+      limit: 1,
+    );
+    final deleteStamp =
+        stampRow.isEmpty ? null : stampRow.first['updated_at'] as String?;
     final restored = await db.update(
       'classes',
       {'deleted': 0, 'updated_at': utcStamp()},
@@ -176,8 +188,12 @@ class ClassRepository {
       await db.update(
         'class_status',
         {'deleted': 0, 'updated_at': utcStamp()},
-        where: 'class_id = ? AND deleted = 1',
-        whereArgs: [item.id],
+        where: deleteStamp == null
+            ? 'class_id = ? AND deleted = 1'
+            : 'class_id = ? AND deleted = 1 AND updated_at = ?',
+        whereArgs: deleteStamp == null
+            ? [item.id]
+            : [item.id, deleteStamp],
       );
       // Contract preserved from the re-insert era: undo hands the original
       // ID back, not a row count. 0 means nothing was restored.

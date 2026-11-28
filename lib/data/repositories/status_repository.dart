@@ -42,24 +42,22 @@ class StatusRepository {
         whereArgs: [incoming.classId],
       );
       final after = replaceStatusRange(before, incoming);
+      final stamp = utcStamp();
+      final keptIds = {for (final e in after) e.id}.whereType<int>().toSet();
+      // A row this edit drops still exists on the server: tombstone it, or
+      // other devices keep pulling the un-narrowed range.
+      final dropped = _tombstonesForDropped(before, keptIds, stamp);
       await txn.delete(
         'class_status',
         where: 'class_id = ?',
         whereArgs: [incoming.classId],
       );
       for (final entry in after) {
-        await txn.insert(
-          'class_status',
-          entry.toMap()..['updated_at'] = utcStamp(),
-        );
+        await txn.insert('class_status', entry.toMap()..['updated_at'] = stamp);
       }
       // Re-attach tombstones whose ids the fresh state does not reuse;
       // unpushed deletions must survive the edit.
-      final liveIds = {for (final e in after) e.id}.whereType<int>().toSet();
-      for (final map in dead) {
-        if (liveIds.contains(map['id'])) continue;
-        await txn.insert('class_status', map);
-      }
+      await _insertTombstones(txn, [...dropped, ...dead], keptIds);
     });
     return before;
   }
@@ -80,6 +78,9 @@ class StatusRepository {
         whereArgs: [entry.classId],
       );
       final after = clearStatusOnDay(before, entry, day);
+      final stamp = utcStamp();
+      final keptIds = {for (final e in after) e.id}.whereType<int>().toSet();
+      final dropped = _tombstonesForDropped(before, keptIds, stamp);
       await txn.delete(
         'class_status',
         where: 'class_id = ?',
@@ -88,14 +89,10 @@ class StatusRepository {
       for (final kept in after) {
         await txn.insert(
           'class_status',
-          kept.toMap()..['updated_at'] = utcStamp(),
+          kept.toMap()..['updated_at'] = stamp,
         );
       }
-      final liveIds = {for (final e in after) e.id}.whereType<int>().toSet();
-      for (final map in dead) {
-        if (liveIds.contains(map['id'])) continue;
-        await txn.insert('class_status', map);
-      }
+      await _insertTombstones(txn, [...dropped, ...dead], keptIds);
     });
     return before;
   }
@@ -109,6 +106,20 @@ class StatusRepository {
         where: 'class_id = ? AND deleted = 1',
         whereArgs: [classId],
       );
+      // A mark another device added after the snapshot is about to be
+      // removed: keep its server row in step with a tombstone.
+      final live = await txn.query(
+        'class_status',
+        where: 'class_id = ? AND deleted = 0',
+        whereArgs: [classId],
+      );
+      final keptIds = {for (final e in before) e.id}.whereType<int>().toSet();
+      final stamp = utcStamp();
+      final dropped = <Map<String, Object?>>[
+        for (final map in live)
+          if (map['server_id'] != null && !keptIds.contains(map['id']))
+            {...map, 'deleted': 1, 'updated_at': stamp},
+      ];
       await txn.delete(
         'class_status',
         where: 'class_id = ?',
@@ -117,18 +128,45 @@ class StatusRepository {
       for (final entry in before) {
         await txn.insert(
           'class_status',
-          entry.toMap()..['updated_at'] = utcStamp(),
+          entry.toMap()..['updated_at'] = stamp,
         );
       }
       // Rows the snapshot did not cover (earlier deletions still awaiting
       // their push) keep their tombstones; rows the snapshot revives are
       // skipped, the revived inserts cover them.
-      final liveIds = {for (final e in before) e.id}.whereType<int>().toSet();
-      for (final map in dead) {
-        if (liveIds.contains(map['id'])) continue;
-        await txn.insert('class_status', map);
-      }
+      await _insertTombstones(txn, [...dropped, ...dead], keptIds);
     });
+  }
+
+  /// Tombstones live rows the new state drops and the server already knows.
+  ///
+  /// A row without a server id has nothing to delete remotely: pushing a
+  /// tombstone for it would insert a deleted row on the server.
+  List<Map<String, Object?>> _tombstonesForDropped(
+    List<ClassStatusEntry> before,
+    Set<int> keptIds,
+    String stamp,
+  ) {
+    final rows = <Map<String, Object?>>[];
+    for (final entry in before) {
+      if (entry.serverId == null || keptIds.contains(entry.id)) continue;
+      rows.add(entry.copyWith(deleted: true).toMap()..['updated_at'] = stamp);
+    }
+    return rows;
+  }
+
+  /// Inserts tombstones, skipping any id the live state already uses.
+  Future<void> _insertTombstones(
+    DatabaseExecutor txn,
+    Iterable<Map<String, Object?>> rows,
+    Set<int> keptIds,
+  ) async {
+    final used = {...keptIds};
+    for (final map in rows) {
+      final id = map['id'] as int?;
+      if (id != null && !used.add(id)) continue;
+      await txn.insert('class_status', map);
+    }
   }
 
   /// Removes a class's marks that start on or after [fromDateKey]. Used when
