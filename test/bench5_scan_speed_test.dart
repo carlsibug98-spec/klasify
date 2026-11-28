@@ -1,3 +1,6 @@
+@Timeout(Duration(minutes: 45))
+library;
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -31,8 +34,6 @@ import 'package:paddle_ocr_native/src/paddle_ocr_platform.dart';
 ///
 /// Output: build/bench5_out.json with per-fixture call counts, wall seconds
 /// per stage, and the final parsed rows (the before/after quality gate).
-// ignore: invalid_annotation_target
-@Timeout(Duration(minutes: 45))
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 

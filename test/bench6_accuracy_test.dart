@@ -1,3 +1,6 @@
+@Timeout(Duration(minutes: 45))
+library;
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -47,8 +50,6 @@ import 'package:paddle_ocr_native/src/paddle_ocr_platform.dart';
 ///   missed           truth classes matched to no parsed row
 ///
 /// Output: build/bench6_accuracy.json
-// ignore: invalid_annotation_target
-@Timeout(Duration(minutes: 45))
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 

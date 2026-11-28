@@ -1,3 +1,6 @@
+@Timeout(Duration(minutes: 45))
+library;
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -35,8 +38,6 @@ import 'package:paddle_ocr_native/src/paddle_ocr_platform.dart';
 /// day/start/end) and add the COR-only room/professor field checks.
 ///
 /// Output: build/bench7_cor_accuracy.json
-// ignore: invalid_annotation_target
-@Timeout(Duration(minutes: 45))
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 

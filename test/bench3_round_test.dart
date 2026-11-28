@@ -1,3 +1,6 @@
+@Timeout(Duration(minutes: 40))
+library;
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -23,8 +26,6 @@ import 'package:paddle_ocr_native/paddle_ocr_native.dart';
 ///   t3: tesseract boxes -> TimetableGridScanner (full grid path)
 ///
 /// Output: build/bench3_out.json
-// ignore: invalid_annotation_target
-@Timeout(Duration(minutes: 40))
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
