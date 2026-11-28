@@ -35,6 +35,39 @@ void main() {
     expect(staleReminderIds([10, 11], <int>{}), [10, 11]);
   });
 
+  test('a past event alarm that is still pending is not treated as stale', () {
+    expect(
+      eventAlarmKeepDecision(
+        enabled: true,
+        remindMe: true,
+        future: false,
+        pending: true,
+      ),
+      isTrue,
+      reason: 'an inexact alarm delayed past its time must still be allowed to fire',
+    );
+    expect(
+      eventAlarmKeepDecision(
+        enabled: true,
+        remindMe: true,
+        future: false,
+        pending: false,
+      ),
+      isFalse,
+      reason: 'a past event with no pending alarm has nothing to preserve',
+    );
+    expect(
+      eventAlarmKeepDecision(
+        enabled: false,
+        remindMe: true,
+        future: false,
+        pending: true,
+      ),
+      isFalse,
+      reason: 'a disabled gate must drop the alarm',
+    );
+  });
+
   test('event reminders read off while class reminders are off', () async {
     SharedPreferences.setMockInitialValues({
       'class_reminders_enabled': false,

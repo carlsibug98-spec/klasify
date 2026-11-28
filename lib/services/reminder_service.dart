@@ -11,6 +11,21 @@ import '../models/class_status.dart';
 import '../models/event_item.dart';
 import 'notification_tap_service.dart';
 
+/// Whether an event's reminder ID must survive pruning on this sync.
+///
+/// An inexact Android alarm can still be pending after its nominal time. A
+/// later sync must not cancel it just because the event is now in the past.
+@visibleForTesting
+bool eventAlarmKeepDecision({
+  required bool enabled,
+  required bool remindMe,
+  required bool future,
+  required bool pending,
+}) {
+  if (!enabled || !remindMe) return false;
+  return future || pending;
+}
+
 /// Pending reminder IDs that the current schedule no longer uses.
 @visibleForTesting
 List<int> staleReminderIds(Iterable<int> pending, Set<int> scheduled) =>
@@ -335,16 +350,25 @@ class ReminderService extends ChangeNotifier {
     // turned back on, without editing each event.
     final eventsOn = await eventsEnabled;
     for (final e in events) {
-      if (!eventsOn || !e.remindMe) continue;
+      if (!e.remindMe || !eventsOn) continue;
+      final id = _eventReminderId(e);
       final reminderMinutes = e.startMinutes >= e.leadMinutes
           ? e.startMinutes - e.leadMinutes
           : e.startMinutes;
       final when = _at(parseDateKey(e.date), reminderMinutes);
-      // Events already past (or due this instant) stay silent — no pitfall
-      // alarm for "the fair started 20 seconds ago".
-      if (!when.isAfter(now)) continue;
+      final future = when.isAfter(now);
+      if (!eventAlarmKeepDecision(
+        enabled: eventsOn,
+        remindMe: e.remindMe,
+        future: future,
+        pending: previousIds.contains(id),
+      )) {
+        continue;
+      }
+      scheduledIds.add(id);
+      if (!future) continue;
       await _scheduleEventAt(
-        id: _eventReminderId(e),
+        id: id,
         scheduledIds: scheduledIds,
         event: e,
         when: when,
