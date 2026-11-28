@@ -28,7 +28,7 @@ An offline-first Flutter app for maintaining a weekly class timetable. **All sch
 - Reusable component kit (`SectionHeader`, `SettingsRow`, `TimeBox`, `PinnedActionBar`, `KlasifySkeleton`)
 - Intelligent room label formatting (`formatRoom`: normalizes `304` to `Room 304` while preserving named locations like `Lab 2` and `MacLab`)
 - Real-time class status engine (`classStatusAt`: calculates `live`, `upcoming`, and `done` states relative to current minutes)
-- 84-file test suite (609 tests): schedule calculations, parsers, database rules, screen widget tests, golden design captures, and OCR accuracy benchmarks
+- 90-file test suite (635 tests): schedule calculations, parsers, database rules, screen widget tests, golden design captures, OCR accuracy benchmarks, and the sync feature's domain/application/data/architecture tests
 - Database version upgrade using validation triggers without discarding existing rows
 
 ## Weekly schedule enhancements
@@ -176,6 +176,11 @@ lib/
       admin_api.dart
       auth_api.dart
       session_store.dart
+    sync/                                # first Clean Architecture slice
+      domain/                            # pure Dart entities + ports
+      application/                       # push / pull / sync-now use cases
+      data/                              # HTTP, SQLite, auth/scope adapters
+      presentation/                      # cadence + observable sync state
     schedule_import/
       import_route_cache.dart
       import_schedule_screen.dart
@@ -222,7 +227,7 @@ lib/
   services/
     app_info.dart
     auth_service.dart                  # sign-in, roles, admin API client, KLASIFY_API_URL
-    sync_service.dart                  # background pull/push with per-table cursors
+    sync_service.dart                  # sync composition root + compatibility facade
     coach_tour_store.dart
     onboarding_store.dart
     reminder_service.dart
@@ -254,6 +259,16 @@ test/
 php-backend/                           # optional sync/auth backend (PHP + MySQL on XAMPP)
 docs/                                  # deployment, admin rules, API contract, roadmap
 ```
+
+### Architecture boundaries
+
+The app is migrating feature by feature to one dependency rule:
+`presentation → application → domain ← data`. `domain` is pure Dart and knows
+nothing about Flutter, HTTP, or SQLite; `data` implements the ports; the
+composition root is the only place that wires concrete adapters. Sync is the
+first slice. `test/features/sync/sync_architecture_test.dart` enforces the rule,
+and the decisions are recorded in `docs/adr/` with the design in
+`docs/superpowers/specs/2026-11-28-sync-clean-architecture-design.md`.
 
 The only server component is `php-backend/` in this repo — self-hosted, described under "Accounts & sync (optional, self-hosted)". The Android `INTERNET` permission covers it, Google Sign-In, and the opt-in Sentry SDK. The `sentry_flutter` dependency (opt-in crash reporting) stays completely dormant unless a DSN was compiled in with `--dart-define=KLASIFY_SENTRY_DSN=...`; without it, and when signed out, the app opens no network connections on its own. In debug and profile builds, Flutter development tooling additionally uses `INTERNET` as before.
 
