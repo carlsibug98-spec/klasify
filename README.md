@@ -172,11 +172,15 @@ lib/
     repositories/                     # all SQL, one file per aggregate
     validation/                       # class and event rules shared by all doors
   features/
-    auth/
-      admin_api.dart
-      auth_api.dart
-      session_store.dart
-    sync/                                # first Clean Architecture slice
+    auth/                                # Clean Architecture slice (facade in services/)
+      domain/
+        entities/                        # auth_types.dart, auth_policy.dart
+        repositories/                    # auth_ports.dart (ports)
+      application/                       # sign_in, refresh_session, update_profile,
+                                         # change_password, delete_account
+      data/                              # auth_api, admin_api, session_store,
+                                         # local_account_scope adapters
+    sync/                                # first slice; reference implementation
       domain/                            # pure Dart entities + ports
       application/                       # push / pull / sync-now use cases
       data/                              # HTTP, SQLite, auth/scope adapters
@@ -226,7 +230,7 @@ lib/
       admin_screen.dart                # office availability + user role management
   services/
     app_info.dart
-    auth_service.dart                  # sign-in, roles, admin API client, KLASIFY_API_URL
+    auth_service.dart                  # auth slice facade: sign-in, roles, admin API, KLASIFY_API_URL
     sync_service.dart                  # sync composition root + compatibility facade
     coach_tour_store.dart
     onboarding_store.dart
@@ -265,9 +269,14 @@ docs/                                  # deployment, admin rules, API contract, 
 The app is migrating feature by feature to one dependency rule:
 `presentation → application → domain ← data`. `domain` is pure Dart and knows
 nothing about Flutter, HTTP, or SQLite; `data` implements the ports; the
-composition root is the only place that wires concrete adapters. Sync is the
-first slice. `test/features/sync/sync_architecture_test.dart` enforces the rule,
-and the decisions are recorded in `docs/adr/` with the design in
+composition root is the only place that wires concrete adapters. Auth and sync
+are the extracted slices so far; `schedule_import` still uses a traditional
+`models/services/utils/widgets` layout and has not yet been split into
+`domain/` and `application/` layers. Both slices have an architecture test:
+`test/features/auth/auth_architecture_test.dart` and
+`test/features/sync/sync_architecture_test.dart`. The decisions are recorded
+in `docs/adr/`, with the designs in
+`docs/superpowers/specs/2026-11-28-auth-clean-architecture-design.md` and
 `docs/superpowers/specs/2026-11-28-sync-clean-architecture-design.md`.
 
 The only server component is `php-backend/` in this repo — self-hosted, described under "Accounts & sync (optional, self-hosted)". The Android `INTERNET` permission covers it, Google Sign-In, and the opt-in Sentry SDK. The `sentry_flutter` dependency (opt-in crash reporting) stays completely dormant unless a DSN was compiled in with `--dart-define=KLASIFY_SENTRY_DSN=...`; without it, and when signed out, the app opens no network connections on its own. In debug and profile builds, Flutter development tooling additionally uses `INTERNET` as before.
