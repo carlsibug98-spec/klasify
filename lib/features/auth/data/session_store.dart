@@ -2,12 +2,14 @@ import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../domain/repositories/auth_ports.dart';
+
 /// Owns the persisted session: secure-storage keys, the in-memory user map,
 /// and the JWT expiry.
 ///
 /// This class performs no HTTP and never notifies listeners; [AuthService]
 /// decides when a storage change becomes a UI event.
-class SessionStore {
+class SessionStore implements SessionStorage {
   SessionStore([FlutterSecureStorage? storage])
     : _storage = storage ?? const FlutterSecureStorage();
 
@@ -23,8 +25,11 @@ class SessionStore {
   Map<String, dynamic>? _currentUser;
   DateTime? _expiresAt;
 
+  @override
   Map<String, dynamic>? get currentUser => _currentUser;
+  @override
   DateTime? get expiresAt => _expiresAt;
+  @override
   String? get token => _currentUser?['token'] as String?;
 
   /// Loads any persisted session from secure storage.
@@ -32,6 +37,7 @@ class SessionStore {
   /// Returns true when a token and user were restored. A corrupt user payload
   /// clears the session; missing keys simply leave the store empty. The
   /// caller still notifies listeners in every case.
+  @override
   Future<bool> restore() async {
     final token = await _storage.read(key: _tokenKey);
     final userJson = await _storage.read(key: _userKey);
@@ -53,9 +59,11 @@ class SessionStore {
   /// Authorized requests read the token from storage rather than
   /// [_currentUser], so a debug-seeded session still behaves like the real
   /// thing: it can render the UI but cannot call the API until it is persisted.
+  @override
   Future<String?> readToken() => _storage.read(key: _tokenKey);
 
   /// Persists a successful sign-in/register response.
+  @override
   Future<void> save({
     required String token,
     required Map<String, dynamic> user,
@@ -72,6 +80,7 @@ class SessionStore {
 
   /// Applies a successful silent refresh: new token, new expiry, optional
   /// refreshed user payload.
+  @override
   Future<void> applyRefresh({
     required String token,
     String? expiresIso,
@@ -87,6 +96,7 @@ class SessionStore {
   }
 
   /// Keeps the in-memory user in sync and rewrites the stored user JSON.
+  @override
   Future<void> persistUser(Map<String, dynamic> user) async {
     if (_currentUser != null) {
       // Merge every server-owned field (name, email, role, department) so
@@ -100,6 +110,7 @@ class SessionStore {
   }
 
   /// Deletes every persisted session key and the in-memory copy.
+  @override
   Future<void> clear() async {
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _userKey);
@@ -109,6 +120,7 @@ class SessionStore {
   }
 
   /// Widget-test hook: plants a session in memory only (nothing persists).
+  @override
   void seed(Map<String, dynamic> user) {
     _currentUser = {...user, 'token': 'test-token'};
     _expiresAt = DateTime.now().add(const Duration(days: 1));

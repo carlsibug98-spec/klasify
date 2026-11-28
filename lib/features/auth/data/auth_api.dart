@@ -4,78 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 
+import '../domain/entities/auth_types.dart';
+import '../domain/repositories/auth_ports.dart';
 import 'session_store.dart';
-
-/// Typed auth API error: the backend message plus its semantic code, so
-/// screens can branch on codes (EMAIL_EXISTS, INVALID_CREDENTIALS, ...)
-/// without parsing strings. `toString()` returns the message only.
-class AuthApiException implements Exception {
-  const AuthApiException(
-    this.message, {
-    this.code = 'UNKNOWN',
-    this.statusCode = 0,
-  });
-  final String message;
-  final String code;
-  final int statusCode;
-
-  @override
-  String toString() => message;
-}
-
-/// A successful register/login/Google response.
-class AuthResponse {
-  const AuthResponse({required this.token, required this.user, this.expiresAt});
-
-  factory AuthResponse.fromJson(Map<String, dynamic> data) => AuthResponse(
-    token: data['token'] as String,
-    user: data['user'] as Map<String, dynamic>,
-    expiresAt: data['expires_at'] as String?,
-  );
-
-  final String token;
-  final Map<String, dynamic> user;
-  final String? expiresAt;
-}
-
-/// Outcome of a silent `/auth/refresh` attempt.
-enum RefreshOutcome {
-  /// A fresh token (and possibly a fresh user payload) is available.
-  refreshed,
-
-  /// The server rejected the session; the caller should clear it.
-  rejected,
-
-  /// The server could not be reached or returned an unparseable body; keep
-  /// the stored session and retry later.
-  unreachable,
-}
-
-class RefreshResult {
-  const RefreshResult._(this.outcome, {this.token, this.expiresAt, this.user});
-
-  factory RefreshResult.refreshed({
-    required String token,
-    String? expiresAt,
-    Map<String, dynamic>? user,
-  }) => RefreshResult._(
-    RefreshOutcome.refreshed,
-    token: token,
-    expiresAt: expiresAt,
-    user: user,
-  );
-
-  factory RefreshResult.rejected() =>
-      const RefreshResult._(RefreshOutcome.rejected);
-
-  factory RefreshResult.unreachable() =>
-      const RefreshResult._(RefreshOutcome.unreachable);
-
-  final RefreshOutcome outcome;
-  final String? token;
-  final String? expiresAt;
-  final Map<String, dynamic>? user;
-}
 
 class _RetryAfterRefresh {
   const _RetryAfterRefresh();
@@ -97,7 +28,7 @@ const _noContent = _NoContent();
 /// The client is stateless apart from the [SessionStore] it reads the bearer
 /// token from. Session changes and listener notifications belong to
 /// `AuthService`.
-class AuthApi {
+class AuthApi implements AuthGateway {
   AuthApi({SessionStore? session, Future<bool> Function()? onTokenExpired})
     : _session = session ?? SessionStore(),
       _onTokenExpired = onTokenExpired ?? _noRefresh;
@@ -158,6 +89,7 @@ class AuthApi {
   final Future<bool> Function() _onTokenExpired;
 
   /// Register a new account. Returns the session payload on success.
+  @override
   Future<AuthResponse> register({
     required String email,
     required String password,
@@ -181,6 +113,7 @@ class AuthApi {
   }
 
   /// Sign in with email + password.
+  @override
   Future<AuthResponse> login({
     required String email,
     required String password,
@@ -199,6 +132,7 @@ class AuthApi {
   /// Sign in with Google. Never creates an account: a Google identity with
   /// no Klasify account gets ACCOUNT_NOT_FOUND, so the sign-in screen can
   /// point the user at Create account instead of silently provisioning one.
+  @override
   Future<AuthResponse> signInWithGoogle() async {
     final idToken = await _googleIdToken();
     final data =
@@ -215,6 +149,7 @@ class AuthApi {
   /// Create an account with Google. Name and department come from the
   /// create-account form, not from the Google profile, so the user always
   /// chooses what the school sees.
+  @override
   Future<AuthResponse> signUpWithGoogle({
     required String displayName,
     required String department,
@@ -237,12 +172,14 @@ class AuthApi {
   }
 
   /// DELETE /auth/account. The caller clears the local session afterwards.
+  @override
   Future<void> deleteAccount() async {
     await send('DELETE', '/auth/account');
   }
 
   /// PATCH /auth/me — partial profile edit. Returns the updated user map.
   /// Throws [AuthApiException] with code EMAIL_EXISTS / VALIDATION_ERROR.
+  @override
   Future<Map<String, dynamic>> updateProfile({
     String? displayName,
     String? email,
@@ -263,6 +200,7 @@ class AuthApi {
   }
 
   /// POST /auth/change-password — verifies the current password server-side.
+  @override
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
@@ -275,6 +213,7 @@ class AuthApi {
   }
 
   /// POST /auth/forgot-password — requests a 6-digit reset code.
+  @override
   Future<void> requestPasswordReset({required String email}) async {
     await send(
       'POST',
@@ -285,6 +224,7 @@ class AuthApi {
   }
 
   /// POST /auth/reset-password — consumes the emailed code (single-use).
+  @override
   Future<void> confirmPasswordReset({
     required String email,
     required String code,
@@ -300,6 +240,7 @@ class AuthApi {
 
   /// Silent /auth/refresh for [token]. Does not mutate the session store; the
   /// caller applies a successful result and clears on rejection.
+  @override
   Future<RefreshResult> refreshToken(String token) async {
     try {
       final res = await _client().post(

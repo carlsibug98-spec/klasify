@@ -3,12 +3,20 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-import '../features/auth/admin_api.dart';
-import '../features/auth/auth_api.dart';
-import '../features/auth/session_store.dart';
+import '../features/auth/application/change_password.dart';
+import '../features/auth/application/delete_account.dart';
+import '../features/auth/application/refresh_session.dart';
+import '../features/auth/application/sign_in.dart';
+import '../features/auth/application/update_profile.dart';
+import '../features/auth/data/admin_api.dart';
+import '../features/auth/data/auth_api.dart';
+import '../features/auth/data/local_account_scope.dart';
+import '../features/auth/data/session_store.dart';
+import '../features/auth/domain/entities/auth_policy.dart';
+import '../features/auth/domain/entities/auth_types.dart';
 import 'local_scope_service.dart';
 
-export '../features/auth/auth_api.dart' show AuthApiException;
+export '../features/auth/domain/entities/auth_types.dart' show AuthApiException;
 
 /// Configurable auth backend client and session controller.
 ///
@@ -22,12 +30,23 @@ class AuthService extends ChangeNotifier {
   AuthService._() {
     _api = AuthApi(session: _session, onTokenExpired: refreshSession);
     _admin = AdminApi(_api);
+    final scope = LocalAccountScope(LocalScopeService.instance);
+    _signIn = SignIn(gateway: _api, session: _session, scope: scope);
+    _refresh = RefreshSession(gateway: _api, session: _session);
+    _delete = DeleteAccount(gateway: _api, session: _session, scope: scope);
+    _updateProfile = UpdateProfile(gateway: _api, session: _session);
+    _changePassword = ChangePassword(gateway: _api, session: _session);
   }
   static final AuthService instance = AuthService._();
 
   final _session = SessionStore();
   late final AuthApi _api;
   late final AdminApi _admin;
+  late final SignIn _signIn;
+  late final RefreshSession _refresh;
+  late final DeleteAccount _delete;
+  late final UpdateProfile _updateProfile;
+  late final ChangePassword _changePassword;
 
   /// Test hook: when set, every HTTP call the service makes goes through
   /// this client instead of a fresh default one. Null in production.
@@ -69,14 +88,6 @@ class AuthService extends ChangeNotifier {
   /// The session token, or null when signed out.
   String? get token => _session.token;
 
-  /// Whether the JWT is known-expired or expires within 10 minutes. Sessions
-  /// restored without a stored expiry (old installs) count as "refresh me".
-  bool get _shouldRefresh {
-    final expiry = _session.expiresAt;
-    if (expiry == null) return true;
-    return expiry.isBefore(DateTime.now().add(const Duration(minutes: 10)));
-  }
-
   /// Load any persisted session from secure storage.
   Future<void> restoreSession() async {
     final restored = await _session.restore();
@@ -96,35 +107,28 @@ class AuthService extends ChangeNotifier {
     required String password,
     String displayName = '',
     String? department,
-  }) async {
-    final response = await _api.register(
+  }) => _completeSignIn(
+    () => _signIn.register(
       email: email,
       password: password,
       displayName: displayName,
       department: department,
-    );
-    await _applySignIn(response);
-    return response.user;
-  }
+    ),
+  );
 
   /// Sign in with email + password.
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
-  }) async {
-    final response = await _api.login(email: email, password: password);
-    await _applySignIn(response);
-    return response.user;
-  }
+  }) => _completeSignIn(
+    () => _signIn.login(email: email, password: password),
+  );
 
   /// Sign in with Google. Never creates an account: a Google identity with
   /// no Klasify account gets ACCOUNT_NOT_FOUND, so the sign-in screen can
   /// point the user at Create account instead of silently provisioning one.
-  Future<Map<String, dynamic>> signInWithGoogle() async {
-    final response = await _api.signInWithGoogle();
-    await _applySignIn(response);
-    return response.user;
-  }
+  Future<Map<String, dynamic>> signInWithGoogle() =>
+      _completeSignIn(_signIn.signInWithGoogle);
 
   /// Create an account with Google. Name and department come from the
   /// create-account form, not from the Google profile, so the user always
@@ -132,14 +136,12 @@ class AuthService extends ChangeNotifier {
   Future<Map<String, dynamic>> signUpWithGoogle({
     required String displayName,
     required String department,
-  }) async {
-    final response = await _api.signUpWithGoogle(
+  }) => _completeSignIn(
+    () => _signIn.signUpWithGoogle(
       displayName: displayName,
       department: department,
-    );
-    await _applySignIn(response);
-    return response.user;
-  }
+    ),
+  );
 
   /// Sign out: clear local session (server session expires naturally).
   Future<void> logout() async {
@@ -195,19 +197,12 @@ class AuthService extends ChangeNotifier {
   /// The local schedule stays, as decided. On a failed delete nothing changes
   /// locally and the session is kept, so the user can retry.
   Future<void> deleteAccount() async {
-    final userId = currentUser?['id'];
-    // Throws on failure before any local change.
-    await _api.deleteAccount();
-
-    // The account is gone server-side: stop treating its session as current
-    // before touching the local file, so an in-flight sync cannot re-scope to
-    // the deleted account.
-    await _session.clear();
+    final userId = await _delete.deleteServerAccount();
     notifyListeners();
 
-    if (userId is int) {
+    if (userId != null) {
       try {
-        await LocalScopeService.instance.detachAccount(userId);
+        await _delete.detach(userId);
       } catch (error, stack) {
         debugPrint('Local detach after account deletion failed: $error\n$stack');
       }
@@ -220,11 +215,7 @@ class AuthService extends ChangeNotifier {
     String? displayName,
     String? email,
   }) async {
-    final user = await _api.updateProfile(
-      displayName: displayName,
-      email: email,
-    );
-    await _session.persistUser(user);
+    final user = await _updateProfile(displayName: displayName, email: email);
     notifyListeners();
     return user;
   }
@@ -235,14 +226,10 @@ class AuthService extends ChangeNotifier {
     required String currentPassword,
     required String newPassword,
   }) async {
-    await _api.changePassword(
+    await _changePassword(
       currentPassword: currentPassword,
       newPassword: newPassword,
     );
-    // The server bumps token_version, which revokes this token as well.
-    // Drop the local session instead of leaving the UI in a half-signed-in
-    // state that fails on the next request.
-    await _session.clear();
     notifyListeners();
   }
 
@@ -270,44 +257,29 @@ class AuthService extends ChangeNotifier {
   /// and persists the new token. Returns true when a fresh token is in
   /// place; false (after clearing the session) when the token is rejected.
   Future<bool> refreshSession() async {
-    final stored = await _session.readToken();
-    if (stored == null) return false;
-    final result = await _api.refreshToken(stored);
+    final status = await _refresh();
 
-    // A logout or a new sign-in may have replaced the session while the
-    // request was in flight. A response for the old token must never be
-    // applied to the new one.
-    if (await _session.readToken() != stored) return false;
-
-    switch (result.outcome) {
-      case RefreshOutcome.unreachable:
-        // Network hiccup or server down: keep the session, callers retry.
-        return false;
-      case RefreshOutcome.rejected:
-        // Rejected (deleted user, revoked identity): end the local session.
-        await _session.clear();
-        notifyListeners();
-        return false;
-      case RefreshOutcome.refreshed:
-        try {
-          await _session.applyRefresh(
-            token: result.token!,
-            expiresIso: result.expiresAt,
-            user: result.user,
-          );
-        } catch (_) {
-          // Preserve the original contract: a storage failure is treated like
-          // any other refresh failure and keeps the existing session.
-          return false;
-        }
+    switch (status) {
+      case SessionRefreshStatus.refreshed:
         notifyListeners();
         return true;
+      case SessionRefreshStatus.rejected:
+        notifyListeners();
+        return false;
+      case SessionRefreshStatus.noSession:
+      case SessionRefreshStatus.unreachable:
+      case SessionRefreshStatus.superseded:
+      case SessionRefreshStatus.storageFailed:
+        return false;
     }
   }
 
   /// Refresh-on-expiry for callers about to send an authorized request.
   Future<void> ensureFreshToken() async {
-    if (!isLoggedIn || !_shouldRefresh) return;
+    if (!isLoggedIn ||
+        !shouldRefreshSession(_session.expiresAt, DateTime.now())) {
+      return;
+    }
     await refreshSession();
   }
 
@@ -319,34 +291,22 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Persists a successful sign-in and notifies once.
-  ///
-  /// The local scope switches first: a session saved while writes still
-  /// target the previous account's file is the bug this ordering prevents.
-  Future<void> _applySignIn(AuthResponse response) async {
-    final userId = response.user['id'];
-    if (userId is! int) {
-      throw const AuthApiException(
-        "Couldn't open the local schedule on this phone. Try again.",
-        code: 'LOCAL_SCOPE_FAILED',
-      );
-    }
-
+  /// Runs a sign-in use case, converts a scope failure, and notifies once.
+  Future<Map<String, dynamic>> _completeSignIn(
+    Future<Map<String, dynamic>> Function() run,
+  ) async {
     try {
-      await LocalScopeService.instance.ensureForUser(userId);
-    } catch (error, stack) {
-      debugPrint('Local scope switch failed: $error\n$stack');
+      final user = await run();
+      notifyListeners();
+      return user;
+    } on AuthScopeException catch (error) {
+      debugPrint(
+        'Local scope switch failed: ${error.error}\n${error.stack}',
+      );
       throw const AuthApiException(
         "Couldn't open the local schedule on this phone. Try again.",
         code: 'LOCAL_SCOPE_FAILED',
       );
     }
-
-    await _session.save(
-      token: response.token,
-      user: response.user,
-      expiresIso: response.expiresAt,
-    );
-    notifyListeners();
   }
 }
