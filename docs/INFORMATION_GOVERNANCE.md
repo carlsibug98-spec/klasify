@@ -78,3 +78,6 @@ rollback of the schema version.
 - App-level lock and SQLCipher encryption are out of scope: the app relies on
   Android's file-based encryption and the OS screen lock.
 - ICS/CSV export is out of scope; JSON export/import is the portability path.
+- Size/startup budgets, tablet/landscape layouts and localization are out of
+  scope. Klasify is a phone-first, English-only app; 680 px is the intended
+  maximum content width.

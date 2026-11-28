@@ -35,8 +35,8 @@ audit trail, provenance standard, published validation contract, and a
 documented recovery path for schema migrations.
 
 Out of scope: ICS/CSV export, app-level encryption, whole-app Clean Architecture
-migration, and new device/backend verification (both are blocked on external
-access).
+migration, new device/backend verification (both blocked on external access),
+size/startup budgets, tablet/landscape layouts, and localization.
 
 ## Requirements
 
