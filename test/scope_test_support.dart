@@ -20,7 +20,29 @@ Future<Directory> freshDatabasesPath(String prefix) async {
 /// close has to happen before teardown.
 Future<void> disposeDatabasesPath(Directory dir) async {
   await DatabaseHelper.instance.resetForTesting();
-  if (await dir.exists()) await dir.delete(recursive: true);
+  await deleteDirectoryWithRetry(dir);
+}
+
+/// Deletes a directory, retrying while a background writer still holds it.
+///
+/// A service that debounces a file write can still be flushing when the test
+/// body ends. Windows keeps the handle open until that write closes, so the
+/// first delete throws `errno = 32`; waiting briefly is enough.
+Future<void> deleteDirectoryWithRetry(
+  Directory dir, {
+  int attempts = 20,
+  Duration delay = const Duration(milliseconds: 50),
+}) async {
+  for (var attempt = 0; attempt < attempts; attempt++) {
+    if (!await dir.exists()) return;
+    try {
+      await dir.delete(recursive: true);
+      return;
+    } on FileSystemException {
+      if (attempt == attempts - 1) rethrow;
+      await Future<void>.delayed(delay);
+    }
+  }
 }
 
 /// Drops every cached connection and returns the app to the pre-login file.

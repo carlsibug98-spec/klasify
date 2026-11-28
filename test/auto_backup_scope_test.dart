@@ -34,7 +34,7 @@ void main() {
   tearDown(() async {
     await LocalScopeService.instance.resetForTesting();
     await AutoBackupService.instance.notifyScopeChanged();
-    if (await tempDir.exists()) await tempDir.delete(recursive: true);
+    if (await tempDir.exists()) await deleteDirectoryWithRetry(tempDir);
     await disposeDatabasesPath(databasesDir);
   });
 

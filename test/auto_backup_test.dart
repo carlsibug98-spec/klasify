@@ -10,6 +10,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'scope_test_support.dart';
+
 void main() {
   setUpAll(() {
     sqfliteFfiInit();
@@ -33,7 +35,7 @@ void main() {
   });
 
   tearDown(() async {
-    if (await tempDir.exists()) await tempDir.delete(recursive: true);
+    await deleteDirectoryWithRetry(tempDir);
   });
 
   ClassItem classOf(String subject, {int start = 600}) => ClassItem(

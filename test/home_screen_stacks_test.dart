@@ -99,6 +99,27 @@ void main() {
     );
   }
 
+  /// The finished class must never overlap the live or upcoming fixture.
+  ///
+  /// It used to be fixed at 07:00-08:00, which collided with the upcoming
+  /// class between about 03:52 and 05:51 and failed the overlap validator.
+  ({int doneStart, int doneEnd}) doneWindowAt(
+    ({int liveStart, int liveEnd, bool roomForNextUp}) window,
+  ) {
+    if (window.liveStart >= 70) {
+      return (
+        doneStart: window.liveStart - 70,
+        doneEnd: window.liveStart - 10,
+      );
+    }
+    // Just after midnight there is no room before the live window, so the
+    // finished row goes after the upcoming one instead.
+    return (
+      doneStart: window.liveEnd + 110,
+      doneEnd: window.liveEnd + 170,
+    );
+  }
+
   test('the live-window fixture is valid at every minute of the day', () {
     for (var nowM = 0; nowM < 1440; nowM++) {
       final window = liveWindowAt(nowM);
@@ -115,6 +136,23 @@ void main() {
           window.liveEnd + 100,
           lessThanOrEqualTo(1440),
           reason: 'nowM=$nowM',
+        );
+      }
+      final done = doneWindowAt(window);
+      expect(done.doneStart, greaterThanOrEqualTo(0), reason: 'nowM=$nowM');
+      expect(done.doneEnd, lessThanOrEqualTo(1440), reason: 'nowM=$nowM');
+      expect(done.doneEnd, greaterThan(done.doneStart), reason: 'nowM=$nowM');
+      expect(
+        done.doneEnd <= window.liveStart || done.doneStart >= window.liveEnd,
+        isTrue,
+        reason: 'nowM=$nowM: the finished class overlaps the live class',
+      );
+      if (window.roomForNextUp) {
+        expect(
+          done.doneEnd <= window.liveEnd + 40 ||
+              done.doneStart >= window.liveEnd + 100,
+          isTrue,
+          reason: 'nowM=$nowM: the finished class overlaps the upcoming class',
         );
       }
     }
@@ -137,13 +175,14 @@ void main() {
     final liveStart = window.liveStart;
     final liveEnd = window.liveEnd;
     final bool roomForNextUp = window.roomForNextUp;
+    final done = doneWindowAt(window);
     await tester.runAsync(() async {
       await db.replaceAll([]);
       final doneId = await db.insert(
         todayClass(
           'Data Structures',
-          7 * 60,
-          8 * 60,
+          done.doneStart,
+          done.doneEnd,
           room: '301',
           professor: 'Prof. Reyes',
         ),
